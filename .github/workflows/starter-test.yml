@@ -1,0 +1,32 @@
+# Builds the starter with the current core and runs its end-to-end test in a real browser.
+# Local Worker, local D1 and R2, Turnstile test keys, no email, no Cloudflare account access.
+name: starter tests
+on:
+  pull_request:
+    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", ".github/workflows/starter-test.yml"]
+  push:
+    branches-ignore: [main]
+    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", ".github/workflows/starter-test.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: starter/.node-version
+          cache: npm
+          cache-dependency-path: starter/package-lock.json
+      - run: node scripts/vendor-core.mjs starter
+      - run: npm ci
+        working-directory: starter
+      - run: npx playwright install --with-deps chromium
+        working-directory: starter
+      - run: npm run build
+        working-directory: starter
+      - run: npm run test:e2e
+        working-directory: starter

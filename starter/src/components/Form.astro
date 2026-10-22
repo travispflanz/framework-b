@@ -1,0 +1,100 @@
+---
+// Renders a form from its schema in site.config.json. Every form is a sign-up form (auto opt-in).
+// Fields may carry "step": n to split the form into steps; validation runs per step.
+import raw from "../../site.config.json";
+import { loadConfig } from "../../core/src/config.js";
+
+interface Props { id: string }
+const config = loadConfig(raw);
+const { id } = Astro.props;
+const form = config.forms[id];
+if (!form) throw new Error(`Form "${id}" is not in site.config.json`);
+
+const steps = [...new Set(form.fields.map((f) => f.step || 1))].sort((a, b) => a - b);
+const lastStep = steps[steps.length - 1];
+const fieldId = (name) => `${id}-${name}`;
+---
+<form
+  method="post"
+  action={`/api/submit/${id}`}
+  data-fb-form={id}
+  data-steps={steps.length}
+  class="grid max-w-[var(--container-prose)] gap-6"
+>
+  {form.title && <h2 class="text-2xl font-semibold">{form.title}</h2>}
+  {steps.length > 1 && (
+    <p class="text-sm text-[var(--color-ink-muted)]" data-fb-progress aria-live="polite">Step 1 of {steps.length}</p>
+  )}
+
+  {steps.map((step) => (
+    <fieldset data-fb-step={step} hidden={step !== steps[0]} class="grid gap-5 border-0 p-0">
+      <legend class="sr-only">Step {step} of {steps.length}</legend>
+      {form.fields.filter((f) => (f.step || 1) === step).map((f) => (
+        f.type === "hidden" ? <input type="hidden" name={f.name} value={f.value || ""} /> :
+        f.type === "checkbox" ? (
+          <div class="flex items-start gap-3">
+            <input type="checkbox" id={fieldId(f.name)} name={f.name} required={f.required} aria-describedby={`${fieldId(f.name)}-err`} class="mt-1 size-5" />
+            <label for={fieldId(f.name)}>{f.label}</label>
+            <p id={`${fieldId(f.name)}-err`} class="text-sm text-[var(--color-error)]" data-fb-error={f.name}></p>
+          </div>
+        ) : (
+          <div class="grid gap-1.5">
+            <label for={fieldId(f.name)} class="font-medium">{f.label}{f.required && <span aria-hidden="true"> *</span>}</label>
+            {f.hint && <p id={`${fieldId(f.name)}-hint`} class="text-sm text-[var(--color-ink-muted)]">{f.hint}</p>}
+            {f.type === "textarea" ? (
+              <textarea id={fieldId(f.name)} name={f.name} rows="5" required={f.required} maxlength={f.maxLength}
+                aria-describedby={[f.hint && `${fieldId(f.name)}-hint`, `${fieldId(f.name)}-err`].filter(Boolean).join(" ")}
+                class="rounded-[var(--radius-control)] border border-[var(--color-line)] bg-[var(--color-bg)] p-3"></textarea>
+            ) : f.type === "select" ? (
+              <select id={fieldId(f.name)} name={f.name} required={f.required} aria-describedby={`${fieldId(f.name)}-err`}
+                class="rounded-[var(--radius-control)] border border-[var(--color-line)] bg-[var(--color-bg)] p-3">
+                <option value="">Choose…</option>
+                {f.options.map((o) => <option value={o.value ?? o}>{o.label ?? o}</option>)}
+              </select>
+            ) : (
+              <input id={fieldId(f.name)} name={f.name} type={f.type} required={f.required} maxlength={f.maxLength}
+                autocomplete={f.autocomplete}
+                aria-describedby={[f.hint && `${fieldId(f.name)}-hint`, `${fieldId(f.name)}-err`].filter(Boolean).join(" ")}
+                class="rounded-[var(--radius-control)] border border-[var(--color-line)] bg-[var(--color-bg)] p-3" />
+            )}
+            <p id={`${fieldId(f.name)}-err`} class="text-sm text-[var(--color-error)]" data-fb-error={f.name}></p>
+          </div>
+        )
+      ))}
+
+      {step === lastStep && form.file.enabled && (
+        <div class="grid gap-1.5">
+          <label for={fieldId("file")} class="font-medium">{form.file.label || "Do you need to send us something?"}</label>
+          {form.file.hint && <p id={`${fieldId("file")}-hint`} class="text-sm text-[var(--color-ink-muted)]">{form.file.hint}</p>}
+          <input id={fieldId("file")} type="file" data-fb-file data-max-bytes={form.file.maxBytes} accept={form.file.types.join(",")}
+            aria-describedby={[form.file.hint && `${fieldId("file")}-hint`, `${fieldId("file")}-err`].filter(Boolean).join(" ")} />
+          <p id={`${fieldId("file")}-err`} class="text-sm text-[var(--color-error)]" data-fb-error="file"></p>
+        </div>
+      )}
+
+      {step !== lastStep ? (
+        <div class="flex gap-3">
+          {step !== steps[0] && <button type="button" data-fb-back class="rounded-[var(--radius-control)] border border-[var(--color-line)] px-5 py-3">Back</button>}
+          <button type="button" data-fb-next class="rounded-[var(--radius-control)] bg-[var(--color-accent)] px-5 py-3 font-semibold text-[var(--color-accent-ink)]">Next</button>
+        </div>
+      ) : (
+        <div class="grid gap-4">
+          <div class="cf-turnstile" data-sitekey={config.turnstile?.siteKey} data-action={id}></div>
+          <div class="flex gap-3">
+            {steps.length > 1 && <button type="button" data-fb-back class="rounded-[var(--radius-control)] border border-[var(--color-line)] px-5 py-3">Back</button>}
+            <button type="submit" class="rounded-[var(--radius-control)] bg-[var(--color-accent)] px-5 py-3 font-semibold text-[var(--color-accent-ink)]">{form.submitLabel || "Send"}</button>
+          </div>
+          <p class="text-sm text-[var(--color-ink-muted)]">{config.optIn.text}</p>
+        </div>
+      )}
+    </fieldset>
+  ))}
+
+  <div aria-hidden="true" class="absolute -left-[9999px] h-px w-px overflow-hidden">
+    <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+  </div>
+  <p role="status" aria-live="polite" data-fb-status class="text-sm"></p>
+</form>
+
+<script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script src="../scripts/form.js"></script>

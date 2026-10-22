@@ -12,3 +12,4 @@ playwright-report/
 .playwright/
 .hermes/
 .DS_Store
+starter/core/

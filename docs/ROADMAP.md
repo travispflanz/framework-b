@@ -10,7 +10,7 @@ The v1.0.0 milestone: a new idea is built from one prompt, using this repo. The 
 | 3 | Foundation docs: `SPEC.md` v2, `ONE-TIME-SETUP.md`, `TOKENS.md`, `DECISIONS.md`, branch protection | Agent | Drafts done; branch protection once the repo exists |
 | 4 | `packages/core`: Worker, forms engine (auto opt-in, file uploads with safeguards), migrations, mailers (Cloudflare, Resend, Apps Script), QA, and the `bootstrap`, `promote`, `teardown` and `editing` scripts | Agent | Worker runtime 0.1.0 in review (forms, uploads, mailers, unsubscribe, admin, migrations, `_headers`; 22 tests in workerd). Not yet: forms engine UI, QA, scripts |
 | 5 | `ops/`: site registry, account-wide backup Worker, Apps Script mailer | Agent; owner deploys the mailer | Mailer drafted |
-| 6 | `starter/`: Astro 7, wired to `packages/core`, ready for EmDash | Agent, after step 2 is agreed | Not started |
+| 6 | `starter/`: Astro 7, wired to `packages/core`, ready for EmDash | Agent, after step 2 is agreed | Skeleton in review: pages, schema-driven form engine (steps, inline errors, file upload, attribution), privacy page generated from the config, `_headers`, site agent docs. End-to-end test passes in a real browser. Not yet: design-phase tooling, QA gate, EmDash switch |
 | 7 | Self-test on every push: dummy-config build, QA gate, lead test, upload test, EmDash-on build, no real email | Agent | Not started |
 | 8 | Second test build: a new idea on `workers.dev`, from one prompt | Owner picks the idea; agent builds | Not started |
 | 9 | Promote it to launch mode on a spare domain | Owner picks the domain; agent runs `promote` | Not started |
