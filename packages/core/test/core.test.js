@@ -150,13 +150,13 @@ describe("submit", () => {
     expect((await res.json()).fields).toEqual({ name: "required", email: "invalid_email", topic: "invalid_option" });
   });
 
-  it("never resubscribes someone who unsubscribed", async () => {
+  it("re-subscribes someone who unsubscribed and then fills in a form again", async () => {
     await env.DB.prepare(
       "INSERT INTO subscribers (site, email, status, created_at, updated_at, unsubscribed_at) VALUES ('example-idea', 'gone@example.com', 'unsubscribed', 'x', 'x', 'x')",
     ).run();
-    await submit({ name: "Gone", email: "gone@example.com" });
-    const sub = await env.DB.prepare("SELECT status FROM subscribers WHERE email = 'gone@example.com'").first();
-    expect(sub.status).toBe("unsubscribed");
+    await submit({ name: "Back Again", email: "gone@example.com" });
+    const sub = await env.DB.prepare("SELECT status, unsubscribed_at, source_form FROM subscribers WHERE email = 'gone@example.com'").first();
+    expect(sub).toEqual({ status: "subscribed", unsubscribed_at: null, source_form: "contact" });
   });
 
   it("rate-limits repeated posts from one address", async () => {

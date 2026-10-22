@@ -152,11 +152,14 @@ export async function handleSubmit(request, env, ctx, config, formId) {
       request.cf?.country || null,
       now,
     ),
-    // Auto opt-in. Someone who unsubscribed stays unsubscribed; submitting a form never resubscribes them.
+    // Every form is a sign-up form. Submitting one subscribes the visitor, and re-subscribes someone who
+    // unsubscribed earlier: filling in a form that says "you'll get emails" is a new opt-in.
+    // The lead row keeps the wording shown each time, so every opt-in stays on record.
     env.DB.prepare(
       `INSERT INTO subscribers (site, email, status, source_form, consent_text, created_at, updated_at)
        VALUES (?, ?, 'subscribed', ?, ?, ?, ?)
-       ON CONFLICT (site, email) DO UPDATE SET updated_at = excluded.updated_at`,
+       ON CONFLICT (site, email) DO UPDATE SET status = 'subscribed', source_form = excluded.source_form,
+         consent_text = excluded.consent_text, updated_at = excluded.updated_at, unsubscribed_at = NULL`,
     ).bind(config.site.id, email, formId, consentText, now, now),
   ]);
 
