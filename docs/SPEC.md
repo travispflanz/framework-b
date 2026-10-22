@@ -182,6 +182,20 @@ Rules:
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library; Starwind UI supplies interactive components (test on Astro 7 first).
 - **Performance threshold:** the research proposed 0.95. The framework keeps the 90 tripwire, because a real production build measured 94–98 run to run on identical code.
 
+Owner-approved on 2026-10-22: the nine-step intake, paid reference libraries as an option only, and autopilot.
+
+Supporting tools from the second research round (`docs/research/apify-huggingface-design.md`). They feed the steps above and add no questions. All are free and **untested** until the template self-test runs them.
+
+- **P2.3 References:** the owner pastes URLs. The agent captures each one with Playwright at 390, 768 and 1440 px into private R2 under the site's brief, never into a repo. Gallery sites (Dribbble, Behance, Awwwards, Land-book) are not scraped; when the owner names a gallery entry, the agent follows it to the live site.
+- **P2.3 → P2.6 Tokens from references (trial):** `dembrandt` (MIT) extracts colours, type and spacing from liked references as a starting point for the tiles. It is adopted only after its trial passes (roadmap step 2b).
+- **P2.4 and P2.6 Directions:** each tile is written as a structured direction (style, palette, type pair, density, imagery) with a typicality score, so the three tiles are deliberately different and autopilot picks a direction on purpose instead of drifting to the average.
+- **Fonts:** chosen from the Fontsource catalog (no key; licence and subset data), OFL faces only, self-hosted.
+- **Colours:** palettes start from the owner's logo and photos (`node-vibrant`), then go through Huemint, with the CC0 `palettevault` set as the offline fallback.
+- **"Generic" list:** the top Google Fonts by popularity, the Web Almanac font shares, and the Tailwind and shadcn default tokens extend the ban list as "needs a reason in `DESIGN.md`".
+- **Proof:** testimonials come from the owner, with the reviewer's consent, linked to the public review. Reviews are never scraped from Google, Yelp or Trustpilot.
+- **QA extra (optional):** CrUX real-user speed for the reference sites, beside the site's own Lighthouse result. Needs a free Google API key.
+- **Apify:** never required. Allowed only for screenshots when the agent has no browser, with a per-run spending cap. Finding local competitors on Google Maps needs the owner's sign-off for each run.
+
 Unverified, to be checked when adopting:
 
 - the `@google/design.md` CLI version (the format is alpha)
