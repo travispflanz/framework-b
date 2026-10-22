@@ -1,0 +1,11 @@
+#!/bin/sh
+# Framework B guardrail: refuse direct pushes to main. Work on a branch and open a pull request.
+# Enable once per clone:  git config core.hooksPath .githooks
+# (Free GitHub accounts can't enforce branch protection on private repos; this hook is the free substitute.)
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "Refusing to push to main. Push a branch and open a pull request." >&2
+    exit 1
+  fi
+done
+exit 0
