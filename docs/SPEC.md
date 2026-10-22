@@ -1,0 +1,157 @@
+# Framework B specification (v2, draft)
+
+How an AI agent builds, launches and hands off a website with this framework. Written 2026-10-22. Vendor facts carry the date they were checked. The design phase (P2) is a stub until the design research lands; see `ROADMAP.md`.
+
+## 1. What a Framework B site is
+
+- **Pages:** Astro 7, mostly static, served as Workers static assets.
+- **Runtime:** one Cloudflare Worker per site, built from `packages/core`. It handles:
+  - form submissions and upload signing
+  - `/api/health`
+  - `/u` unsubscribe
+  - `/admin` behind Cloudflare Access
+- **Data:** D1 is the system of record for leads and subscribers. R2 holds uploads and backups.
+- **Protection:** Turnstile on every form, a honeypot field, an origin check, size limits, and Access on `/admin` and previews. The Worker also verifies the Access JWT itself.
+- **Deploys:** Workers Builds. A push to `main` deploys production; any other branch deploys a preview URL.
+- **State:** each site has its own repo holding `site.config.json`, `DESIGN.md`, `DECISIONS.md`, `HANDOFF.md` and `SECRETS.md` (names only). Any agent can resume a site from its repo.
+- **Owner's machine:** nothing a site needs runs there.
+
+## 2. Modes
+
+| | Idea | Launch |
+|---|---|---|
+| Address | `<site>.<account>.workers.dev` | Own domain; `www` → apex via a Single Redirect rule |
+| D1 | Shared `ideas` database, `site` column | Own `prod` + `staging` databases |
+| R2 uploads | Shared `ideas-uploads`, prefix `<site>/` | Own bucket |
+| Owner notification | Apps Script mailer (owner's Gmail) | Cloudflare `send_email` from `notify@<domain>` |
+| Lead auto-reply | Optional, Apps Script mailer | Resend on `mail.<domain>` |
+| Newsletter / drips | Not available | Optional modules; Resend on `updates.<domain>` |
+| Indexing | Owner's choice, default `noindex` | Indexed; Search Console + Bing |
+| EmDash | Optional; needs its own D1 + R2 | Optional |
+| Access | `/admin` and previews | `/admin` and previews |
+| Backups | Account-wide backup Worker | Same |
+
+Why ideas share resources: the Workers Free plan allows 10 D1 databases and 5 Cron Triggers per account ([D1 limits](https://developers.cloudflare.com/d1/platform/limits/), checked 2026-10-21).
+
+`promote` moves an idea to launch mode:
+
+1. Attach the domain.
+2. Create the site's own D1 and copy its leads over.
+3. Create its own bucket and copy its uploads.
+4. Set up Resend on `mail.<domain>` and switch the mailer.
+5. Apply the indexing choice and post the owner checklist.
+
+`teardown` first exports an idea's leads and uploads to the backup bucket. Then it deletes the idea's Worker, rows, objects and Access app.
+
+## 3. Kickoff questions
+
+Asked once, in one message. Every question has a default, so an unanswered one never blocks the run. Answers are written to `site.config.json` and `DECISIONS.md`.
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Business basics: name, one-line offer, audience, owner inbox; postal address for launch mode | Required: name, inbox |
+| 2 | Mode: idea, or launch on an existing domain or a new one | Idea |
+| 3 | Site shape: landing page, full site, or hybrid | From the design intake |
+| 4 | Forms: kinds and fields (all auto opt-in) | One contact form with a file field |
+| 5 | Lead auto-reply on or off; launch sender | Idea: off. Launch: Resend |
+| 6 | Index now? | Idea: no. Launch: yes |
+| 7 | Client editing (EmDash) | Off |
+| 8 | CRM mirror | None |
+| 9 | Newsletter or drips (launch only) | None |
+| 10 | Design intake | Required |
+
+## 4. Phases and gates
+
+| Phase | What happens | Gate |
+|---|---|---|
+| P0 Preflight | Read the account's ceilings (D1, Workers, Turnstile, Cron, Web Analytics); check tokens and GitHub access; ask kickoff questions | Stop if a ceiling is hit; offer `teardown` of an old idea |
+| P1 Repo | Create the site's new repo from `starter/`; write `DECISIONS.md`; work on a branch | |
+| P2 Design | Design intake → `DESIGN.md` → tokens → two homepage directions on the preview | **Owner picks a direction** (first one is used after 24 h) |
+| P3 Build | Pages, copy, JSON-LD, sitemap, `robots.txt`, forms from the schema, privacy page matching what is collected | |
+| P4 Data | `bootstrap`: D1, R2, Turnstile hostname, secrets, Access apps, Builds triggers; register the site in `ops/registry` | |
+| P5 Integrations | Mailers, unsubscribe, optional modules | |
+| P6 Staging | Preview behind Access; end-to-end lead and upload test with Turnstile test keys; QA gate | **Owner approves the preview** |
+| P7 Domain | Idea: none. Launch: existing zone, or check → price → approval → register | **Owner approves any purchase** |
+| P8 Go-live | Merge to `main`; QA gate on production; custom domain and redirect (launch); DMARC; Web Analytics | **QA gate passes** (automatic) |
+| P9 Handoff | `HANDOFF.md`: URLs, renewal dates, monitors, backups, secrets inventory, owner-attested checklist; release tag | |
+
+## 5. Forms
+
+- **Schema:** forms are defined as JSON in `site.config.json` and rendered by the core form engine (multi-step, inline validation, progress shown).
+- **Auto opt-in:** every form subscribes the visitor. There is no checkbox, just one line under the submit button: "You'll get occasional emails from us. Unsubscribe anytime." This is allowed under US CAN-SPAM, which requires a working unsubscribe honored within 10 business days and a postal address in marketing email ([FTC guide](https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business)). If `site.config.json` says the site targets the EU or Canada, P0 warns the owner, because GDPR and CASL generally require prior consent.
+- **What each lead stores:** consent wording, page and timestamp, plus attribution (`utm_*`, `src`, `ref`, first off-site referrer without its query string, landing page). Thank-you URLs carry no parameters.
+- **File field:** on the contact form by default ("Do you need to send us something?"). Upload flow:
+  1. The browser asks the Worker for a presigned URL, sending its Turnstile token.
+  2. The Worker checks the token, file size and type.
+  3. The browser PUTs the file to R2.
+  4. The lead row records the object key.
+  5. Abandoned objects expire through a lifecycle rule.
+  6. Previews use their own bucket.
+
+## 6. Email
+
+- **Transactional vs marketing:** confirmations are plain transactional mail: text plus minimal HTML, one unsubscribe link, no tracking, and no `List-Unsubscribe` headers. Marketing (newsletters, drips) carries `List-Unsubscribe` and `List-Unsubscribe-Post`, plus the postal address.
+- **Idea mode:** the Apps Script mailer (`ops/apps-script-mailer`). Free; 100 recipients a day per personal Gmail, shared across all idea sites.
+- **Launch mode:**
+  - Notifications use Cloudflare `send_email` to the verified owner inbox.
+  - Confirmations use Resend Free (3,000 a month, 100 a day) on `mail.<domain>`, with a sending-only key restricted to that domain.
+  - Cloudflare Email Sending is the alternative, on Workers Paid.
+- **New domains:** reputation starts at zero, and some filters block domains under 24 hours old. Tell the owner, test after 24–48 hours, and send no marketing for about 30 days.
+- **Forwarding (`hello@`):**
+  - Test from a third-party account. Gmail silently drops a message that comes back to the account that sent it.
+  - Point DMARC `rua` at a reporting service, not at a forwarded inbox.
+- **Never** submit made-up addresses to a form that sends mail. Bounces hurt the sender.
+
+## 7. Admin, backups and monitoring
+
+- **`/admin`:** lead list, lead detail (with upload links) and CSV export. Behind an Access app with email one-time PIN; the Worker also verifies the JWT. CSV cells are protected against spreadsheet formula injection.
+- **Backups:** one account-wide backup Worker, run weekly by Cron, exports every registered site's D1 to R2. D1 Time Travel covers 7 days on the Free plan.
+- **Monitoring:** `/api/health` checks the Worker and D1. Two UptimeRobot keyword monitors per launch site.
+
+## 8. QA gate
+
+Runs on the preview (P6) and on production (P8). The build fails if any check fails.
+
+- **Content check:**
+  - placeholders, `TODO`, lorem
+  - example addresses
+  - the wrong domain
+  - brand values hard-coded in code instead of read from `site.config.json`
+- **Accessibility:** axe by WCAG 2.2 AA tags, plus a structural scan (landmarks, a single `<main>`, heading order), at 375 and 1440 px.
+- **Lighthouse (mobile):**
+  - Accessibility, Best Practices and SEO: 100
+  - CLS below 0.1
+  - Performance: a 90 tripwire measured on production
+- **Design checks:** from the design phase (pending research).
+
+## 9. Client editing (EmDash)
+
+- **What it is:** EmDash is an Astro-based CMS. Content lives in D1 and R2, and editors use `/_emdash/admin` (passkey or emailed link).
+- **Editors:** invited by link, with roles (an assistant would be an Editor). Its MCP server at `/_emdash/api/mcp` also lets agents edit content.
+- **Plan needs:** the core runs on Workers Free. Sandboxed plugins need Workers Paid ($5/month). Each EmDash site needs its own D1 and R2. Pages must sit behind Workers Cache because of the Free plan's 10 ms CPU limit per request.
+- **Switching it on:** `editing on` rewires the site and moves the content in. `editing off` exports the content back to files.
+- **Untested:** both the switch and the core routes running unchanged with EmDash on.
+
+## 10. Modules (designed, not built)
+
+- **CRM mirror:**
+  - Each new lead goes on a Cloudflare Queue, and a consumer upserts it into HubSpot, Attio, Zoho or Google Sheets.
+  - The lead id is the idempotency key, so a lead never appears twice.
+  - Failures retry, and a dead-letter queue keeps leads that keep failing. D1 is never blocked by a mirror.
+- **Newsletter:** syncs `subscribers` to Resend Contacts and sends broadcasts from `updates.<domain>`, with one-click unsubscribe. Launch mode only.
+- **Drips:** a Cloudflare Workflow per lead that sends, waits, then sends again, checking the unsubscribe flag before every send. Launch mode only.
+
+## 11. Rules learned from the first live build
+
+| Rule | Evidence |
+|---|---|
+| Plain transactional confirmations, no bulk headers | Styled confirmations with `List-Unsubscribe` landed in Gmail Promotions |
+| Warn about new-domain reputation; `mail.` subdomain | Corporate inboxes spam-filtered a same-day domain |
+| Thank-you URLs carry no parameters; first off-site referrer only | Thank-you URLs nested inside later leads' referrers |
+| axe plus a structural scan | axe reported 0 violations while Lighthouse found a missing `<main>` |
+| Performance is a tripwire, not a 100 target | Production scored 94–98 run to run on identical code |
+| Replaced assets get new file names | `/assets/*` is cached for a day |
+| Branch protection on `main` | An agent committed straight to `main` |
+| List manual-only settings up front, with links | 2FA, Crawler Hints, Search Console, Bing and auto-renew had to be set by hand |
+| Wait about a minute after a build before checking production | A check 5 s after a build saw the old version |
+| Deploy token includes Zone → Analytics: Read | Needed to read Email Routing logs |
