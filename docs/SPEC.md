@@ -112,7 +112,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 
 ## 8. QA gate
 
-Runs on the preview (P6) and on production (P8). The build fails if any check fails.
+Runs on the preview (P6) and on production (P8). The build fails if any check fails. Implemented in `starter/scripts/qa.mjs` (axe-core 4.14.0, Lighthouse 13.5.0, Playwright 1.64.1). Template mode skips the placeholder rules; `--launch` adds them and the performance tripwire.
 
 - **Content check:**
   - placeholders, `TODO`, lorem

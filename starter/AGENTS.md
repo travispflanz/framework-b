@@ -14,6 +14,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - Build: `npm run build`.
 - Local run: `npm run db:migrate:local`, then `npm run dev`. Put test values in `.dev.vars` (copy `.dev.vars.example`).
 - End-to-end test: `npm run build && npm run test:e2e`. It uses a local Worker, a real browser and Turnstile test keys, and sends no email.
+- QA gate: `npm run build && npm run qa` (local), `npm run qa -- --url <preview-url>` (P6), `npm run qa -- --url https://<domain> --launch` (P8). It fails on any check; screenshots and the report land in `qa-output/`.
 - Migrations: `npm run db:migrate:remote` (never `d1 execute` with schema SQL).
 
 ## Rules
