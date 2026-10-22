@@ -1,0 +1,72 @@
+// Framework B core runtime. A site's Worker is:
+//
+//   import config from "../site.config.json";
+//   import { createWorker } from "../core/src/index.js";
+//   export default createWorker(config);
+//
+// Routes: POST /api/submit/:form, PUT /api/upload/:lead, GET /api/health, GET|POST /u, GET /admin/*.
+// Everything else is served from static assets (env.ASSETS).
+
+import { loadConfig } from "./config.js";
+import { handleSubmit, handleUpload } from "./forms.js";
+import { handleUnsubscribe } from "./unsubscribe.js";
+import { handleAdmin } from "./admin.js";
+import { json } from "./lib/util.js";
+
+export const CORE_VERSION = "0.1.0";
+
+export function createWorker(rawConfig) {
+  const config = loadConfig(rawConfig);
+
+  return {
+    async fetch(request, env, ctx) {
+      const url = new URL(request.url);
+      const path = url.pathname;
+
+      try {
+        if (path === "/api/health") {
+          const row = await env.DB.prepare("SELECT 1 AS ok").first();
+          return json({ ok: row?.ok === 1, site: config.site.id, core: CORE_VERSION });
+        }
+
+        const submit = path.match(/^\/api\/submit\/([a-z][a-z0-9-]{0,31})$/);
+        if (submit) {
+          if (request.method !== "POST") return json({ ok: false, error: "method" }, 405, { allow: "POST" });
+          return await handleSubmit(request, env, ctx, config, submit[1]);
+        }
+
+        const upload = path.match(/^\/api\/upload\/([^/]+)$/);
+        if (upload) {
+          if (request.method !== "PUT") return json({ ok: false, error: "method" }, 405, { allow: "PUT" });
+          return await handleUpload(request, env, config, upload[1]);
+        }
+
+        if (path === "/u") {
+          if (!["GET", "POST"].includes(request.method)) return new Response("Method not allowed", { status: 405 });
+          return await handleUnsubscribe(request, env, config);
+        }
+
+        if (path === "/admin" || path.startsWith("/admin/")) return await handleAdmin(request, env, config);
+
+        if (path.startsWith("/api/")) return json({ ok: false, error: "not_found" }, 404);
+      } catch (e) {
+        console.error("core", path, e);
+        return json({ ok: false, error: "server_error" }, 500);
+      }
+
+      return serveAsset(request, env, config, url);
+    },
+  };
+}
+
+async function serveAsset(request, env, config, url) {
+  const res = await env.ASSETS.fetch(request);
+  // noindex when the site chose not to be indexed (idea default) and on any non-canonical host
+  // (workers.dev twin of a launch site, preview URLs).
+  if (!config.site.indexing || url.host !== config.site.canonicalHost) {
+    const out = new Response(res.body, res);
+    out.headers.set("x-robots-tag", "noindex");
+    return out;
+  }
+  return res;
+}

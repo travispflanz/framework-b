@@ -1,0 +1,16 @@
+{
+  "name": "@framework-b/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework B runtime: forms, uploads, mail, unsubscribe and admin for a site's Cloudflare Worker.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.7",
+    "vitest": "5.0.5",
+    "wrangler": "4.152.0"
+  }
+}

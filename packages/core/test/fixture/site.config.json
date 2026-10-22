@@ -1,0 +1,23 @@
+{
+  "site": {
+    "id": "example-idea",
+    "name": "Example Co",
+    "mode": "idea",
+    "canonicalHost": "example-idea.example.workers.dev",
+    "ownerEmail": "owner@example.com",
+    "indexing": false
+  },
+  "email": { "notify": "apps-script", "confirm": "apps-script" },
+  "forms": {
+    "contact": {
+      "fields": [
+        { "name": "name", "type": "text", "label": "Name", "required": true },
+        { "name": "email", "type": "email", "label": "Email", "required": true },
+        { "name": "message", "type": "textarea", "label": "Message" },
+        { "name": "topic", "type": "select", "label": "Topic", "options": ["general", "quote"] }
+      ],
+      "file": { "maxBytes": 1048576 },
+      "thanks": "/thanks"
+    }
+  }
+}

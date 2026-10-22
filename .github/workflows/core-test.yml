@@ -1,0 +1,28 @@
+# Runs the core runtime's tests in GitHub's cloud on every pull request and every push to a branch.
+# Nothing here touches Cloudflare, sends mail, or needs secrets.
+name: core tests
+on:
+  pull_request:
+    paths: ["packages/core/**", ".github/workflows/core-test.yml"]
+  push:
+    branches-ignore: [main]
+    paths: ["packages/core/**", ".github/workflows/core-test.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: packages/core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/core/package-lock.json
+      - run: npm ci
+      - run: npm test
