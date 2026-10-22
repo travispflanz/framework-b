@@ -5,8 +5,8 @@ The v1.0.0 milestone: a new idea is built from one prompt, using this repo. The 
 | # | Step | Who | Status |
 |---|---|---|---|
 | 1 | Create the empty private repo `framework-b` and give the Claude GitHub app access | Owner | Waiting |
-| 2 | Design layer research → design phase and full design intake | Agent, then owner review | In progress |
-| 3 | Foundation docs: `SPEC.md` v2, `ONE-TIME-SETUP.md`, `TOKENS.md`, `DECISIONS.md`, branch protection | Agent | Drafts started |
+| 2 | Design layer research → design phase and full design intake | Agent, then owner review | Report done (`docs/research/design-layer.md`); awaiting owner review |
+| 3 | Foundation docs: `SPEC.md` v2, `ONE-TIME-SETUP.md`, `TOKENS.md`, `DECISIONS.md`, branch protection | Agent | Drafts done; branch protection once the repo exists |
 | 4 | `packages/core`: Worker, forms engine (auto opt-in, file uploads with safeguards), migrations, mailers (Cloudflare, Resend, Apps Script), QA, and the `bootstrap`, `promote`, `teardown` and `editing` scripts | Agent | Not started |
 | 5 | `ops/`: site registry, account-wide backup Worker, Apps Script mailer | Agent; owner deploys the mailer | Mailer drafted |
 | 6 | `starter/`: Astro 7, wired to `packages/core`, ready for EmDash | Agent, after step 2 is agreed | Not started |
