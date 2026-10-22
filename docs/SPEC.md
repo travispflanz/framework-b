@@ -1,6 +1,6 @@
 # Framework B specification (v2, draft)
 
-How an AI agent builds, launches and hands off a website with this framework. Written 2026-10-22. Vendor facts carry the date they were checked. The design phase (P2) is a stub until the design research lands; see `ROADMAP.md`.
+How an AI agent builds, launches and hands off a website with this framework. Written 2026-10-22. Vendor facts carry the date they were checked. The design phase (P2) follows `docs/research/design-layer.md`, pending owner review.
 
 ## 1. What a Framework B site is
 
@@ -66,7 +66,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 |---|---|---|
 | P0 Preflight | Read the account's ceilings (D1, Workers, Turnstile, Cron, Web Analytics); check tokens and GitHub access; ask kickoff questions | Stop if a ceiling is hit; offer `teardown` of an old idea |
 | P1 Repo | Create the site's new repo from `starter/`; write `DECISIONS.md`; work on a branch | |
-| P2 Design | Design intake → `DESIGN.md` → tokens → two homepage directions on the preview | **Owner picks a direction** (first one is used after 24 h) |
+| P2 Design | Infer → confirm → personality sliders → references → suggested styles → this-or-that pairs → three style tiles → five-word check → lock `PRODUCT.md` and `DESIGN.md` (section 12) | **Owner picks a tile** (best-scoring tile is used after 24 h, marked `inferred`) |
 | P3 Build | Pages, copy, JSON-LD, sitemap, `robots.txt`, forms from the schema, privacy page matching what is collected | |
 | P4 Data | `bootstrap`: D1, R2, Turnstile hostname, secrets, Access apps, Builds triggers; register the site in `ops/registry` | |
 | P5 Integrations | Mailers, unsubscribe, optional modules | |
@@ -117,12 +117,13 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
   - example addresses
   - the wrong domain
   - brand values hard-coded in code instead of read from `site.config.json`
-- **Accessibility:** axe by WCAG 2.2 AA tags, plus a structural scan (landmarks, a single `<main>`, heading order), at 375 and 1440 px.
+- **Rendering:** Playwright at 360, 768, 1280 and 1920 px: no horizontal scroll, no console errors, computed-style checks for banned fonts and hues.
+- **Accessibility:** axe by WCAG 2.2 AA tags, plus a structural scan (landmarks, a single `<main>`, heading order).
 - **Lighthouse (mobile):**
   - Accessibility, Best Practices and SEO: 100
   - CLS below 0.1
   - Performance: a 90 tripwire measured on production
-- **Design checks:** from the design phase (pending research).
+- **Design checks:** `design.md lint`, Stylelint token enforcement, `impeccable detect` on source and the preview URL, a copy lint, and the truth gate (no testimonial, logo, statistic or face without an owner source). Then at most three rounds of vision-model critique, keeping a revision only if it wins a side-by-side comparison both ways round.
 
 ## 9. Client editing (EmDash)
 
@@ -155,3 +156,34 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
 | List manual-only settings up front, with links | 2FA, Crawler Hints, Search Console, Bing and auto-renew had to be set by hand |
 | Wait about a minute after a build before checking production | A check 5 s after a build saw the old version |
 | Deploy token includes Zone → Analytics: Read | Needed to read Email Routing logs |
+
+## 12. Design phase (P2)
+
+Full rationale, sources and tool versions: `docs/research/design-layer.md`. Summary:
+
+| Step | Agent | Owner | Output |
+|---|---|---|---|
+| P2.0 Infer | Reads prompt, assets, existing copy; drafts `PRODUCT.md` with `inferred` flags | — | `PRODUCT.md` draft |
+| P2.1 Confirm + shape | 4–6 confirm-or-correct questions; proposes landing, full site or hybrid from the traffic source | Confirms | `PRODUCT.md`, `design/sitemap.md` |
+| P2.2 Personality | Metaphor prompt and 5–6 sliders with defaults; plays back a one-sentence brand vision | Adjusts or accepts | Slider values, vision |
+| P2.3 References | Asks for 2–3 liked and 1–2 disliked sites, with why; offers thumbnails if none | Answers or thumbs | References, anti-references |
+| P2.4 Suggest styles | 3 named styles from the menu, with industry reasons as suggestions; pre-checked avoid list | Keeps or swaps | Shortlist, avoid list |
+| P2.5 This-or-that | 4–6 two-option pairs rendered on the real headline, on an Access-gated preview | Picks A or B | `design/intake.json` |
+| P2.6 Tiles | 3 `DESIGN.md` drafts, linted, rendered as HTML style tiles | Picks or combines one | `design/tiles/` |
+| P2.7 Check | Five-word check; one refine round at most | Picks five words | Final draft |
+| P2.8 Lock | Writes `DESIGN.md` (Google format), `tokens.css` (Tailwind 4 `@theme`), image plan and credits | — | Locked contract |
+
+Rules:
+
+- **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates people or premises.
+- **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
+- **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library; Starwind UI supplies interactive components (test on Astro 7 first).
+- **Performance threshold:** the research proposed 0.95. The framework keeps the 90 tripwire, because a real production build measured 94–98 run to run on identical code.
+
+Unverified, to be checked when adopting:
+
+- the `@google/design.md` CLI version (the format is alpha)
+- Starwind on Astro 7
+- the Tailwind 4 `--color-*: initial` palette reset
+- the OKLCH scale library
+- an Impeccable per-rule waiver wrapper
