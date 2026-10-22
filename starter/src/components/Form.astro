@@ -66,7 +66,7 @@ const fieldId = (name) => `${id}-${name}`;
         <div class="grid gap-1.5">
           <label for={fieldId("file")} class="font-medium">{form.file.label || "Do you need to send us something?"}</label>
           {form.file.hint && <p id={`${fieldId("file")}-hint`} class="text-sm text-[var(--color-ink-muted)]">{form.file.hint}</p>}
-          <input id={fieldId("file")} type="file" data-fb-file data-max-bytes={form.file.maxBytes} accept={form.file.types.join(",")}
+          <input id={fieldId("file")} type="file" class="max-w-full" data-fb-file data-max-bytes={form.file.maxBytes} accept={form.file.types.join(",")}
             aria-describedby={[form.file.hint && `${fieldId("file")}-hint`, `${fieldId("file")}-err`].filter(Boolean).join(" ")} />
           <p id={`${fieldId("file")}-err`} class="text-sm text-[var(--color-error)]" data-fb-error="file"></p>
         </div>
@@ -79,7 +79,7 @@ const fieldId = (name) => `${id}-${name}`;
         </div>
       ) : (
         <div class="grid gap-4">
-          <div class="cf-turnstile" data-sitekey={config.turnstile?.siteKey} data-action={id}></div>
+          <div class="cf-turnstile max-w-full" data-sitekey={config.turnstile?.siteKey} data-action={id} data-size="flexible"></div>
           <div class="flex gap-3">
             {steps.length > 1 && <button type="button" data-fb-back class="rounded-[var(--radius-control)] border border-[var(--color-line)] px-5 py-3">Back</button>}
             <button type="submit" class="rounded-[var(--radius-control)] bg-[var(--color-accent)] px-5 py-3 font-semibold text-[var(--color-accent-ink)]">{form.submitLabel || "Send"}</button>

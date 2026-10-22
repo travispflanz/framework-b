@@ -88,8 +88,15 @@ try {
       await page.waitForTimeout(1500); // let Turnstile and late layout settle (Turnstile keeps a connection open, so no networkidle)
       const tag = `${path} @${width}`;
       check(`page ${tag}: loads`, res?.ok(), String(res?.status()));
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      check(`page ${tag}: no horizontal scroll`, overflow <= 0, `${overflow}px`);
+      const overflow = await page.evaluate(() => {
+        const px = document.documentElement.scrollWidth - window.innerWidth;
+        // Name the widest offenders, so a failure says what to fix.
+        const culprits = px > 0 ? [...document.querySelectorAll("body *")]
+          .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)
+          .slice(0, 3).map((el) => el.tagName.toLowerCase() + (el.id ? "#" + el.id : "") + (el.className && typeof el.className === "string" ? "." + el.className.split(" ")[0] : "")) : [];
+        return { px, culprits };
+      });
+      check(`page ${tag}: no horizontal scroll`, overflow.px <= 0, overflow.px > 0 ? `${overflow.px}px: ${overflow.culprits.join(", ")}` : "");
       check(`page ${tag}: no console errors`, errors.length === 0, errors.join(" | "));
       const fonts = await page.evaluate(() => [...new Set([...document.querySelectorAll("body, h1, h2, h3, p, a, button, input, label")]
         .map((el) => getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim().toLowerCase()))]);
