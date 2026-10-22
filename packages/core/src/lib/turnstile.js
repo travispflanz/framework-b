@@ -20,12 +20,14 @@ export async function verifyTurnstile(env, token, ip, expectedHostname, extraHos
     return { ok: false, reason: "turnstile_unreachable" };
   }
   if (!data || data.success !== true) return { ok: false, reason: "turnstile_failed" };
-  // A token minted on another hostname must not be accepted here. The documented test secret keys
-  // report hostname "localhost" and accept only the dummy token, so localhost is allowed with them
-  // (https://developers.cloudflare.com/turnstile/troubleshooting/testing/, checked 2026-10-22).
-  const allowed = new Set([expectedHostname, ...extraHostnames]);
-  if (isTestSecret(env.TURNSTILE_SECRET)) allowed.add("localhost");
-  if (expectedHostname && !allowed.has(data.hostname)) return { ok: false, reason: "turnstile_hostname" };
+  // A token minted on another hostname must not be accepted here. The documented test secret keys accept
+  // only the dummy token, and their reported hostname varies (docs say "localhost"; a live call on 2026-10-22
+  // returned "example.com"), so the hostname check is skipped for them.
+  // https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+  if (expectedHostname && !isTestSecret(env.TURNSTILE_SECRET)) {
+    const allowed = new Set([expectedHostname, ...extraHostnames]);
+    if (!allowed.has(data.hostname)) return { ok: false, reason: "turnstile_hostname" };
+  }
   return { ok: true };
 }
 

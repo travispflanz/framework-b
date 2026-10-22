@@ -6,6 +6,7 @@ import { loadConfig } from "../src/config.js";
 import { buildHeadersFile } from "../src/headers.js";
 import { sign } from "../src/lib/crypto.js";
 import { csv } from "../src/lib/util.js";
+import { verifyTurnstile } from "../src/lib/turnstile.js";
 
 const BASE = "https://example-idea.example.workers.dev";
 const ORIGIN = { origin: BASE };
@@ -18,7 +19,7 @@ beforeEach(() => {
     outbound.push({ url, init });
     if (url.includes("turnstile/v0/siteverify")) {
       const token = init.body.get("response");
-      return Response.json(token === "XXXX.DUMMY.TOKEN.XXXX" ? { success: true, hostname: "localhost" } : { success: false });
+      return Response.json(token === "XXXX.DUMMY.TOKEN.XXXX" ? { success: true, hostname: "example.com" } : { success: false });
     }
     if (url.startsWith("https://script.google.com/")) return Response.json({ ok: true, sent: 2, remaining: 98 });
     return new Response("unexpected outbound fetch", { status: 599 });
@@ -280,3 +281,14 @@ describe("csv", () => {
     expect(csv([["=HYPERLINK(\"x\")", "+1", "ok"]])).toBe(`"'=HYPERLINK(""x"")",'+1,ok\r\n`);
   });
 });
+
+describe("turnstile hostname", () => {
+  it("rejects a real-key token minted on another hostname, accepts its own", async () => {
+    globalThis.fetch.mockImplementation(async () => Response.json({ success: true, hostname: "other.example.net" }));
+    const real = { TURNSTILE_SECRET: "0x4AAAAAAA-real-looking-secret" };
+    expect(await verifyTurnstile(real, "tok", "", "example-idea.example.workers.dev")).toEqual({ ok: false, reason: "turnstile_hostname" });
+    globalThis.fetch.mockImplementation(async () => Response.json({ success: true, hostname: "example-idea.example.workers.dev" }));
+    expect(await verifyTurnstile(real, "tok", "", "example-idea.example.workers.dev")).toEqual({ ok: true });
+  });
+});
+
