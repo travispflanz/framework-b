@@ -10,7 +10,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "test:e2e": "node scripts/e2e.mjs",
     "deploy": "astro build && wrangler deploy",
-    "qa": "node scripts/qa.mjs"
+    "qa": "node scripts/qa.mjs",
+    "test:live-lead": "node scripts/live-lead.mjs"
   },
   "dependencies": {
     "astro": "7.4.2"

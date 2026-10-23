@@ -12,6 +12,7 @@
 //   FRAMEWORK_DIR    path to a framework-b checkout (default: this repo)
 //   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, CF_BUILDS_TOKEN, GH_SITES_TOKEN
 //   MAILER_URL, MAILER_SECRET (optional: idea-mode Apps Script mailer)
+//   UPTIMEROBOT_API_KEY (optional: homepage and health monitors)
 //
 // Every step logs what it did. Nothing secret is printed. Idempotent where it can be: shared resources
 // are reused, and it stops early if the Worker or repo already exists.
@@ -23,6 +24,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, createHash } from "node:crypto";
 import { cf, gh, env, log, ApiError } from "./lib/api.mjs";
 import { connectBuilds } from "./lib/builds.mjs";
+import { addMonitors, uptimeEnabled } from "./lib/uptime.mjs";
 
 const FRAMEWORK = resolve(process.env.FRAMEWORK_DIR || join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const ACCOUNT = env("CLOUDFLARE_ACCOUNT_ID");
@@ -196,6 +198,7 @@ const secrets = { TURNSTILE_SECRET: turnstileSecret, SIGNING_SECRET: randomBytes
 if (mailer) Object.assign(secrets, { MAILER_URL: process.env.MAILER_URL, MAILER_SECRET: process.env.MAILER_SECRET });
 const secretsFile = join(work, "secrets.json");
 writeFileSync(secretsFile, JSON.stringify(secrets), { mode: 0o600 });
+process.on("exit", () => rmSync(secretsFile, { force: true }));
 run("npx", ["wrangler", "deploy", "--secrets-file", secretsFile]);
 done("deploy", "Worker deployed with its secrets");
 
@@ -266,14 +269,30 @@ const adminStatus = (await fetch(`https://${host}/admin`, { redirect: "manual" }
 if (![302, 303, 401, 403].includes(adminStatus)) warn(`/admin answered ${adminStatus} without a login`);
 else done("admin", `locked (HTTP ${adminStatus} before login)`);
 
+// ---------- 11. Uptime monitors ----------
+// Self-test sites get them too, so the weekly self-test covers this path; teardown removes them first.
+let monitors = [];
+if (!uptimeEnabled()) {
+  warn("No UPTIMEROBOT_API_KEY: the site has no uptime monitors");
+} else {
+  try {
+    const m = await addMonitors({ name, host });
+    monitors = m.ids;
+    done("uptime monitors", `homepage and /api/health, alerting ${m.contacts} contact(s)`);
+  } catch (e) {
+    warn(`Uptime monitors not created: ${e.message}`);
+  }
+}
+
 Object.assign(summary, {
   url: `https://${host}`,
+  dir, // the built site on this machine, for follow-up checks (QA, live lead)
   admin: `https://${host}/admin`,
   repo: repo.html_url,
   worker: id,
   turnstile: turnstileMode,
   core: coreVersion,
-  ids: { workerTag: tag, adminApp: adminApp.id, previewApp: previewApp?.id || null, turnstileSitekey: widgetKey },
+  ids: { monitors, workerTag: tag, adminApp: adminApp.id, previewApp: previewApp?.id || null, turnstileSitekey: widgetKey },
 });
 writeFileSync(process.env.SUMMARY_FILE || join(process.cwd(), `site-${id}.json`), JSON.stringify(summary, null, 2));
 if (process.env.GITHUB_STEP_SUMMARY) {
