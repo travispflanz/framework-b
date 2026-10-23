@@ -6,12 +6,12 @@ How an AI agent builds, launches and hands off a website with this framework. Wr
 
 - **Pages:** Astro 7, mostly static, served as Workers static assets.
 - **Runtime:** one Cloudflare Worker per site, built from `packages/core`. It handles:
-  - form submissions and upload signing
+  - form submissions and file uploads
   - `/api/health`
   - `/u` unsubscribe
   - `/admin` behind Cloudflare Access
 - **Data:** D1 is the system of record for leads and subscribers. R2 holds uploads and backups.
-- **Protection:** Turnstile on every form, a honeypot field, an origin check, size limits, and Access on `/admin` and previews. The Worker also verifies the Access JWT itself.
+- **Protection:** Turnstile on every form, a honeypot field, an origin check, size limits, a per-IP rate limit (Workers rate limiting binding; untested on the Free plan), and Access on `/admin` and previews. The Worker also verifies the Access JWT itself.
 - **Deploys:** Workers Builds. A push to `main` deploys production; any other branch deploys a preview URL.
 - **State:** each site has its own repo holding `site.config.json`, `DESIGN.md`, `DECISIONS.md`, `HANDOFF.md` and `SECRETS.md` (names only). Any agent can resume a site from its repo.
 - **Owner's machine:** nothing a site needs runs there.
@@ -26,7 +26,7 @@ How an AI agent builds, launches and hands off a website with this framework. Wr
 | Owner notification | Apps Script mailer (owner's Gmail) | Cloudflare `send_email` from `notify@<domain>` |
 | Lead auto-reply | Optional, Apps Script mailer | Resend on `mail.<domain>` |
 | Newsletter / drips | Not available | Optional modules; Resend on `updates.<domain>` |
-| Indexing | Owner's choice, default `noindex` | Indexed; Search Console + Bing |
+| Indexing | Owner's choice, default `noindex` | Indexed; Search Console + Bing; the `workers.dev` twin is `noindex` |
 | EmDash | Optional; needs its own D1 + R2 | Optional |
 | Access | `/admin` and previews | `/admin` and previews |
 | Backups | Account-wide backup Worker | Same |
@@ -78,15 +78,17 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 ## 5. Forms
 
 - **Schema:** forms are defined as JSON in `site.config.json` and rendered by the core form engine (multi-step, inline validation, progress shown).
-- **Auto opt-in:** every form subscribes the visitor. There is no checkbox, just one line under the submit button: "You'll get occasional emails from us. Unsubscribe anytime." This is allowed under US CAN-SPAM, which requires a working unsubscribe honored within 10 business days and a postal address in marketing email ([FTC guide](https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business)). If `site.config.json` says the site targets the EU or Canada, P0 warns the owner, because GDPR and CASL generally require prior consent.
+- **Auto opt-in:** every form is a sign-up form, and submitting it subscribes the visitor. Someone who unsubscribed and later fills in a form again is subscribed again; each lead row keeps the opt-in wording shown that time.
+- **Opt-in line:** every form subscribes the visitor. There is no checkbox, just one line under the submit button: "You'll get occasional emails from us. Unsubscribe anytime." This is allowed under US CAN-SPAM, which requires a working unsubscribe honored within 10 business days and a postal address in marketing email ([FTC guide](https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business)). If `site.config.json` says the site targets the EU or Canada, P0 warns the owner, because GDPR and CASL generally require prior consent.
 - **What each lead stores:** consent wording, page and timestamp, plus attribution (`utm_*`, `src`, `ref`, first off-site referrer without its query string, landing page). Thank-you URLs carry no parameters.
-- **File field:** on the contact form by default ("Do you need to send us something?"). Upload flow:
-  1. The browser asks the Worker for a presigned URL, sending its Turnstile token.
-  2. The Worker checks the token, file size and type.
-  3. The browser PUTs the file to R2.
-  4. The lead row records the object key.
-  5. Abandoned objects expire through a lifecycle rule.
-  6. Previews use their own bucket.
+- **File field:** on the contact form by default ("Do you need to send us something?"). Upload flow (`packages/core/src/forms.js`):
+  1. The form submit carries the file's name, size and type, never the file. The Worker checks Turnstile, the size cap (10 MB by default) and the type allow-list, then saves the lead with `upload_status = pending`.
+  2. The response returns a signed, single-use upload URL that is valid for 15 minutes.
+  3. The browser PUTs the file to it. The Worker checks that the size and type match the signature, claims the ticket, and streams the body to R2 at `<site>/<lead>/<file name>`.
+  4. The lead row records the key and `stored`. A failed or abandoned upload stays visible in `/admin` as `failed` or `pending`.
+  5. Previews use their own bucket.
+  - Why not presigned R2 URLs? They need an R2 S3 API key pair as one more secret per site, plus bucket CORS. Streaming through the Worker needs neither. It also keeps CPU time low: the Workers Free plan allows 10 ms of CPU per request ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/), checked 2026-10-22), and parsing a multipart file body would spend it. Request bodies are capped at 100 MB on Free and Pro zones (same page).
+- **No JavaScript:** a plain HTML form post gets a 303 redirect to the thank-you page. The file field needs JavaScript.
 
 ## 6. Email
 
