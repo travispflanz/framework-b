@@ -72,7 +72,7 @@ Self-test on 2026-10-22 (`selftest-1022`):
 1. Creates `selftest-<run id>` with Turnstile test keys.
 2. Runs the QA gate on the live URL, from the site's own folder.
 3. Sends one lead with a file through the live form (`starter/scripts/live-lead.mjs`). That script fills any form schema.
-4. Checks the row, the subscription, the attribution and the file through the Cloudflare API (`scripts/site/verify-lead.mjs`).
+4. Checks the row, the subscription, the attribution and the file through the Cloudflare API (`scripts/site/verify-lead.mjs`). It also checks that both uptime monitors exist and report UP (`scripts/site/verify-monitors.mjs`).
 5. Always tears the site down at the end, including when an earlier step failed.
 
 R2 objects are written and deleted with Wrangler. The Builds calls follow the [Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/) (checked 2026-10-22). They need a user-scoped token (`CF_BUILDS_TOKEN`).
@@ -142,7 +142,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 
 - **`/admin`:** lead list, lead detail (with upload links) and CSV export. Behind an Access app with email one-time PIN; the Worker also verifies the JWT. CSV cells are protected against spreadsheet formula injection.
 - **Backups:** one account-wide Worker (`ops/backup-worker`) starts a Workflow every Monday from a Cron Trigger. Workflow `schedules` need a paid plan, so they are not used. It exports every D1 database in the account through D1's export API (a full SQL dump) and streams each dump to the `framework-backups` bucket, which deletes dumps after 90 days. New sites are covered with no registration step. `GET /status` on the Worker feeds an uptime keyword monitor. The monitor alerts when `"ok":true` is missing, which happens when a run fails or no run has finished in 8 days. D1 Time Travel separately covers the last 7 days on the Free plan.
-- **Monitoring:** `/api/health` checks the Worker and D1. Two UptimeRobot keyword monitors per launch site.
+- **Monitoring:** `/api/health` checks the Worker and D1. `create` gives every site two UptimeRobot keyword monitors: the homepage must show the site's name, and `/api/health` must say `"ok":true`. Both alert every active alert contact, and `teardown` deletes them first. They are skipped when the ops repo has no `UPTIMEROBOT_API_KEY` secret. The calls follow UptimeRobot's v3 OpenAPI spec (in `@uptimerobot/cli` 1.0.0, checked 2026-10-23). The Free plan allows 50 monitors at 5-minute checks ([UptimeRobot CLI page](https://uptimerobot.com/cli), checked 2026-10-23).
 
 ## 8. QA gate
 

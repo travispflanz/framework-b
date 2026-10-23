@@ -9,12 +9,13 @@
 // (the owner approved deleting self-test resources outright on 2026-10-22).
 //
 // Inputs (environment): SITE_ID, CONFIRM, DELETE_REPO, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
-// CF_BUILDS_TOKEN, GH_SITES_TOKEN.
+// CF_BUILDS_TOKEN, GH_SITES_TOKEN, UPTIMEROBOT_API_KEY (optional).
 import { appendFileSync, mkdtempSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cf, gh, env, log } from "./lib/api.mjs";
+import { removeMonitors, uptimeEnabled } from "./lib/uptime.mjs";
 
 // R2 objects go through Wrangler, the documented interface (same version the starter pins).
 const r2 = (...args) => execFileSync("npx", ["--yes", "wrangler@4.152.0", "r2", "object", ...args, "--remote"], { stdio: ["ignore", "ignore", "pipe"] });
@@ -37,6 +38,17 @@ async function dbUuid(name) {
 }
 async function query(uuid, sql, params = []) {
   return (await cf(`${A}/d1/database/${uuid}/query`, { method: "POST", body: { sql, params } }))[0]?.results || [];
+}
+
+// 0. Uptime monitors on the site's host, first, so none reports the site down while it is removed.
+if (uptimeEnabled()) {
+  try {
+    const sub = (await cf(`${A}/workers/subdomain`)).subdomain;
+    const n = await removeMonitors(`${id}.${sub}.workers.dev`);
+    if (n) did(`deleted ${n} uptime monitor(s)`);
+  } catch (e) {
+    did(`uptime monitors not removed: ${e.message}`);
+  }
 }
 
 // The backups bucket normally exists already (the backup Worker's deploy creates it); make sure.

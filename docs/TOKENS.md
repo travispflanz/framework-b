@@ -97,7 +97,7 @@ These are dashboard-only or third-party. The agent lists them with direct links,
 | Resend full-access key | Created by the owner for setup, used once, then deleted | Creates the sending domain and a domain-restricted sending key |
 | Resend sending key | Worker secret `RESEND_API_KEY` | Restricted to one sending domain |
 | Apps Script mailer secret | Worker secret `MAILER_SECRET` and the script's properties | Only Framework B Workers can call the mailer |
-| UptimeRobot API key | Agent environment | Creates monitors |
+| UptimeRobot main API key | Ops repo secret `UPTIMEROBOT_API_KEY` | `create` adds each site's two monitors, `teardown` deletes them, and the self-test checks them. Must be the account's main key: monitor-specific and read-only keys cannot create monitors ([v3 API](https://uptimerobot.com/api/v3/), checked 2026-10-23) |
 | GitHub access | Claude GitHub app (cloud sessions) or a fine-grained token (Hermes), limited to selected repos | |
 
 Each agent environment (Hermes host, cloud session) holds its own copy of the deploy token, listed by name in each site's `SECRETS.md`. Values never go in a repo.

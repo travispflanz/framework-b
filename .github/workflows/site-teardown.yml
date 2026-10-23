@@ -15,6 +15,7 @@ on:
       CLOUDFLARE_ACCOUNT_ID: { required: true }
       CF_BUILDS_TOKEN: { required: true }
       GH_SITES_TOKEN: { required: true }
+      UPTIMEROBOT_API_KEY: { required: false }
 permissions:
   contents: read
 jobs:
@@ -39,4 +40,5 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
           GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
         run: node scripts/site/teardown.mjs
