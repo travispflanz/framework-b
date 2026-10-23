@@ -10,11 +10,12 @@
     {
       "name": "framework-backups",
       "binding": "BACKUP",
-      "class_name": "BackupWorkflow",
-      // Mondays 06:17 UTC
-      "schedules": ["17 6 * * 1"]
+      "class_name": "BackupWorkflow"
     }
   ],
+  // Mondays 06:17 UTC. A Worker Cron Trigger starts the Workflow: Workflow "schedules" need a paid plan
+  // (deploy error, 2026-10-22), while Cron Triggers are on the Free plan (5 per account).
+  "triggers": { "crons": ["17 6 * * 1"] },
   "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "framework-backups" }],
   "observability": { "enabled": true }
 }

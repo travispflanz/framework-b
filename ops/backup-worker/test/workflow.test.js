@@ -39,3 +39,17 @@ it("backs up every database, keeps going past a failing one, and records the sta
   expect(status).toMatchObject({ databases: 2, succeeded: 1, failed: 1 });
   expect(status.errors[0]).toMatch(/7400 export failed/);
 });
+
+it("the weekly cron starts one run per day, named by the date", async () => {
+  const { default: worker } = await import("../src/index.js");
+  const scheduledTime = Date.parse("2026-10-26T06:17:00Z");
+  await using instance = await introspectWorkflowInstance(env.BACKUP, "backup-2026-10-26");
+  await instance.modify(async (m) => {
+    await m.disableSleeps();
+    await m.disableRetryDelays();
+  });
+  await worker.scheduled({ scheduledTime, cron: "17 6 * * 1" }, env);
+  await worker.scheduled({ scheduledTime, cron: "17 6 * * 1" }, env); // a retried trigger must not throw
+  await expect(instance.waitForStatus("errored")).resolves.not.toThrow(); // the mocked "broken" database fails
+  expect((await env.BACKUP.get("backup-2026-10-26")).id).toBe("backup-2026-10-26");
+});

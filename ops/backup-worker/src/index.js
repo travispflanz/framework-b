@@ -1,5 +1,5 @@
 // framework-backups: weekly export of every D1 database in the account to R2.
-// Runs as a Workflow on a schedule (wrangler.jsonc), so each step retries on its own and the
+// A weekly Cron Trigger (wrangler.jsonc) starts the Workflow, so each step retries on its own and the
 // 10 ms CPU limit of the Free plan applies per step, not to the whole job.
 import { WorkflowEntrypoint } from "cloudflare:workers";
 import { listDatabases, pollExport, startExport, storeDump, writeStatus } from "./backup.js";
@@ -47,6 +47,16 @@ export class BackupWorkflow extends WorkflowEntrypoint {
 }
 
 export default {
+  // Weekly Cron Trigger: start one backup run. The instance id is the date, so a retried trigger
+  // on the same day doesn't start a second run: createBatch reports an existing id as error 10405
+  // instead of throwing (https://developers.cloudflare.com/workflows/build/workers-api/#createbatch).
+  async scheduled(controller, env) {
+    const id = `backup-${new Date(controller.scheduledTime).toISOString().slice(0, 10)}`;
+    const { errors } = await env.BACKUP.createBatch({ instances: [{ id }] });
+    const real = errors.filter((e) => e.code !== 10405);
+    if (real.length) throw new Error(`backup run ${id} not started: ${real.map((e) => `${e.code} ${e.message}`).join("; ")}`);
+  },
+
   // GET /status: last run summary (counts only). Anything else: 404.
   async fetch(request, env) {
     const url = new URL(request.url);
