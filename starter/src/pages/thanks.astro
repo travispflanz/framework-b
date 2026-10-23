@@ -1,0 +1,11 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Thanks" noindex>
+  <h1 class="mb-4 text-3xl font-bold">Thanks, we got it</h1>
+  <p class="max-w-[var(--container-prose)]">We'll reply soon.</p>
+  <p id="file-failed" class="mt-4 hidden max-w-[var(--container-prose)] text-[var(--color-error)] target:block">
+    Your message was saved, but your file didn't upload. Reply to our email and attach it there.
+  </p>
+  <script is:inline>if (location.hash === "#file-failed") document.getElementById("file-failed").classList.remove("hidden");</script>
+</Base>

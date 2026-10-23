@@ -1,0 +1,31 @@
+/* Placeholder tokens. The design phase (P2.8 Lock) replaces this file with values from DESIGN.md.
+   Pages and components use only these tokens, never raw colours or sizes. */
+@import "tailwindcss";
+
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-sans);
+
+  --color-bg: #ffffff;
+  --color-surface: #f4f4f2;
+  --color-ink: #1b1b1b;
+  --color-ink-muted: #565656;
+  --color-line: #d6d6d2;
+  --color-accent: #1f5f8b;
+  --color-accent-ink: #ffffff;
+  --color-error: #a4161a;
+  --color-focus: #1f5f8b;
+
+  --radius-control: 0.375rem;
+  --radius-card: 0.5rem;
+  --spacing-gutter: 1rem;
+  --container-content: 68rem;
+  --container-prose: 40rem;
+}
+
+@layer base {
+  html { font-family: var(--font-sans); color: var(--color-ink); background: var(--color-bg); }
+  body { min-height: 100dvh; display: flex; flex-direction: column; }
+  :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+  a { color: var(--color-accent); text-underline-offset: 0.15em; }
+}

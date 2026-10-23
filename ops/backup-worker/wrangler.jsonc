@@ -1,0 +1,20 @@
+// Deployed by .github/workflows/deploy-backup-worker.yml. ACCOUNT_ID and the D1_BACKUP_TOKEN secret are set there.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "framework-backups",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "workflows": [
+    {
+      "name": "framework-backups",
+      "binding": "BACKUP",
+      "class_name": "BackupWorkflow",
+      // Mondays 06:17 UTC
+      "schedules": ["17 6 * * 1"]
+    }
+  ],
+  "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "framework-backups" }],
+  "observability": { "enabled": true }
+}

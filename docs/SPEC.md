@@ -107,12 +107,12 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 ## 7. Admin, backups and monitoring
 
 - **`/admin`:** lead list, lead detail (with upload links) and CSV export. Behind an Access app with email one-time PIN; the Worker also verifies the JWT. CSV cells are protected against spreadsheet formula injection.
-- **Backups:** one account-wide backup Worker, run weekly by Cron, exports every registered site's D1 to R2. D1 Time Travel covers 7 days on the Free plan.
+- **Backups:** one account-wide Worker (`ops/backup-worker`) runs a scheduled Workflow every Monday. It exports every D1 database in the account through D1's export API (a full SQL dump) and streams each dump to the `framework-backups` bucket, which deletes dumps after 90 days. New sites are covered with no registration step. `GET /status` on the Worker feeds an uptime monitor. D1 Time Travel separately covers the last 7 days on the Free plan.
 - **Monitoring:** `/api/health` checks the Worker and D1. Two UptimeRobot keyword monitors per launch site.
 
 ## 8. QA gate
 
-Runs on the preview (P6) and on production (P8). The build fails if any check fails.
+Runs on the preview (P6) and on production (P8). The build fails if any check fails. Implemented in `starter/scripts/qa.mjs` (axe-core 4.14.0, Lighthouse 13.5.0, Playwright 1.64.1). Template mode skips the placeholder rules; `--launch` adds them and the performance tripwire.
 
 - **Content check:**
   - placeholders, `TODO`, lorem
@@ -187,7 +187,8 @@ Owner-approved on 2026-10-22: the nine-step intake, paid reference libraries as 
 Supporting tools from the second research round (`docs/research/apify-huggingface-design.md`). They feed the steps above and add no questions. All are free and **untested** until the template self-test runs them.
 
 - **P2.3 References:** the owner pastes URLs. The agent captures each one with Playwright at 390, 768 and 1440 px into private R2 under the site's brief, never into a repo. Gallery sites (Dribbble, Behance, Awwwards, Land-book) are not scraped; when the owner names a gallery entry, the agent follows it to the live site.
-- **P2.3 → P2.6 Tokens from references (trial):** `dembrandt` (MIT) extracts colours, type and spacing from liked references as a starting point for the tiles. It is adopted only after its trial passes (roadmap step 2b).
+- **P2.3 → P2.6 Tokens from references:** `dembrandt` (MIT) extracts the palette and font families of liked references as inputs to the tiles. Its type scale is too noisy to use (trial, `docs/research/trials.md`). In launch-mode QA, its drift gate checks rendered colours, radii and font sizes against tokens exported from `DESIGN.md`.
+- **Autopilot judge:** pairwise, both orders; a pick between near-equal tiles counts as a tie. Any judge model must first pass the calibration set in `docs/research/trials.md` (at least 14 of 16 clear pairs, full order consistency).
 - **P2.4 and P2.6 Directions:** each tile is written as a structured direction (style, palette, type pair, density, imagery) with a typicality score, so the three tiles are deliberately different and autopilot picks a direction on purpose instead of drifting to the average.
 - **Fonts:** chosen from the Fontsource catalog (no key; licence and subset data), OFL faces only, self-hosted.
 - **Colours:** palettes start from the owner's logo and photos (`node-vibrant`), then go through Huemint, with the CC0 `palettevault` set as the offline fallback.

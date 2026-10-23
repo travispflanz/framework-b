@@ -1,6 +1,6 @@
 # Tokens and permissions
 
-Three Cloudflare credentials, each with the least access it needs. The token builder labels write access **Edit**; the [API permissions reference](https://developers.cloudflare.com/fundamentals/api/reference/permissions/) calls the same thing **Write**.
+Four Cloudflare credentials, each with the least access it needs. The token builder labels write access **Edit**; the [API permissions reference](https://developers.cloudflare.com/fundamentals/api/reference/permissions/) calls the same thing **Write**.
 
 "Verified" means a call needing this permission succeeded on the first live build (October 2026). "Unverified" means it is listed in Cloudflare's docs but no build has exercised it yet.
 
@@ -49,9 +49,37 @@ The Builds API rejects account-owned tokens. It needs a **user** token with:
 
 Status: verified.
 
-## 3. Registrar token (only when buying a domain)
+## 3. D1 backup token (account-owned API token)
+
+Used only by the `framework-backups` Worker (`ops/backup-worker`) to call D1's export API for every database in the account.
+
+- Account → D1 → Edit. Nothing else.
+
+It's stored once as the `D1_BACKUP_TOKEN` repository secret in `framework-b`. The deploy workflow copies it into the Worker as a secret. Status: unverified until the first scheduled run.
+
+The deploy token (section 1) also deploys this Worker and its Workflow, and creates the `framework-backups` bucket and its expiry rule. Whether Workers Scripts: Edit and Workers R2 Storage: Edit cover the Workflow and the lifecycle rule is unverified until the first deploy.
+
+## 4. Registrar token (only when buying a domain)
 
 Created by the owner when a purchase is approved, used once, then deleted.
+
+## GitHub: site repo token (fine-grained personal access token)
+
+Lets the ops repo create each site's private repo and push the starter into it.
+
+- Resource owner: the owner's account. Repository access: **All repositories**, because the token has to reach repos that don't exist yet.
+- Permissions:
+  - Administration: Read and write (create repositories)
+  - Contents: Read and write (push the starter)
+  - Workflows: Read and write (push files under `.github/workflows/`)
+  - Metadata: Read (added automatically)
+- Expiration: up to 1 year. Rotate it, then update the `GH_SITES_TOKEN` secret in the ops repo.
+
+Source: [permissions required for fine-grained tokens](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) (`POST /user/repos` needs Administration write; contents and workflow files need Contents and Workflows write), checked 2026-10-22. Status: unverified until the first site repo is created.
+
+## Where secrets live
+
+In the owner's **private** ops repo, never in `framework-b`. `framework-b` is public, so its Actions logs are public, and a run that names a site or an inbox would leak it. See `ops/ops-repo/README.md`.
 
 ## Settings no token can reach
 

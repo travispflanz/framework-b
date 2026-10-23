@@ -1,0 +1,31 @@
+---
+// Generated from what the site actually collects (site.config.json), so it can't drift from the forms.
+import Base from "../layouts/Base.astro";
+import raw from "../../site.config.json";
+import { loadConfig } from "../../core/src/config.js";
+const config = loadConfig(raw);
+const forms = Object.entries(config.forms);
+const anyFile = forms.some(([, f]) => f.file.enabled);
+const labels = [...new Set(forms.flatMap(([, f]) => f.fields.filter((x) => x.type !== "hidden").map((x) => x.label || x.name)))];
+const autoReply = config.email.confirm !== "none";
+---
+<Base title="Privacy">
+  <article class="grid max-w-[var(--container-prose)] gap-4">
+    <h1 class="text-3xl font-bold">Privacy</h1>
+    <p>{config.site.name} collects only what you send through our forms.</p>
+    <h2 class="mt-4 text-xl font-semibold">What we collect</h2>
+    <ul class="list-disc pl-6">
+      {labels.map((l) => <li>{l}</li>)}
+      {anyFile && <li>Any file you choose to send us</li>}
+      <li>The page you sent the form from, and how you found us (for example, a campaign link or the site that referred you)</li>
+    </ul>
+    <h2 class="mt-4 text-xl font-semibold">How we use it</h2>
+    <p>To answer you, and to send you occasional emails. Every form signs you up for those emails. Each one has an unsubscribe link, and you can unsubscribe at any time.{autoReply && " After you send a form, you get one confirmation email."}</p>
+    <h2 class="mt-4 text-xl font-semibold">Spam protection</h2>
+    <p>Our forms use Cloudflare Turnstile to check that a person, not a bot, is sending them.</p>
+    <h2 class="mt-4 text-xl font-semibold">Where it's kept</h2>
+    <p>Your submissions are stored with Cloudflare, which hosts this site.</p>
+    <h2 class="mt-4 text-xl font-semibold">Questions or removal</h2>
+    <p>Reply to any email from us and ask, and we'll delete what we hold about you.</p>
+  </article>
+</Base>

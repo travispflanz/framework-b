@@ -1,0 +1,27 @@
+// Filled in by `bootstrap` (P4). Placeholders in <angle brackets> must be replaced before deploy.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "example-idea",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "html_handling": "drop-trailing-slash",
+    "run_worker_first": ["/api/*", "/admin", "/admin/*", "/u"]
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "<d1-name>", "database_id": "<d1-id>", "migrations_dir": "core/migrations" }
+  ],
+  "r2_buckets": [{ "binding": "UPLOADS", "bucket_name": "<uploads-bucket>" }],
+  "ratelimits": [{ "name": "SUBMIT_LIMITER", "namespace_id": "<unique-integer>", "simple": { "limit": 5, "period": 60 } }],
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "<team>.cloudflareaccess.com",
+    "ACCESS_AUD": "<access-application-aud>"
+  },
+  "observability": { "enabled": true }
+  // Secrets (wrangler secret put): TURNSTILE_SECRET, SIGNING_SECRET, and per mailer MAILER_URL + MAILER_SECRET or RESEND_API_KEY.
+}

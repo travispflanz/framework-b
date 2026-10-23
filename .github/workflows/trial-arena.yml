@@ -1,0 +1,28 @@
+# Design trial (roadmap step 2b): fetch the CC-BY-4.0 Vibe Landing Page Arena data with HF_TOKEN
+# and keep a small sample as a short-lived artifact for the pairwise-judge calibration.
+# Attribution: datapointai/vibe-landing-page-arena (CC-BY-4.0).
+name: trial arena sample
+# Re-run by hand to calibrate another judge model (for example, a Hermes model) on the same 48 images.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "huggingface_hub==2.2.0" "pyarrow==26.0.0" "pillow==13.0.0"
+      - name: Sample the arena data
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/trial-arena-sample.py out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arena-sample
+          path: out/
+          retention-days: 1

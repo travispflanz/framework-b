@@ -1,0 +1,54 @@
+# Reusable: deploys ops/backup-worker (framework-backups), the weekly export of every D1 database in the
+# account to R2. Called from the owner's private ops repo, which holds the secrets (this repo is public
+# and holds none). Free-plan resources only: one Worker, one Workflow, one R2 bucket (90-day expiry).
+name: deploy backup worker
+on:
+  workflow_call:
+    inputs:
+      framework_repo:
+        description: owner/name of the framework repo to deploy from
+        type: string
+        required: true
+      framework_ref:
+        type: string
+        default: main
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      D1_BACKUP_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency: deploy-backup-worker
+    defaults:
+      run:
+        working-directory: ops/backup-worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ops/backup-worker/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Ensure the R2 bucket and its 90-day expiry rule exist
+        run: |
+          npx wrangler r2 bucket info framework-backups >/dev/null 2>&1 || npx wrangler r2 bucket create framework-backups
+          npx wrangler r2 bucket lifecycle list framework-backups | grep -q 'expire-d1-dumps' \
+            || npx wrangler r2 bucket lifecycle add framework-backups expire-d1-dumps d1/ --expire-days 90 --force
+      - name: Deploy
+        run: npx wrangler deploy --var "ACCOUNT_ID:$CLOUDFLARE_ACCOUNT_ID"
+      - name: Set the Worker's export token
+        env:
+          D1_BACKUP_TOKEN: ${{ secrets.D1_BACKUP_TOKEN }}
+        run: printf '%s' "$D1_BACKUP_TOKEN" | npx wrangler secret put D1_BACKUP_TOKEN

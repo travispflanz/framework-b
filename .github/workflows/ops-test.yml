@@ -1,0 +1,26 @@
+# Tests ops/ services on pull requests and branch pushes. No Cloudflare access, no secrets.
+name: ops tests
+on:
+  pull_request:
+    paths: ["ops/**", ".github/workflows/ops-test.yml"]
+  push:
+    branches-ignore: [main]
+    paths: ["ops/**", ".github/workflows/ops-test.yml"]
+permissions:
+  contents: read
+jobs:
+  backup-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ops/backup-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ops/backup-worker/package-lock.json
+      - run: npm ci
+      - run: npm test

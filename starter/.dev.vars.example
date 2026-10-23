@@ -1,0 +1,6 @@
+# Local development only. Copy to .dev.vars (git-ignored). Never commit real values.
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+SIGNING_SECRET=replace-with-at-least-32-random-characters
+MAILER_URL=
+MAILER_SECRET=
+RESEND_API_KEY=

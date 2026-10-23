@@ -1,0 +1,16 @@
+---
+// Placeholder home page. P3 (Build) replaces the content; the structure follows PRODUCT.md and DESIGN.md.
+import Base from "../layouts/Base.astro";
+import Form from "../components/Form.astro";
+import config from "../../site.config.json";
+---
+<Base>
+  <section class="grid gap-4 py-8">
+    <h1 class="max-w-[var(--container-prose)] text-4xl font-bold leading-tight">{config.site.name}</h1>
+    <p class="max-w-[var(--container-prose)] text-lg text-[var(--color-ink-muted)]">{config.site.tagline}</p>
+  </section>
+  <section aria-labelledby="contact-heading" class="py-8">
+    <h2 id="contact-heading" class="sr-only">Contact</h2>
+    <Form id="contact" />
+  </section>
+</Base>

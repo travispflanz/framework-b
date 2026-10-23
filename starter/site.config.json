@@ -1,0 +1,38 @@
+{
+  "site": {
+    "id": "example-idea",
+    "name": "Example Co",
+    "tagline": "One line that says what Example Co offers and for whom.",
+    "mode": "idea",
+    "canonicalHost": "example-idea.example.workers.dev",
+    "ownerEmail": "owner@example.com",
+    "postalAddress": "",
+    "indexing": false,
+    "locale": "en-US"
+  },
+  "turnstile": {
+    "siteKey": "1x00000000000000000000AA"
+  },
+  "email": {
+    "notify": "apps-script",
+    "confirm": "none"
+  },
+  "nav": [
+    { "label": "Home", "href": "/" },
+    { "label": "Contact", "href": "/contact" }
+  ],
+  "forms": {
+    "contact": {
+      "title": "Get in touch",
+      "submitLabel": "Send",
+      "fields": [
+        { "name": "name", "type": "text", "label": "Your name", "required": true, "autocomplete": "name" },
+        { "name": "email", "type": "email", "label": "Email", "required": true, "autocomplete": "email" },
+        { "name": "phone", "type": "tel", "label": "Phone (optional)", "autocomplete": "tel" },
+        { "name": "message", "type": "textarea", "label": "How can we help?" }
+      ],
+      "file": { "label": "Do you need to send us something?", "hint": "PDF, image, Word or Excel, up to 10 MB." },
+      "thanks": "/thanks"
+    }
+  }
+}
