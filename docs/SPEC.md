@@ -43,6 +43,29 @@ Why ideas share resources: the Workers Free plan allows 10 D1 databases and 5 Cr
 
 `teardown` first exports an idea's leads and uploads to the backup bucket. Then it deletes the idea's Worker, rows, objects and Access app.
 
+### Creating and removing an idea site (untested end to end)
+
+Both run as workflows in the owner's private ops repo, because this repo's Actions logs are public. The ops workflows call the reusable `site-create.yml` and `site-teardown.yml` here, which run `scripts/site/create.mjs` and `scripts/site/teardown.mjs`.
+
+`create` (inputs: id, name, tagline, owner inbox, Turnstile mode):
+
+1. Checks that the Worker name and the repo `site-<id>` are free.
+2. Creates the shared idea resources once: D1 `fb-ideas` and `fb-previews`, R2 `fb-ideas-uploads` and `fb-previews`.
+3. Creates a Turnstile widget on `<subdomain>.workers.dev`, which also covers preview URLs. A self-test uses the documented test keys instead.
+4. Creates the Access app on `<host>/admin`. After the first deploy it creates a second one for the Worker's previews.
+5. Copies `starter/`, vendors core, and writes `site.config.json` and `wrangler.jsonc` with real IDs. Previews get their own database and bucket.
+6. Runs migrations on both databases, builds, and deploys with the secrets.
+7. Creates the private repo `site-<id>`, pushes `main`, and connects Workers Builds: `main` deploys production, other branches deploy previews.
+8. Checks `/api/health`, and checks that `/admin` asks for a login.
+
+`teardown` refuses unless the id starts with `selftest-` or the owner types `delete <id>`.
+
+1. Exports the site's leads and subscribers to `framework-backups/teardown/<id>/`, then deletes the rows and uploaded files.
+2. Deletes the Builds triggers, both Access apps, the Turnstile widget and the Worker.
+3. Archives the repo. It deletes the repo only when asked.
+
+R2 objects are written and deleted with Wrangler. The Builds calls follow the [Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/) (checked 2026-10-22). They need a user-scoped token (`CF_BUILDS_TOKEN`).
+
 ## 3. Kickoff questions
 
 Asked once, in one message. Every question has a default, so an unanswered one never blocks the run. Answers are written to `site.config.json` and `DECISIONS.md`.
