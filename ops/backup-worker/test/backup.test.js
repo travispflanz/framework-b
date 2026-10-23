@@ -19,8 +19,15 @@ beforeEach(() => {
     if (url === `${API}/d1/database/u1/export`) {
       const body = JSON.parse(init.body);
       if (!body.current_bookmark) return Response.json({ success: true, result: { at_bookmark: "bm-1" } });
-      return Response.json({ success: true, result: { signed_url: "https://dumps.example.com/u1.sql", filename: "u1.sql" } });
+      // Shape of the live API (2026-10-23): the dump is nested under result.result.
+      return Response.json({ success: true, result: { success: true, type: "export", at_bookmark: "bm-1", status: "complete", result: { filename: "u1.sql", signed_url: "https://dumps.example.com/u1.sql" }, messages: [] } });
     }
+    if (url === `${API}/d1/database/u5/export`) {
+      // A small database: complete in the very first response.
+      return Response.json({ success: true, result: { success: true, type: "export", at_bookmark: "bm-5", status: "complete", result: { filename: "u5.sql", signed_url: "https://dumps.example.com/u5.sql" }, messages: [] } });
+    }
+    if (url === `${API}/d1/database/u6/export`) return Response.json({ success: true, result: { success: false, error: "Not currently exporting anything." } });
+    if (url === `${API}/d1/database/u7/export`) return Response.json({ success: true, result: { signed_url: "https://dumps.example.com/u7.sql", filename: "u7.sql" } });
     if (url === `${API}/d1/database/u9/export`) return Response.json({ success: true, result: { status: "active" } });
     if (url === "https://dumps.example.com/u1.sql") {
       const sql = "CREATE TABLE leads (id TEXT);\nINSERT INTO leads VALUES ('a');\n";
@@ -39,7 +46,10 @@ describe("backup steps", () => {
   });
 
   it("starts an export and polls until a signed URL is ready", async () => {
-    expect(await startExport(env, "u1")).toBe("bm-1");
+    expect(await startExport(env, "u1")).toEqual({ bookmark: "bm-1", ready: null });
+    expect(await startExport(env, "u5")).toEqual({ bookmark: "bm-5", ready: { signedUrl: "https://dumps.example.com/u5.sql", filename: "u5.sql" } });
+    await expect(pollExport(env, "u6", "bm-6")).rejects.toThrow(/Not currently exporting/);
+    expect(await pollExport(env, "u7", "bm-7")).toEqual({ signedUrl: "https://dumps.example.com/u7.sql", filename: "u7.sql" }); // the documented shape
     expect(await pollExport(env, "u9", "bm-9")).toBeNull();
     expect(await pollExport(env, "u1", "bm-1")).toEqual({ signedUrl: "https://dumps.example.com/u1.sql", filename: "u1.sql" });
   });

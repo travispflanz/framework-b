@@ -12,8 +12,9 @@ export class BackupWorkflow extends WorkflowEntrypoint {
 
     for (const db of dbs) {
       try {
-        const bookmark = await step.do(`start export ${db.uuid}`, () => startExport(this.env, db.uuid));
-        let ready = null;
+        const started = await step.do(`start export ${db.uuid}`, () => startExport(this.env, db.uuid));
+        const bookmark = started.bookmark;
+        let ready = started.ready;
         for (let i = 0; i < 30 && !ready; i++) {
           ready = await step.do(`poll export ${db.uuid} #${i}`, () => pollExport(this.env, db.uuid, bookmark));
           if (!ready) await step.sleep(`wait ${db.uuid} #${i}`, "10 seconds");
