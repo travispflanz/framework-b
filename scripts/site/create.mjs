@@ -10,6 +10,7 @@
 //   OWNER_EMAIL      owner inbox: Access login, lead notifications
 //   TURNSTILE_MODE   "real" (default) or "test" (documented test keys; self-test only)
 //   EDITING          "on" switches client editing (EmDash) on; default "off"
+//   INDEXING         "on" lets search engines index the idea site at its workers.dev address; default "off"
 //   FRAMEWORK_DIR    path to a framework-b checkout (default: this repo)
 //   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, CF_BUILDS_TOKEN, GH_SITES_TOKEN
 //   MAILER_URL, MAILER_SECRET (optional: idea-mode Apps Script mailer)
@@ -36,6 +37,7 @@ const tagline = (process.env.SITE_TAGLINE || "").trim() || `${name}.`;
 const owner = env("OWNER_EMAIL").trim().toLowerCase();
 const turnstileMode = (process.env.TURNSTILE_MODE || "real").trim();
 const editing = (process.env.EDITING || "off").trim() === "on";
+const indexing = (process.env.INDEXING || "off").trim() === "on";
 const repoName = `site-${id}`;
 const SHARED = { db: "fb-ideas", previewDb: "fb-previews", uploads: "fb-ideas-uploads", previewUploads: "fb-previews" };
 const TEST_SITEKEY = "1x00000000000000000000AA";
@@ -55,6 +57,7 @@ if (!/^[a-z][a-z0-9-]{1,40}[a-z0-9]$/.test(id)) throw new Error("SITE_ID must be
 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner)) throw new Error("OWNER_EMAIL is not an email address");
 if (!["real", "test"].includes(turnstileMode)) throw new Error('TURNSTILE_MODE must be "real" or "test"');
 if (!["on", "off"].includes((process.env.EDITING || "off").trim())) throw new Error('EDITING must be "on" or "off"');
+if (!["on", "off"].includes((process.env.INDEXING || "off").trim())) throw new Error('INDEXING must be "on" or "off"');
 
 // ---------- 1. Preconditions ----------
 const ghUser = await gh("/user");
@@ -175,7 +178,8 @@ sh("node", [join(FRAMEWORK, "scripts/vendor-core.mjs"), dir]);
 const coreVersion = readFileSync(join(dir, "core/VERSION"), "utf8").trim();
 
 const config = JSON.parse(readFileSync(join(dir, "site.config.json"), "utf8"));
-config.site = { ...config.site, id, name, tagline, mode: "idea", canonicalHost: host, ownerEmail: owner, postalAddress: "", indexing: false };
+config.site = { ...config.site, id, name, tagline, mode: "idea", canonicalHost: host, ownerEmail: owner, postalAddress: "", indexing };
+if (indexing) done("indexing", `search engines may index https://${host}; previews stay noindex`);
 config.turnstile = { siteKey };
 const mailer = process.env.MAILER_URL && process.env.MAILER_SECRET;
 config.email = { notify: mailer ? "apps-script" : "none", confirm: "none" };

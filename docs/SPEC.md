@@ -88,7 +88,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 | 3 | Site shape: landing page, full site, or hybrid | From the design intake |
 | 4 | Forms: kinds and fields (all auto opt-in) | One contact form with a file field |
 | 5 | Lead auto-reply on or off; launch sender | Idea: off. Launch: Resend |
-| 6 | Index now? | Idea: no. Launch: yes |
+| 6 | Index now? | Idea: no (`create` input `indexing: on` makes the workers.dev address indexable; previews stay noindex). Launch: yes |
 | 7 | Client editing (EmDash) | Off |
 | 8 | CRM mirror | None |
 | 9 | Newsletter or drips (launch only) | None |
