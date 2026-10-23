@@ -107,7 +107,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 ## 7. Admin, backups and monitoring
 
 - **`/admin`:** lead list, lead detail (with upload links) and CSV export. Behind an Access app with email one-time PIN; the Worker also verifies the JWT. CSV cells are protected against spreadsheet formula injection.
-- **Backups:** one account-wide backup Worker, run weekly by Cron, exports every registered site's D1 to R2. D1 Time Travel covers 7 days on the Free plan.
+- **Backups:** one account-wide Worker (`ops/backup-worker`) runs a scheduled Workflow every Monday. It exports every D1 database in the account through D1's export API (a full SQL dump) and streams each dump to the `framework-backups` bucket, which deletes dumps after 90 days. New sites are covered with no registration step. `GET /status` on the Worker feeds an uptime monitor. D1 Time Travel separately covers the last 7 days on the Free plan.
 - **Monitoring:** `/api/health` checks the Worker and D1. Two UptimeRobot keyword monitors per launch site.
 
 ## 8. QA gate

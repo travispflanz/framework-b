@@ -1,6 +1,6 @@
 # Tokens and permissions
 
-Three Cloudflare credentials, each with the least access it needs. The token builder labels write access **Edit**; the [API permissions reference](https://developers.cloudflare.com/fundamentals/api/reference/permissions/) calls the same thing **Write**.
+Four Cloudflare credentials, each with the least access it needs. The token builder labels write access **Edit**; the [API permissions reference](https://developers.cloudflare.com/fundamentals/api/reference/permissions/) calls the same thing **Write**.
 
 "Verified" means a call needing this permission succeeded on the first live build (October 2026). "Unverified" means it is listed in Cloudflare's docs but no build has exercised it yet.
 
@@ -49,7 +49,17 @@ The Builds API rejects account-owned tokens. It needs a **user** token with:
 
 Status: verified.
 
-## 3. Registrar token (only when buying a domain)
+## 3. D1 backup token (account-owned API token)
+
+Used only by the `framework-backups` Worker (`ops/backup-worker`) to call D1's export API for every database in the account.
+
+- Account → D1 → Edit. Nothing else.
+
+It's stored once as the `D1_BACKUP_TOKEN` repository secret in `framework-b`. The deploy workflow copies it into the Worker as a secret. Status: unverified until the first scheduled run.
+
+The deploy token (section 1) also deploys this Worker and its Workflow, and creates the `framework-backups` bucket and its expiry rule. Whether Workers Scripts: Edit and Workers R2 Storage: Edit cover the Workflow and the lifecycle rule is unverified until the first deploy.
+
+## 4. Registrar token (only when buying a domain)
 
 Created by the owner when a purchase is approved, used once, then deleted.
 

@@ -1,0 +1,51 @@
+# Deploys ops/backup-worker (framework-backups): a weekly export of every D1 database in the account to R2.
+# Runs on merge to main when the backup worker changes, or by hand from the Actions tab.
+# Needs repository secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (deploy) and D1_BACKUP_TOKEN
+# (a separate token with only Account → D1 → Edit, used by the Worker itself; see docs/TOKENS.md).
+# Free-plan resources only: one Worker, one Workflow, one R2 bucket (90-day expiry on dumps).
+name: deploy backup worker
+on:
+  push:
+    branches: [main]
+    paths: ["ops/backup-worker/**", ".github/workflows/deploy-backup-worker.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency: deploy-backup-worker
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ops/backup-worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ops/backup-worker/package-lock.json
+      - name: Check secrets are present
+        env:
+          D1_BACKUP_TOKEN: ${{ secrets.D1_BACKUP_TOKEN }}
+        run: |
+          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID D1_BACKUP_TOKEN; do
+            [ -n "${!v}" ] || { echo "Missing repository secret $v"; exit 1; }
+          done
+      - run: npm ci
+      - run: npm test
+      - name: Ensure the R2 bucket and its 90-day expiry rule exist
+        run: |
+          npx wrangler r2 bucket info framework-backups >/dev/null 2>&1 || npx wrangler r2 bucket create framework-backups
+          npx wrangler r2 bucket lifecycle list framework-backups | grep -q 'expire-d1-dumps' \
+            || npx wrangler r2 bucket lifecycle add framework-backups expire-d1-dumps d1/ --expire-days 90 --force
+      - name: Deploy
+        run: npx wrangler deploy --var "ACCOUNT_ID:$CLOUDFLARE_ACCOUNT_ID"
+      - name: Set the Worker's export token
+        env:
+          D1_BACKUP_TOKEN: ${{ secrets.D1_BACKUP_TOKEN }}
+        run: printf '%s' "$D1_BACKUP_TOKEN" | npx wrangler secret put D1_BACKUP_TOKEN
