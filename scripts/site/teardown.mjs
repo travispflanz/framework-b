@@ -39,6 +39,12 @@ async function query(uuid, sql, params = []) {
   return (await cf(`${A}/d1/database/${uuid}/query`, { method: "POST", body: { sql, params } }))[0]?.results || [];
 }
 
+// The backups bucket normally exists already (the backup Worker's deploy creates it); make sure.
+if (!(await cf(`${A}/r2/buckets/${SHARED.backups}`, { allow404: true }))) {
+  await cf(`${A}/r2/buckets`, { method: "POST", body: { name: SHARED.backups } });
+  did(`created R2 bucket ${SHARED.backups}`);
+}
+
 // 1. Export, then delete, this site's rows and uploaded files (production and previews).
 for (const [dbName, bucket] of [[SHARED.db, SHARED.uploads], [SHARED.previewDb, SHARED.previewUploads]]) {
   const uuid = await dbUuid(dbName);
