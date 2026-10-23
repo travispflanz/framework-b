@@ -1,0 +1,78 @@
+# Reusable: the template self-test against the real account. Creates a throwaway idea site
+# (selftest-<run id>, Turnstile test keys), runs the QA gate on its live URL, sends one lead with a
+# file and checks it in D1 and R2, then always tears the site down. Called only from the owner's
+# private ops repo, which holds the secrets.
+name: site selftest
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      owner_email: { type: string, required: true }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      CF_BUILDS_TOKEN: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency: site-selftest
+    env:
+      SITE_ID: selftest-${{ github.run_id }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
+      GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: starter/.node-version
+          cache: npm
+          cache-dependency-path: starter/package-lock.json
+      - name: Create the site
+        env:
+          SITE_NAME: Selftest Example Co
+          SITE_TAGLINE: A throwaway site that proves the framework works.
+          OWNER_EMAIL: ${{ inputs.owner_email }}
+          TURNSTILE_MODE: test
+          SUMMARY_FILE: site-summary.json
+        run: node scripts/site/create.mjs
+      - name: Read the summary
+        id: site
+        run: |
+          echo "url=$(node -p 'require("./site-summary.json").url')" >> "$GITHUB_OUTPUT"
+          echo "dir=$(node -p 'require("./site-summary.json").dir')" >> "$GITHUB_OUTPUT"
+      # The QA gate and the live lead run from the site's own folder, with its own config.
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+        working-directory: ${{ steps.site.outputs.dir }}
+      - name: QA gate on the live site
+        run: npm run qa -- --url "${{ steps.site.outputs.url }}"
+        working-directory: ${{ steps.site.outputs.dir }}
+      - name: Send a live lead with a file
+        run: npm run test:live-lead -- --url "${{ steps.site.outputs.url }}" --out "$GITHUB_WORKSPACE/live-lead.json"
+        working-directory: ${{ steps.site.outputs.dir }}
+      - name: Check the lead in D1 and R2
+        env:
+          LEAD_FILE: live-lead.json
+        run: node scripts/site/verify-lead.mjs
+      - name: Tear the site down
+        if: always()
+        run: node scripts/site/teardown.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selftest-${{ github.run_id }}
+          path: |
+            site-summary.json
+            ${{ steps.site.outputs.dir }}/qa-output/
+          if-no-files-found: ignore
+          retention-days: 14

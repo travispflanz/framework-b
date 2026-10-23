@@ -1,0 +1,16 @@
+# Caller: the live template self-test (create, QA, lead, teardown). Replace OWNER and the email.
+name: site selftest
+on:
+  workflow_dispatch:
+    inputs:
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+  schedule:
+    - cron: "23 7 * * 2" # weekly, the day after backups
+jobs:
+  selftest:
+    uses: OWNER/framework-b/.github/workflows/site-selftest.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref || 'main' }}
+      owner_email: owner@example.com
+    secrets: inherit

@@ -196,6 +196,7 @@ const secrets = { TURNSTILE_SECRET: turnstileSecret, SIGNING_SECRET: randomBytes
 if (mailer) Object.assign(secrets, { MAILER_URL: process.env.MAILER_URL, MAILER_SECRET: process.env.MAILER_SECRET });
 const secretsFile = join(work, "secrets.json");
 writeFileSync(secretsFile, JSON.stringify(secrets), { mode: 0o600 });
+process.on("exit", () => rmSync(secretsFile, { force: true }));
 run("npx", ["wrangler", "deploy", "--secrets-file", secretsFile]);
 done("deploy", "Worker deployed with its secrets");
 
@@ -268,6 +269,7 @@ else done("admin", `locked (HTTP ${adminStatus} before login)`);
 
 Object.assign(summary, {
   url: `https://${host}`,
+  dir, // the built site on this machine, for follow-up checks (QA, live lead)
   admin: `https://${host}/admin`,
   repo: repo.html_url,
   worker: id,
