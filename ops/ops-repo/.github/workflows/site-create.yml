@@ -9,6 +9,7 @@ on:
       owner_email: { description: "owner inbox", required: true }
       turnstile_mode: { description: "real, or test for self-tests", required: false, default: real }
       editing: { description: "on switches client editing (EmDash) on", required: false, default: "off" }
+      indexing: { description: "on lets search engines index the idea site", required: false, default: "off" }
       framework_ref: { description: "framework-b branch or tag", required: false, default: main }
 jobs:
   create:
@@ -22,4 +23,5 @@ jobs:
       owner_email: ${{ inputs.owner_email }}
       turnstile_mode: ${{ inputs.turnstile_mode }}
       editing: ${{ inputs.editing }}
+      indexing: ${{ inputs.indexing }}
     secrets: inherit
