@@ -1,0 +1,19 @@
+# Caller: removes a site. Leads are exported to framework-backups first. Replace OWNER with your GitHub user name.
+name: site teardown
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      confirm: { description: 'type "delete <site_id>" (not needed for selftest-* sites)', required: false, default: "" }
+      delete_repo: { description: '"yes" deletes the GitHub repo; otherwise it is archived', required: false, default: "no" }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  teardown:
+    uses: OWNER/framework-b/.github/workflows/site-teardown.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      confirm: ${{ inputs.confirm }}
+      delete_repo: ${{ inputs.delete_repo }}
+    secrets: inherit
