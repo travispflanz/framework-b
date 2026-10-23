@@ -21,6 +21,7 @@ const VALUES = { email, tel: "+1 555 0100", url: "https://example.org", number: 
 
 const { check, failed } = checker();
 const browser = await launchBrowser();
+let hasFile = false; // read before submitting: the form is gone once the thank-you page loads
 try {
   const page = await browser.newPage();
   const consoleErrors = [];
@@ -46,7 +47,8 @@ try {
     await next.click();
   }
   const fileInput = form.locator("[data-fb-file]");
-  if (await fileInput.count()) {
+  hasFile = (await fileInput.count()) > 0;
+  if (hasFile) {
     const dir = mkdtempSync(join(tmpdir(), "live-lead-"));
     writeFileSync(join(dir, "brief.pdf"), "%PDF-1.4\n% live self-test file\n");
     await fileInput.setInputFiles(join(dir, "brief.pdf"));
@@ -64,7 +66,7 @@ try {
   check("the server accepted the lead", submit?.ok === true, submit ? JSON.stringify(submit).slice(0, 200) : "no response");
   check("the visitor lands on the thank-you page", !!submit?.redirect && page.url().includes(submit.redirect) && !page.url().includes("file-failed"), page.url());
   check("no console errors", consoleErrors.length === 0, consoleErrors.join(" | "));
-  writeFileSync(out, JSON.stringify({ id: submit?.id || null, email, url: base, file: (await fileInput.count()) > 0 }, null, 2));
+  writeFileSync(out, JSON.stringify({ id: submit?.id || null, email, url: base, file: hasFile }, null, 2));
 } catch (e) {
   check("live lead run completed", false, e.message);
 } finally {
