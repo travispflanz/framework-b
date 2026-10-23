@@ -18,8 +18,9 @@ export function buildHeadersFile(rawConfig) {
   ];
   if (!config.site.indexing) {
     blocks[0].push("  X-Robots-Tag: noindex");
-  } else {
-    // Indexed launch site: keep its workers.dev twin out of search results.
+  } else if (!config.site.canonicalHost.endsWith(".workers.dev")) {
+    // Indexed launch site: keep its workers.dev twin out of search results. An indexed idea site lives on
+    // workers.dev, so there the workers.dev host is the canonical one and stays indexable.
     blocks.push(["https://:worker.:subdomain.workers.dev/*", "  X-Robots-Tag: noindex"]);
   }
   return blocks.map((b) => b.join("\n")).join("\n\n") + "\n";

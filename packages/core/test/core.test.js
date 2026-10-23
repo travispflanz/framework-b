@@ -67,11 +67,17 @@ describe("headers file", () => {
   });
   it("noindexes only the workers.dev twin of an indexed launch site", () => {
     const launch = structuredClone(config);
-    Object.assign(launch.site, { mode: "launch", indexing: true, postalAddress: "1 Example St, Example City" });
+    Object.assign(launch.site, { mode: "launch", indexing: true, canonicalHost: "www.example.com", postalAddress: "1 Example St, Example City" });
     launch.email = { notify: "none", confirm: "none" };
     const file = buildHeadersFile(launch);
     expect(file).toContain("https://:worker.:subdomain.workers.dev/*\n  X-Robots-Tag: noindex");
     expect(file.split("\n\n")[0]).not.toContain("noindex");
+  });
+  it("keeps an indexed idea site's workers.dev address indexable", () => {
+    const idea = structuredClone(config);
+    Object.assign(idea.site, { mode: "idea", indexing: true, canonicalHost: "example-idea.example.workers.dev" });
+    const file = buildHeadersFile(idea);
+    expect(file).not.toContain("noindex");
   });
 });
 
