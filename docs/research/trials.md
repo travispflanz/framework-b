@@ -18,6 +18,25 @@ Verdict: **adopt, with limits**.
 - P2.3 References: use dembrandt for the palette and font families of the owner's liked sites, as inputs to the tiles. Don't take its type scale.
 - QA (launch mode, after `DESIGN.md` is locked): export tokens with `design.md export dtcg`, then run `dembrandt --tokens … --max-off-token 0` against each page. Not wired into `qa.mjs` yet.
 
-## Pairwise judge calibration on the landing-page arena votes: not run
+## Pairwise judge calibration on human votes (run 2026-10-22)
 
-`datapointai/vibe-landing-page-arena` (CC-BY-4.0) is gated (`gated: auto`): download needs a Hugging Face account that has accepted the dataset's terms, and a read token. Blocked on the owner.
+Data: Vibe Landing Page Arena (datapointai, CC-BY-4.0), 15 human votes per pair, "aesthetic" dimension ("Which design looks better at first glance?"). The calibration set comes from one shard (`scripts/trial-arena-sample.py`, run by `.github/workflows/trial-arena.yml` with the `HF_TOKEN` secret). It has 24 pairs:
+
+- 16 clear-majority pairs (11 or more of 15 votes), to measure agreement;
+- 8 near-ties (8–7), to measure order consistency only.
+
+Each pair was shown twice, left/right swapped, at the first-screen crop, in shuffled order. The answer key was kept apart until all 48 judgments were recorded.
+
+Judge: Claude (the cloud session model, `claude-opus-5-5`), answering only "LEFT" or "RIGHT".
+
+| Measure | Result |
+|---|---|
+| Order consistency (same winner both ways round) | **24 of 24** pairs |
+| Agreement with the human majority on clear pairs | **15 of 16** pairs (30 of 32 judgments) |
+| Near-ties | 2 of 8 matched the 8–7 human side: no better than chance, as expected when humans split |
+
+Verdict: **adopt the pairwise judge for autopilot, with two rules.**
+1. Keep the "wins both ways round" rule. It costs little and catches position bias in weaker models.
+2. Treat a judge's pick between two close candidates as a tie, not a signal. When two tiles are close, autopilot uses the one closer to the intake answers, and the owner can "redo the design" later.
+
+Limits: 24 pairs from one shard, one judge model, first screens only. **Any other judge model (for example, the free models Hermes uses) must pass this same set before it judges autopilot designs**: at least 14 of 16 clear pairs and full order consistency. To re-run, dispatch `trial arena sample`, then score with the answer key.
