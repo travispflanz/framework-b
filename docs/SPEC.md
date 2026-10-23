@@ -195,7 +195,12 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
 - **Worker size:** about 19 MiB uncompressed, under the 64 MiB limit, which has applied to all plans since 2026-09-04 ([changelog](https://developers.cloudflare.com/changelog/post/2026-09-04-increased-worker-size-limit/), checked 2026-10-23).
 - **Tested:**
   - Local end-to-end test and QA gate with editing on, in CI. This includes a round trip: content written to EmDash's database shows on the home page.
-  - Live self-test with editing on (pending: the deploy token needs Workers KV Edit). It checks that the editor sits behind Access, the content model is applied to its own database, the Cron Trigger is set, and leads and uploads still work. A partial run on 2026-10-23 stopped at the KV step; teardown exported and removed the content databases it had created.
+  - Live self-test with editing on: passed on 2026-10-23. The site deployed (Worker startup 26 ms) and passed the QA gate (102 checks). The live lead and upload were stored. Both uptime monitors reported UP. The checks confirmed that:
+    - `/_emdash/admin` and EmDash's API ask for a Cloudflare Access login;
+    - the home page renders through EmDash;
+    - the content model is applied to the site's own database;
+    - the hourly Cron Trigger is set.
+    Teardown exported both content databases to `framework-backups`, then removed every editing resource: databases, buckets, KV namespaces and the Access app.
 - **Not tested yet:**
   - An editor signing in through Access and publishing in the live admin.
   - Previews of an editing site.
