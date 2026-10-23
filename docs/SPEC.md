@@ -195,7 +195,7 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
 - **Worker size:** about 19 MiB uncompressed, under the 64 MiB limit, which has applied to all plans since 2026-09-04 ([changelog](https://developers.cloudflare.com/changelog/post/2026-09-04-increased-worker-size-limit/), checked 2026-10-23).
 - **Tested:**
   - Local end-to-end test and QA gate with editing on, in CI. This includes a round trip: content written to EmDash's database shows on the home page.
-  - Live self-test with editing on: the editor sits behind Access, the content model is applied to its own database, the Cron Trigger is set, and leads and uploads still work.
+  - Live self-test with editing on (pending: the deploy token needs Workers KV Edit). It checks that the editor sits behind Access, the content model is applied to its own database, the Cron Trigger is set, and leads and uploads still work. A partial run on 2026-10-23 stopped at the KV step; teardown exported and removed the content databases it had created.
 - **Not tested yet:**
   - An editor signing in through Access and publishing in the live admin.
   - Previews of an editing site.
