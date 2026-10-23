@@ -44,8 +44,9 @@ try {
   page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
 
   // Find a page that renders this form.
-  await page.goto(`${base}/contact?utm_source=e2e&utm_medium=test`);
-  if (!(await page.locator(`form[data-fb-form="${formId}"]`).count())) await page.goto(`${base}/?utm_source=e2e&utm_medium=test`);
+  // The form is on the home page (landing pages) or on /contact.
+  await page.goto(`${base}/?utm_source=e2e&utm_medium=test`);
+  if (!(await page.locator(`form[data-fb-form="${formId}"]`).count())) await page.goto(`${base}/contact?utm_source=e2e&utm_medium=test`);
   const formEl = page.locator(`form[data-fb-form="${formId}"]`).first();
 
   const submit = formEl.locator('button[type="submit"]');
@@ -78,7 +79,14 @@ try {
   }
 
   await page.waitForFunction(() => document.querySelector('[name="cf-turnstile-response"]')?.value, null, { timeout: 30000 });
-  await submit.click();
+  const [submitResponse] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === `/api/submit/${formId}`, { timeout: 30000 }),
+    submit.click(),
+  ]);
+  // The status is read rather than the body: the page moves on to the thank-you page straight away.
+  const status = submitResponse.status();
+  const why = status === 200 ? "" : await submitResponse.text().catch(() => "");
+  check("the server accepted the submission", status === 200, `${status} ${why.slice(0, 200)}`.trim());
   await page.waitForURL((u) => u.pathname === form.thanks, { timeout: 30000 });
   check("submit redirects to the thank-you page", !page.url().includes("file-failed"), page.url());
   check("no console errors in the browser", consoleErrors.length === 0, consoleErrors.join(" | "));

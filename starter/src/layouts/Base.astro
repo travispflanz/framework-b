@@ -18,6 +18,7 @@ const org = {
   ...(config.site.postalAddress ? { address: config.site.postalAddress } : {}),
 };
 const year = new Date().getFullYear();
+const hasCta = config.nav.some((item) => item.cta);
 ---
 <!doctype html>
 <html lang={config.site.locale?.split("-")[0] || "en"}>
@@ -39,12 +40,20 @@ const year = new Date().getFullYear();
   </head>
   <body>
     <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:bg-[var(--color-bg)] focus:p-2">Skip to content</a>
-    <header class="border-b border-[var(--color-line)]">
-      <nav aria-label="Main" class="mx-auto flex max-w-[var(--container-content)] flex-wrap items-center justify-between gap-4 px-[var(--spacing-gutter)] py-4">
-        <a href="/" class="font-semibold text-[var(--color-ink)] no-underline">{config.site.name}</a>
-        <ul class="flex gap-6">
+    <header class="border-b border-[var(--color-line)] px-[var(--spacing-gutter)]">
+      <nav aria-label="Main" class="mx-auto flex min-h-16 w-full max-w-[var(--container-content)] items-center justify-between gap-4 py-3">
+        <a href="/" class="font-display text-lg font-bold text-[var(--color-ink)] no-underline">{config.site.name}</a>
+        <ul class="flex items-center gap-6">
+          {/* A nav item with "cta": true is the header button. When there is one, the other links hide on small
+              screens, so a phone shows the name and one clear action. */}
           {config.nav.map((item) => (
-            <li><a href={item.href} aria-current={Astro.url.pathname === item.href ? "page" : undefined}>{item.label}</a></li>
+            <li class:list={[{ "hidden md:block": hasCta && !item.cta }]}>
+              <a
+                href={item.href}
+                aria-current={Astro.url.pathname === item.href ? "page" : undefined}
+                class:list={["whitespace-nowrap", { "button-primary inline-flex min-h-11 items-center no-underline": item.cta }]}
+              >{item.label}</a>
+            </li>
           ))}
         </ul>
       </nav>
@@ -52,8 +61,8 @@ const year = new Date().getFullYear();
     <main id="main" class:list={["flex-1", bleed ? "w-full" : "mx-auto w-full max-w-[var(--container-content)] px-[var(--spacing-gutter)] py-10"]}>
       <slot />
     </main>
-    <footer class="border-t border-[var(--color-line)]">
-      <div class="mx-auto flex max-w-[var(--container-content)] flex-wrap justify-between gap-4 px-[var(--spacing-gutter)] py-6 text-sm text-[var(--color-ink-muted)]">
+    <footer class="border-t border-[var(--color-line)] px-[var(--spacing-gutter)]">
+      <div class="mx-auto flex max-w-[var(--container-content)] flex-wrap justify-between gap-4 py-6 text-sm text-[var(--color-ink-muted)]">
         <p>© {year} {config.site.name}{config.site.postalAddress ? ` · ${config.site.postalAddress}` : ""}</p>
         <a href="/privacy">Privacy</a>
       </div>

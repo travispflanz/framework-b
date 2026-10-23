@@ -11,6 +11,8 @@ colors:
   field: "#767672"
   accent: "#1f5f8b"
   accent-ink: "#ffffff"
+  highlight: "#e4ecf2"
+  highlight-ink: "#1b1b1b"
   error: "#a4161a"
   focus: "#1f5f8b"
 typography:
@@ -75,7 +77,6 @@ components:
   input:
     backgroundColor: "{colors.bg}"
     textColor: "{colors.ink}"
-    borderColor: "{colors.field}"
     rounded: "{rounded.control}"
 ---
 

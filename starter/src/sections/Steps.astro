@@ -12,7 +12,7 @@ const headingId = `h-${blockKey || value.anchor_id || "steps"}`;
   <ol class="grid gap-6 md:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
     {value.steps.map((s, i) => (
       <li class="card grid content-start gap-3 p-6">
-        <span class="grid size-10 place-items-center rounded-full bg-accent text-label text-accent-ink" aria-hidden="true">{i + 1}</span>
+        <span class="grid size-10 place-items-center rounded-full bg-highlight text-label text-highlight-ink" aria-hidden="true">{i + 1}</span>
         <h3 class="font-display text-title text-ink">{s.title}</h3>
         <p class="text-body text-ink-muted">{s.body}</p>
       </li>

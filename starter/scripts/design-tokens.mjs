@@ -7,7 +7,8 @@
 //
 // DESIGN.md is linted with @google/design.md (errors fail; warnings are printed). On top of the format, Framework B
 // requires a small token contract, so the section library works with any design:
-//   colors:     bg, surface, ink, ink-muted, line, field, accent, accent-ink, error, focus  (hex; see CONTRAST below)
+//   colors:     bg, surface, ink, ink-muted, line, field, accent, accent-ink, highlight, highlight-ink, error, focus
+//               (hex; see CONTRAST below). accent is for actions and links; highlight is a decorative fill.
 //   typography: display, headline, title, body, small, label  (fontFamily, fontSize, fontWeight, lineHeight)
 //   rounded:    control, card
 //   spacing:    gutter, section, content, prose  (content and prose are container widths)
@@ -21,7 +22,7 @@ import { parse } from "yaml";
 const CHECK = process.argv.includes("--check");
 const OUT = "src/styles/tokens.css";
 const REQUIRED = {
-  colors: ["bg", "surface", "ink", "ink-muted", "line", "field", "accent", "accent-ink", "error", "focus"],
+  colors: ["bg", "surface", "ink", "ink-muted", "line", "field", "accent", "accent-ink", "highlight", "highlight-ink", "error", "focus"],
   typography: ["display", "headline", "title", "body", "small", "label"],
   rounded: ["control", "card"],
   spacing: ["gutter", "section", "content", "prose"],
@@ -64,7 +65,7 @@ for (const name of REQUIRED.typography) {
 // ring 3:1 against what they sit on (1.4.11). "line" is decorative only and has no minimum.
 const CONTRAST = [
   ["ink", "bg", 4.5], ["ink", "surface", 4.5], ["ink-muted", "bg", 4.5], ["ink-muted", "surface", 4.5],
-  ["accent", "bg", 4.5], ["accent", "surface", 4.5], ["accent-ink", "accent", 4.5], ["error", "bg", 4.5],
+  ["accent", "bg", 4.5], ["accent", "surface", 4.5], ["accent-ink", "accent", 4.5], ["highlight-ink", "highlight", 4.5], ["error", "bg", 4.5],
   ["field", "bg", 3], ["focus", "bg", 3], ["focus", "surface", 3],
 ];
 const luminance = (hex) => {

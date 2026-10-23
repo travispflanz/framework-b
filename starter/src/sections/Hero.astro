@@ -9,7 +9,7 @@ const points = lines(value.points).slice(0, 4);
 ---
 <section id={value.anchor_id || undefined} class="bg-surface px-gutter py-section">
   <div class="mx-auto grid w-full max-w-content gap-6">
-    {value.eyebrow && <p class="text-label text-accent">{value.eyebrow}</p>}
+    {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}
     <h1 class="max-w-prose font-display text-display text-ink">{value.headline}</h1>
     {value.subheadline && <p class="max-w-prose text-body text-ink-muted">{value.subheadline}</p>}
     {(value.primary_cta_label || value.secondary_cta_label) && (

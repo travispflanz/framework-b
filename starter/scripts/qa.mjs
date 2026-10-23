@@ -176,14 +176,18 @@ try {
     chromeFlags: ["--headless=new", "--no-sandbox", ...(process.env.HTTPS_PROXY ? [`--proxy-server=${process.env.HTTPS_PROXY}`, "--proxy-bypass-list=localhost;127.0.0.1", "--ignore-certificate-errors"] : [])],
   });
   const scores = {};
+  const onCanonicalHost = new URL(base).host === site.site.canonicalHost;
   for (const path of pages) {
+    // "is-crawlable" only applies where a page is meant to be indexed: an indexed site, on its canonical host
+    // (local runs and previews are noindex by design), on a page that doesn't opt out (thanks, 404).
+    const html = await (await fetch(base + path)).text();
+    const pageNoindex = /<meta name="robots" content="[^"]*noindex/i.test(html);
     const { lhr } = await lighthouse(base + path, {
       port: chrome.port,
       output: "json",
       logLevel: "error",
       onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
-      // A noindex site fails "is-crawlable" by design; it's checked separately below.
-      skipAudits: site.site.indexing ? [] : ["is-crawlable"],
+      skipAudits: site.site.indexing && onCanonicalHost && !pageNoindex ? [] : ["is-crawlable"],
     });
     const c = lhr.categories;
     const cls = lhr.audits["cumulative-layout-shift"].numericValue;
