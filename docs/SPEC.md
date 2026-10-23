@@ -77,6 +77,22 @@ Self-test on 2026-10-22 (`selftest-1022`):
 
 R2 objects are written and deleted with Wrangler. The Builds calls follow the [Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/) (checked 2026-10-22). They need a user-scoped token (`CF_BUILDS_TOKEN`).
 
+### Updating a site to a newer framework
+
+A copied starter never gets later fixes on its own, so `site update` brings an existing site up to a framework ref. It runs from the ops repo (input: site id, framework ref, optional base commit) and calls the reusable `site-update.yml`, which runs `scripts/site/update.mjs`.
+
+- Starting point: `framework.lock.json` in the site, written by `create` and by every update (framework commit, core version, editing on or off). Sites made before the lock existed pass `base`, the framework commit they were created from.
+- Ownership (`scripts/site/lib/framework-files.mjs`):
+  - site-owned, never touched: `site.config.json`, `wrangler.jsonc`, `DESIGN.md`, `PRODUCT.md`, `DECISIONS.md`, `HANDOFF.md`, `SECRETS.md`, `README.md`, `src/content/`, `public/`, `.githooks/`;
+  - generated, rebuilt after the update: `tokens.css`, `seed/`, `package-lock.json`;
+  - `package.json`: merged key by key in dependencies, devDependencies and scripts;
+  - framework-owned: everything else from `starter/`, the editing overlay when editing is on (with the `prerender` line on other pages, as `editing on` writes it), and `core/`.
+- Each framework-owned file gets a three-way merge between the base version, the site's file and the new version. Unchanged files are replaced; a file equal to any framework version between base and the new ref counts as unchanged. Site-only changes are kept. Changes on both sides are merged with `git merge-file`; overlapping changes keep the site's file, write the framework's as `<file>.framework-new` and are reported as conflicts. Files the site deleted stay deleted. `core/` is always replaced.
+- Afterwards it runs `npm install`, regenerates tokens.css (and the EmDash seed when editing is on), checks the content and writes the new lock. A changed EmDash content model is reported, because a deployed content database keeps its model until it is migrated.
+- The workflow commits on `framework/update-<commit>`, tests a copy of the site with Turnstile test keys (build, e2e, QA gate), and opens a pull request in `site-<id>` with the report and the test results. The preview build runs on that branch; production changes only when the owner merges.
+
+Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. The first live run on a real site is untested.
+
 ## 3. Kickoff questions
 
 Asked once, in one message. Every question has a default, so an unanswered one never blocks the run. Answers are written to `site.config.json` and `DECISIONS.md`.

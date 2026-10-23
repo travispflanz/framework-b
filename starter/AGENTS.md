@@ -9,7 +9,13 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - `src/sections/`: the section library (hero, steps, features, pricing, area, faq, cta, form, text). `schema.js` defines every section once; the same definition checks static content, renders the Astro component and becomes an EmDash block type when editing is on.
 - `src/content/<page>.json`: a page's sections, in order. `src/pages/index.astro` renders `home.json`. Check content with `node scripts/check-content.mjs`.
 - `src/worker.js`: three lines that start the core runtime. Don't add routes here.
-- `core/`: a vendored copy of Framework B core (version in `core/VERSION`). Never edit it here; update it with a newer tagged version on a branch.
+- `core/`: a vendored copy of Framework B core (version in `core/VERSION`). Never edit it here; it is replaced by framework updates.
+- `framework.lock.json`: the Framework B commit this site was last built or updated from. Don't edit it by hand.
+
+## Framework updates
+- Framework-owned files (everything from the starter except brand, content, design contract, records and `wrangler.jsonc`) are updated by the ops repo's "Site update" workflow. It runs Framework B's `scripts/site/update.mjs` on a branch, tests a copy (build, e2e, QA with Turnstile test keys) and opens a pull request here with a report.
+- The update does a three-way merge: files the site never changed are replaced, site changes are kept and merged with the framework's, and overlapping changes are left as conflicts with the framework's version in `<file>.framework-new`. Resolve each one, delete the copy, then merge.
+- If the report says the EmDash content model changed, the deployed content database keeps its old model until it is migrated; follow EmDash's "Evolving a deployed site" guide before merging.
 - `PRODUCT.md`, `DESIGN.md`: the design contract. `DECISIONS.md`: kickoff answers. `HANDOFF.md`: URLs, monitors, renewals, owner-attested settings. `SECRETS.md`: secret names only.
 
 ## Commands
