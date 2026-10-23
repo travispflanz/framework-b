@@ -1,0 +1,20 @@
+# Tests for the site scripts that run against fixture git repos (no Cloudflare or GitHub access).
+name: site scripts tests
+on:
+  pull_request:
+    paths: ["scripts/site/**", ".github/workflows/site-scripts-test.yml"]
+  push:
+    branches-ignore: [main]
+    paths: ["scripts/site/**", ".github/workflows/site-scripts-test.yml"]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test scripts/site/test/*.test.mjs

@@ -1,0 +1,11 @@
+{
+  "//": "Exact versions of the packages client editing (EmDash) adds to a site. scripts/editing.mjs installs them; scripts/site/update.mjs keeps editing sites on them.",
+  "dependencies": {
+    "emdash": "1.3.1",
+    "@emdash-cms/cloudflare": "1.3.1",
+    "@astrojs/cloudflare": "14.4.2",
+    "@astrojs/react": "7.1.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

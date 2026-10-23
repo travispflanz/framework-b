@@ -1,0 +1,17 @@
+# Caller: brings a site up to a newer framework version (a pull request in the site's repo). Replace OWNER.
+name: site update
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+      base: { description: "only for a site with no framework.lock.json: the framework commit it was made from", required: false, default: "" }
+jobs:
+  update:
+    uses: OWNER/framework-b/.github/workflows/site-update.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      base: ${{ inputs.base }}
+    secrets: inherit
