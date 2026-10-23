@@ -6,7 +6,7 @@ The v1.0.0 milestone: a new idea is built from one prompt, using this repo. The 
 |---|---|---|---|
 | 1 | Create the empty private repo `framework-b` and give the Claude GitHub app access | Owner | Done 2026-10-22 |
 | 2 | Design layer research → design phase and full design intake | Agent, then owner review | Approved by owner 2026-10-22 (`docs/research/design-layer.md`, `docs/research/apify-huggingface-design.md`) |
-| 2b | Design trials: calibrate the autopilot judge on the CC-BY landing-page arena votes; run `dembrandt` on 5 reference sites | Agent | Not started |
+| 2b | Design trials: calibrate the autopilot judge on the CC-BY landing-page arena votes; run `dembrandt` on 5 reference sites | Agent; owner supplies a Hugging Face token for the arena data | dembrandt: done, adopt with limits (`docs/research/trials.md`). Arena: blocked on a Hugging Face token |
 | 3 | Foundation docs: `SPEC.md` v2, `ONE-TIME-SETUP.md`, `TOKENS.md`, `DECISIONS.md`, branch protection | Agent | Drafts done; branch protection once the repo exists |
 | 4 | `packages/core`: Worker, forms engine (auto opt-in, file uploads with safeguards), migrations, mailers (Cloudflare, Resend, Apps Script), QA, and the `bootstrap`, `promote`, `teardown` and `editing` scripts | Agent | Worker runtime 0.1.0 in review (forms, uploads, mailers, unsubscribe, admin, migrations, `_headers`; 22 tests in workerd). Not yet: forms engine UI, QA, scripts |
 | 5 | `ops/`: site registry, account-wide backup Worker, Apps Script mailer | Agent; owner deploys the mailer | Mailer drafted |
