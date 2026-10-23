@@ -16,6 +16,14 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - End-to-end test: `npm run build && npm run test:e2e`. It uses a local Worker, a real browser and Turnstile test keys, and sends no email.
 - QA gate: `npm run build && npm run qa` (local), `npm run qa -- --url <preview-url>` (P6), `npm run qa -- --url https://<domain> --launch` (P8). It fails on any check; screenshots and the report land in `qa-output/`.
 - Migrations: `npm run db:migrate:remote` (never `d1 execute` with schema SQL).
+- Client editing (EmDash): `node scripts/editing.mjs on` switches it on (see "Client editing" below). Local tests of an editing build first need `node scripts/fill-test-placeholders.mjs` if the site has no real resources yet.
+
+## Client editing (EmDash)
+- When `site.config.json` has `"editing": { "enabled": true }`, pages that read EmDash content render on request (cached in Workers Cache); every other page is prerendered (`export const prerender = true`).
+- Editors use `/_emdash/admin`, behind Cloudflare Access (the `<id> editor` application). To add an editor, add their email to that application's policy. The first person to open the admin runs the setup wizard; choosing the sample content brings in the site's current copy from `seed/seed.json`.
+- Content lives in its own D1 database (`CMS_DB`) and media bucket (`MEDIA`), separate from leads (`DB`, `UPLOADS`). Previews use their own copies of both.
+- The content model is in `seed/seed.json`. To change a deployed site's model, follow EmDash's "Evolving a deployed site" guide; don't edit the seed and expect it to re-apply.
+- The hourly Cron Trigger runs EmDash's scheduled publishing and maintenance. The Free plan allows 5 Cron Triggers per account.
 
 ## Rules
 - Work on a branch and open a pull request. `main` deploys production immediately.

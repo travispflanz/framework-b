@@ -36,14 +36,17 @@ function htmlFiles(dir) {
     e.isDirectory() ? htmlFiles(join(dir, e.name)) : e.name.endsWith(".html") ? [join(dir, e.name)] : []);
 }
 const pagePath = (file) => {
-  const p = "/" + relative("dist", file).replace(/\\/g, "/").replace(/(index)?\.html$/, "");
+  const p = "/" + relative(DIST, file).replace(/\\/g, "/").replace(/(index)?\.html$/, "");
   return p.length > 1 ? p.replace(/\/$/, "") : "/";
 };
 const textOf = (html) => html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ");
 
 // ---------- 1. Content check (built HTML and source) ----------
-const files = htmlFiles("dist");
-const pages = files.map(pagePath).filter((p) => p !== "/404");
+// Static builds put pages in dist/; with client editing on, prerendered pages are in dist/client/ and the
+// EmDash-driven home page is rendered on request, so it is added to the browser checks by hand.
+const DIST = existsSync("dist/client") ? "dist/client" : "dist";
+const files = htmlFiles(DIST);
+const pages = [...new Set([...(DIST === "dist/client" ? ["/"] : []), ...files.map(pagePath)])].filter((p) => p !== "/404");
 for (const file of files) {
   const html = readFileSync(file, "utf8");
   const text = textOf(html);

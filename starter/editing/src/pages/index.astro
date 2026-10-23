@@ -1,0 +1,26 @@
+---
+// Home page with client editing on (installed from editing/ by scripts/editing.mjs). The headline, intro
+// and body come from the EmDash page "home".
+// Until an editor publishes it, the page falls back to the name and tagline in site.config.json.
+import { getEmDashEntry } from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+import Form from "../components/Form.astro";
+import config from "../../site.config.json";
+
+const { entry: page, cacheHint } = await getEmDashEntry("pages", "home");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const headline = page?.data.headline || config.site.name;
+const intro = page?.data.intro || config.site.tagline;
+---
+<Base>
+  <section class="grid gap-4 py-8">
+    <h1 class="max-w-[var(--container-prose)] text-4xl font-bold leading-tight">{headline}</h1>
+    <p class="max-w-[var(--container-prose)] text-lg text-[var(--color-ink-muted)]">{intro}</p>
+    {page?.data.content && <div class="prose max-w-[var(--container-prose)]"><PortableText value={page.data.content} /></div>}
+  </section>
+  <section aria-labelledby="contact-heading" class="py-8">
+    <h2 id="contact-heading" class="sr-only">Contact</h2>
+    <Form id="contact" />
+  </section>
+</Base>

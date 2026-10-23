@@ -1,4 +1,5 @@
-# Builds the starter with the current core, runs its end-to-end test in a real browser, then the QA gate.
+# Builds the starter with the current core, runs its end-to-end test in a real browser, then the QA gate,
+# twice: as a static site, and with client editing (EmDash) switched on.
 # Local Worker, local D1 and R2, Turnstile test keys, no email, no Cloudflare account access.
 name: starter tests
 on:
@@ -13,7 +14,12 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        editing: ['off', 'on']
+    name: e2e (editing ${{ matrix.editing }})
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,6 +32,12 @@ jobs:
         working-directory: starter
       - run: npx playwright install --with-deps chromium
         working-directory: starter
+      - name: Switch client editing on
+        if: matrix.editing == 'on'
+        run: |
+          node scripts/editing.mjs on
+          node scripts/fill-test-placeholders.mjs
+        working-directory: starter
       - run: npm run build
         working-directory: starter
       - run: npm run test:e2e
@@ -35,6 +47,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qa-output
+          name: qa-output-editing-${{ matrix.editing }}
           path: starter/qa-output/
           retention-days: 14

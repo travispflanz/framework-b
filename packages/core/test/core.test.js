@@ -292,3 +292,17 @@ describe("turnstile hostname", () => {
   });
 });
 
+
+describe("client editing (EmDash) fallback", () => {
+  it("sends non-core routes to the fallback and keeps core routes and the noindex rule", async () => {
+    const { createWorker } = await import("../src/index.js");
+    const seen = [];
+    const w = createWorker(config, { fallback: async (req) => { seen.push(new URL(req.url).pathname); return new Response("from emdash", { headers: { "content-type": "text/html" } }); } });
+    const page = await w.fetch(new Request("https://example-idea.example.workers.dev/_emdash/admin"), env, createExecutionContext());
+    expect(await page.text()).toBe("from emdash");
+    expect(page.headers.get("x-robots-tag")).toBe("noindex");
+    const health = await w.fetch(new Request("https://example-idea.example.workers.dev/api/health"), env, createExecutionContext());
+    expect((await health.json()).ok).toBe(true);
+    expect(seen).toEqual(["/_emdash/admin"]);
+  });
+});

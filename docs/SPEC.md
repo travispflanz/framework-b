@@ -27,7 +27,7 @@ How an AI agent builds, launches and hands off a website with this framework. Wr
 | Lead auto-reply | Optional, Apps Script mailer | Resend on `mail.<domain>` |
 | Newsletter / drips | Not available | Optional modules; Resend on `updates.<domain>` |
 | Indexing | Owner's choice, default `noindex` | Indexed; Search Console + Bing; the `workers.dev` twin is `noindex` |
-| EmDash | Optional; needs its own D1 + R2 | Optional |
+| EmDash | Optional; its own D1, R2 bucket, KV namespace and Cron Trigger | Optional |
 | Access | `/admin` and previews | `/admin` and previews |
 | Backups | Account-wide backup Worker | Same |
 
@@ -163,11 +163,49 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
 
 ## 9. Client editing (EmDash)
 
-- **What it is:** EmDash is an Astro-based CMS. Content lives in D1 and R2, and editors use `/_emdash/admin` (passkey or emailed link).
-- **Editors:** invited by link, with roles (an assistant would be an Editor). Its MCP server at `/_emdash/api/mcp` also lets agents edit content.
-- **Plan needs:** the core runs on Workers Free. Sandboxed plugins need Workers Paid ($5/month). Each EmDash site needs its own D1 and R2. Pages must sit behind Workers Cache because of the Free plan's 10 ms CPU limit per request.
-- **Switching it on:** `editing on` rewires the site and moves the content in. `editing off` exports the content back to files.
-- **Untested:** both the switch and the core routes running unchanged with EmDash on.
+EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment/cloudflare/), checked 2026-10-23). It is a per-site switch, off by default.
+
+- **Switching it on:**
+  - `node scripts/editing.mjs on` in a site (`create` runs it when `EDITING=on`) does the following:
+    - Copies `starter/editing/` over the site: the Astro config, the Worker, the live collection and the home page.
+    - Marks every other page prerendered.
+    - Writes `seed/seed.json`: the content model, plus the current copy.
+    - Adds the EmDash packages, pinned to exact versions.
+    - Adds the bindings EmDash needs.
+  - `editing off`, which would export the content back to files, is not built.
+- **How the Worker is wired:**
+  - Core runs first: `createWorker(config, { fallback })`, core 0.2.0. `/api/*`, `/admin` and `/u` behave exactly as on a static site.
+  - Everything else goes to the Astro/EmDash handler, including the pages and `/_emdash`.
+  - The `noindex` rule still applies to every response.
+- **Where content lives:**
+  - EmDash content has its own D1 database (`CMS_DB`, `<id>-cms`) and media bucket (`MEDIA`, `<id>-media`).
+  - Sessions go in a KV namespace (`SESSION`).
+  - Leads stay in `DB`/`UPLOADS`.
+  - Previews get their own database, bucket and namespace. Production content is never bound to a preview.
+- **Sign-in:**
+  - Cloudflare Access on `<host>/_emdash`, with the application `<id> editor`. EmDash's `access()` mode checks the Access JWT, so there are no passkeys and no email is needed.
+  - The first person to open the admin becomes its administrator and runs the setup wizard. Choosing the sample content there brings in the site's current copy.
+  - To add an editor, add their email to the `<id> editor` policy.
+  - On preview URLs, the previews Access application signs people in, and its audience is set as the previews' `CF_ACCESS_AUDIENCE`.
+- **Performance on the Free plan (10 ms CPU a request):**
+  - Only pages that read EmDash content render on request: the home page in the starter.
+  - They are cached in Workers Cache (`maxAge` 300 s, `swr` 1 day). EmDash invalidates the `pages` tag on publish.
+  - With Workers Cache on, every request, including static assets, counts toward the Free plan's 100,000 requests a day ([Workers Cache pricing](https://developers.cloudflare.com/workers/cache/), checked 2026-10-23).
+- **Account budget on the Free plan:** each editing site uses 1 Cron Trigger (EmDash's hourly maintenance and scheduled publishing; 5 per account) and 2 D1 databases (10 per account). `create` checks both before it creates anything ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/), checked 2026-10-23).
+- **Worker size:** about 19 MiB uncompressed, under the 64 MiB limit, which has applied to all plans since 2026-09-04 ([changelog](https://developers.cloudflare.com/changelog/post/2026-09-04-increased-worker-size-limit/), checked 2026-10-23).
+- **Tested:**
+  - Local end-to-end test and QA gate with editing on, in CI. This includes a round trip: content written to EmDash's database shows on the home page.
+  - Live self-test with editing on: passed on 2026-10-23. The site deployed (Worker startup 26 ms) and passed the QA gate (102 checks). The live lead and upload were stored. Both uptime monitors reported UP. The checks confirmed that:
+    - `/_emdash/admin` and EmDash's API ask for a Cloudflare Access login;
+    - the home page renders through EmDash;
+    - the content model is applied to the site's own database;
+    - the hourly Cron Trigger is set.
+    Teardown exported both content databases to `framework-backups`, then removed every editing resource: databases, buckets, KV namespaces and the Access app.
+- **Not tested yet:**
+  - An editor signing in through Access and publishing in the live admin.
+  - Previews of an editing site.
+  - Sandboxed plugins (Workers Paid only) and Cloudflare email sign-in (sending to arbitrary recipients needs Workers Paid).
+- **Agents editing content:** EmDash has a CLI (`emdash login --url … -H …`), a REST API and an MCP server at `/_emdash/api/mcp`. Behind Access, an agent would need an Access service token. Untested.
 
 ## 10. Modules (designed, not built)
 
