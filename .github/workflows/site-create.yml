@@ -1,0 +1,56 @@
+# Reusable: creates an idea-mode site with scripts/site/create.mjs. Called only from the owner's
+# private ops repo, which holds the secrets; this repo is public, so it never runs here directly.
+name: site create
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true, description: owner/name of the framework repo }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      site_name: { type: string, required: true }
+      site_tagline: { type: string, default: "" }
+      owner_email: { type: string, required: true }
+      turnstile_mode: { type: string, default: real, description: '"real" or "test" (self-test only)' }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      CF_BUILDS_TOKEN: { required: true }
+      GH_SITES_TOKEN: { required: true }
+      MAILER_URL: { required: false }
+      MAILER_SECRET: { required: false }
+permissions:
+  contents: read
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency: site-${{ inputs.site_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Create the site
+        env:
+          SITE_ID: ${{ inputs.site_id }}
+          SITE_NAME: ${{ inputs.site_name }}
+          SITE_TAGLINE: ${{ inputs.site_tagline }}
+          OWNER_EMAIL: ${{ inputs.owner_email }}
+          TURNSTILE_MODE: ${{ inputs.turnstile_mode }}
+          SUMMARY_FILE: site-summary.json
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          MAILER_URL: ${{ secrets.MAILER_URL }}
+          MAILER_SECRET: ${{ secrets.MAILER_SECRET }}
+        run: node scripts/site/create.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site-summary-${{ inputs.site_id }}
+          path: site-summary.json
+          if-no-files-found: ignore

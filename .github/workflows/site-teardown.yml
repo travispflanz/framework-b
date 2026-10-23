@@ -1,0 +1,42 @@
+# Reusable: removes a site with scripts/site/teardown.mjs. Leads and subscribers are exported to the
+# framework-backups bucket first. Refuses unless the site is a self-test site or confirm is
+# "delete <site_id>". Called only from the owner's private ops repo.
+name: site teardown
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      confirm: { type: string, default: "" }
+      delete_repo: { type: string, default: "no", description: '"yes" deletes the GitHub repo; otherwise it is archived' }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      CF_BUILDS_TOKEN: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  teardown:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency: site-${{ inputs.site_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Tear down the site
+        env:
+          SITE_ID: ${{ inputs.site_id }}
+          CONFIRM: ${{ inputs.confirm }}
+          DELETE_REPO: ${{ inputs.delete_repo }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+        run: node scripts/site/teardown.mjs

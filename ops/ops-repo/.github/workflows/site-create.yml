@@ -1,0 +1,23 @@
+# Caller: creates an idea-mode site. Replace OWNER with your GitHub user name.
+name: site create
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "lowercase id, e.g. tidy-garden", required: true }
+      site_name: { description: "display name", required: true }
+      site_tagline: { description: "one line", required: false, default: "" }
+      owner_email: { description: "owner inbox", required: true }
+      turnstile_mode: { description: "real, or test for self-tests", required: false, default: real }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  create:
+    uses: OWNER/framework-b/.github/workflows/site-create.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      site_name: ${{ inputs.site_name }}
+      site_tagline: ${{ inputs.site_tagline }}
+      owner_email: ${{ inputs.owner_email }}
+      turnstile_mode: ${{ inputs.turnstile_mode }}
+    secrets: inherit

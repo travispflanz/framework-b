@@ -1,0 +1,15 @@
+# Caller: connects an existing site's repo to Workers Builds. Replace OWNER with your GitHub user name.
+name: site connect builds
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  connect:
+    uses: OWNER/framework-b/.github/workflows/site-connect-builds.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+    secrets: inherit
