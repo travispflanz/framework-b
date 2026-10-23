@@ -5,7 +5,8 @@
 // Deleting leads needs the owner's approval, so this refuses unless either:
 //   - SITE_ID starts with "selftest-" (throwaway sites made by the template self-test), or
 //   - CONFIRM is exactly "delete <SITE_ID>".
-// The GitHub repo is archived, not deleted, unless DELETE_REPO is "yes".
+// The GitHub repo is archived, not deleted, unless DELETE_REPO is "yes" or the site is a self-test site
+// (the owner approved deleting self-test resources outright on 2026-10-22).
 //
 // Inputs (environment): SITE_ID, CONFIRM, DELETE_REPO, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
 // CF_BUILDS_TOKEN, GH_SITES_TOKEN.
@@ -103,7 +104,7 @@ if (tag) {
 const user = await gh("/user");
 const repoPath = `/repos/${user.login}/site-${id}`;
 if (await gh(repoPath, { allow404: true })) {
-  if (process.env.DELETE_REPO === "yes") {
+  if (process.env.DELETE_REPO === "yes" || id.startsWith("selftest-")) {
     await gh(repoPath, { method: "DELETE" });
     did(`deleted repo site-${id}`);
   } else {
