@@ -103,5 +103,13 @@ export function framework(dir) {
     return view;
   }
 
-  return { resolve, show, list, paths, render, packageView, emdashPackages };
+  // Commits after `from` up to and including `to`, oldest first.
+  const between = new Map();
+  function commitsBetween(from, to) {
+    const key = `${from}..${to}`;
+    if (!between.has(key)) between.set(key, git("rev-list", "--reverse", key).split("\n").filter(Boolean));
+    return between.get(key);
+  }
+
+  return { resolve, show, list, paths, render, packageView, emdashPackages, commitsBetween };
 }

@@ -140,3 +140,14 @@ test("an editing site gets the overlay and prerendered pages", () => {
   assert.equal(read("src/pages/thanks.astro"), lines("---", "export const prerender = true;", "// thanks v2", "---", "<p>thanks</p>"));
   assert.equal(JSON.parse(read("package.json")).dependencies.emdash, "1.1.0");
 });
+
+test("a file the site took from a later framework version is updated, not treated as a local edit", () => {
+  const { fw, site } = setup();
+  release(fw, { "starter/scripts/a.mjs": lines("// a v2", "one") });
+  write(site, { "scripts/a.mjs": lines("// a v2", "one") }); // copied by hand from v2
+  release(fw, { "starter/scripts/a.mjs": lines("// a v3", "one") });
+  const { code, out } = update(fw, site);
+  assert.equal(code, 0, out);
+  assert.equal(readFileSync(join(site, "scripts/a.mjs"), "utf8"), lines("// a v3", "one"));
+  assert.doesNotMatch(out, /conflict \|/);
+});

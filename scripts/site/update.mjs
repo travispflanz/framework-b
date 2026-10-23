@@ -58,6 +58,12 @@ const writeSite = (p, text) => {
 };
 const removeSite = (p) => DRY || rmSync(join(SITE, p), { force: true });
 
+// True when the site's file is exactly some framework version between base and next: the site took that version
+// (for example a partial or hand-applied update) without changing it, so it's safe to replace.
+function matchesHistory(path, text) {
+  return fw.commitsBetween(base, next).some((c) => fw.render(c, path, editing) === text);
+}
+
 // git merge-file on three texts; returns { text, conflicts }.
 function merge3(current, baseText, nextText) {
   const dir = mkdtempSync(join(tmpdir(), "fb-merge-"));
@@ -89,8 +95,9 @@ if (base === next) {
       if (cur !== null && cur !== n && path.startsWith("core/")) note(path, "core edited in the site", "left as is; the framework didn't change it");
       continue; // the framework didn't change it
     }
+    if (cur === n) continue; // already up to date
     if (path.startsWith("core/")) {
-      if (cur !== null && cur !== b) note(path, "replaced a local edit", "core/ is never edited in a site");
+      if (cur !== null && cur !== b && !matchesHistory(path, cur)) note(path, "replaced a local edit", "core/ is never edited in a site");
       if (n === null) {
         removeSite(path);
         note(path, "removed");
@@ -107,8 +114,7 @@ if (base === next) {
       } else if (n !== null) note(path, "kept deleted", "the site removed this file; the framework changed it");
       continue;
     }
-    if (cur === n) continue; // already up to date
-    if (cur === b) {
+    if (cur === b || matchesHistory(path, cur)) {
       if (n === null) {
         removeSite(path);
         note(path, "removed");
