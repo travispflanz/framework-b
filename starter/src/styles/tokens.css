@@ -62,5 +62,5 @@
   .page-muted { background-color: var(--color-bg); color: var(--color-ink-muted); }
   .card { background-color: var(--color-surface); color: var(--color-ink); border-radius: var(--radius-card); }
   .field-error { background-color: var(--color-bg); color: var(--color-error); }
-  .input { background-color: var(--color-bg); color: var(--color-ink); border-color: var(--color-field); border-radius: var(--radius-control); }
+  .input { background-color: var(--color-bg); color: var(--color-ink); border-radius: var(--radius-control); }
 }
