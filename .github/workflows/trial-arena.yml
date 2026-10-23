@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install "huggingface_hub==2.2.0" "pyarrow==26.0.0"
+      - run: pip install "huggingface_hub==2.2.0" "pyarrow==26.0.0" "pillow==13.0.0"
       - name: Sample the arena data
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
