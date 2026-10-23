@@ -1,0 +1,37 @@
+# Reusable: connects an existing site's repo to Workers Builds (retry for when site create could not).
+# Called only from the owner's private ops repo.
+name: site connect builds
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      CF_BUILDS_TOKEN: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency: site-${{ inputs.site_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Connect Workers Builds
+        env:
+          SITE_ID: ${{ inputs.site_id }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+        run: node scripts/site/connect-builds.mjs
