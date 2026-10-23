@@ -1,0 +1,11 @@
+name: deploy backup worker
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 5 1 * *" # monthly redeploy keeps the Worker current with framework-b main
+jobs:
+  deploy:
+    uses: OWNER/framework-b/.github/workflows/deploy-backup-worker.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+    secrets: inherit

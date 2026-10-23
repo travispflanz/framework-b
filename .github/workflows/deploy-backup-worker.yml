@@ -1,21 +1,28 @@
-# Deploys ops/backup-worker (framework-backups): a weekly export of every D1 database in the account to R2.
-# Runs on merge to main when the backup worker changes, or by hand from the Actions tab.
-# Needs repository secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (deploy) and D1_BACKUP_TOKEN
-# (a separate token with only Account → D1 → Edit, used by the Worker itself; see docs/TOKENS.md).
-# Free-plan resources only: one Worker, one Workflow, one R2 bucket (90-day expiry on dumps).
+# Reusable: deploys ops/backup-worker (framework-backups), the weekly export of every D1 database in the
+# account to R2. Called from the owner's private ops repo, which holds the secrets (this repo is public
+# and holds none). Free-plan resources only: one Worker, one Workflow, one R2 bucket (90-day expiry).
 name: deploy backup worker
 on:
-  push:
-    branches: [main]
-    paths: ["ops/backup-worker/**", ".github/workflows/deploy-backup-worker.yml"]
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      framework_repo:
+        description: owner/name of the framework repo to deploy from
+        type: string
+        required: true
+      framework_ref:
+        type: string
+        default: main
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      D1_BACKUP_TOKEN: { required: true }
 permissions:
   contents: read
-concurrency: deploy-backup-worker
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency: deploy-backup-worker
     defaults:
       run:
         working-directory: ops/backup-worker
@@ -24,18 +31,14 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: ops/backup-worker/package-lock.json
-      - name: Check secrets are present
-        env:
-          D1_BACKUP_TOKEN: ${{ secrets.D1_BACKUP_TOKEN }}
-        run: |
-          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID D1_BACKUP_TOKEN; do
-            [ -n "${!v}" ] || { echo "Missing repository secret $v"; exit 1; }
-          done
       - run: npm ci
       - run: npm test
       - name: Ensure the R2 bucket and its 90-day expiry rule exist

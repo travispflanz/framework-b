@@ -63,6 +63,24 @@ The deploy token (section 1) also deploys this Worker and its Workflow, and crea
 
 Created by the owner when a purchase is approved, used once, then deleted.
 
+## GitHub: site repo token (fine-grained personal access token)
+
+Lets the ops repo create each site's private repo and push the starter into it.
+
+- Resource owner: the owner's account. Repository access: **All repositories**, because the token has to reach repos that don't exist yet.
+- Permissions:
+  - Administration: Read and write (create repositories)
+  - Contents: Read and write (push the starter)
+  - Workflows: Read and write (push files under `.github/workflows/`)
+  - Metadata: Read (added automatically)
+- Expiration: up to 1 year. Rotate it, then update the `GH_SITES_TOKEN` secret in the ops repo.
+
+Source: [permissions required for fine-grained tokens](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) (`POST /user/repos` needs Administration write; contents and workflow files need Contents and Workflows write), checked 2026-10-22. Status: unverified until the first site repo is created.
+
+## Where secrets live
+
+In the owner's **private** ops repo, never in `framework-b`. `framework-b` is public, so its Actions logs are public, and a run that names a site or an inbox would leak it. See `ops/ops-repo/README.md`.
+
 ## Settings no token can reach
 
 These are dashboard-only or third-party. The agent lists them with direct links, and the owner confirms them; they are recorded as owner-attested in each site's `HANDOFF.md`:
