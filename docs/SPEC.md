@@ -247,6 +247,48 @@ Full rationale, sources and tool versions: `docs/research/design-layer.md`. Summ
 | P2.7 Check | Five-word check; one refine round at most | Picks five words | Final draft |
 | P2.8 Lock | Writes `DESIGN.md` (Google format), `tokens.css` (Tailwind 4 `@theme`), image plan and credits | — | Locked contract |
 
+### What's built (2026-10-23)
+
+The design phase's foundation is in `starter/`. The intake steps (P2.1–P2.7) are still run by the agent by hand. Nothing below is a tool for them yet.
+
+- **`DESIGN.md` → tokens:** `scripts/design-tokens.mjs` reads Google's DESIGN.md format.
+  - It lints with `@google/design.md` 0.4.0 ([repo](https://github.com/google-labs-code/design.md), checked 2026-10-23); errors fail.
+  - It checks Framework B's token contract:
+    - colours: bg, surface, ink, ink-muted, line, field, accent, accent-ink, highlight, highlight-ink, error, focus;
+    - type levels: display, headline, title, body, small, label;
+    - radii: control, card;
+    - spacing: gutter, section, content, prose.
+  - It checks WCAG 2.2 AA contrast for the pairs the sections use. Text needs 4.5:1. Input borders and the focus ring need 3:1 (1.4.11).
+  - It writes `tokens.css` as a Tailwind 4 `@theme` with:
+    - Tailwind's default palette reset (`--color-*: initial`, verified on Tailwind 4.3.3);
+    - fluid type from `<level>-mobile` tokens;
+    - self-hosted Fontsource fonts (OFL);
+    - DESIGN.md components as classes, such as `.button-primary` and its `-hover` state.
+  - The CLI's own `export --format css-tailwind` drops line-heights and font fallbacks, which is why the framework writes its own export.
+- **Section library (`src/sections/`):**
+  - The sections are hero, steps, features, pricing, area, faq, cta, form and text.
+  - Each is defined once in `schema.js`, in EmDash's block-type format. That one definition:
+    - checks static content (`scripts/check-content.mjs`);
+    - renders the Astro component (`Sections.astro`, which takes `{ value }` props, the same shape EmDash blocks use);
+    - becomes the EmDash block types when editing is on (`editing.mjs` writes them into the seed).
+  - Pages are JSON files in `src/content/`.
+  - There are deliberately no testimonial, logo or statistics sections.
+- **Icons:** 30 Lucide line icons vendored inline (`lucide-static` 1.61.0, ISC).
+- **Header:** a nav item with `cta: true` becomes the header button. On phones only the name and that button show.
+- **QA additions:**
+  - tokens.css must match DESIGN.md;
+  - content must match the schema;
+  - truth gate: no reviews, ratings, customer counts or percentages unless listed under "Approved claims" in `PRODUCT.md`;
+  - copy lint for generic AI words;
+  - Lighthouse "is-crawlable" only on the canonical host of an indexed site, for pages that don't opt out.
+- **First use:** Sunflower Bin Wash (idea site, editing on), with autopilot direction from research. Its local end-to-end test and QA gate pass with editing on.
+- **Not built yet:**
+  - style tiles and the this-or-that preview (P2.5–P2.6);
+  - the pairwise autopilot judge as a script;
+  - `impeccable detect`;
+  - Stylelint token enforcement (Tailwind utilities in `.astro` files make the palette reset the main guard);
+  - image plans.
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates people or premises.
