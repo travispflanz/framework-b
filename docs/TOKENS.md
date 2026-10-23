@@ -20,7 +20,7 @@ Used by the builder agent for everything except Workers Builds. Scope it to the 
 | Access: Apps and Policies: Edit | `/admin` login and preview protection | Verified |
 | Access: Organizations, Identity Providers, and Groups: Edit | Read or create the one-time PIN login method | Verified |
 | Account Analytics: Edit | Create Web Analytics sites | Verified |
-| Workers KV Storage: Edit | EmDash object cache (only if EmDash is used) | Unverified |
+| Workers KV Storage: Edit | EmDash session storage (only for sites with client editing); `create` makes the namespaces | Required for client editing. Checked by the ops repo's `verify secrets` workflow |
 | Email Sending: Edit | Cloudflare Email Sending (only on Workers Paid) | Unverified |
 
 ### Zone permissions (launch-mode zones only)
