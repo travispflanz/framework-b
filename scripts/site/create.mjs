@@ -22,6 +22,7 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, createHash } from "node:crypto";
 import { cf, gh, env, log, ApiError } from "./lib/api.mjs";
+import { connectBuilds } from "./lib/builds.mjs";
 
 const FRAMEWORK = resolve(process.env.FRAMEWORK_DIR || join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const ACCOUNT = env("CLOUDFLARE_ACCOUNT_ID");
@@ -244,28 +245,10 @@ done("github", `private repo ${repo.full_name}`);
 
 // ---------- 9. Workers Builds ----------
 try {
-  const bt = env("CF_BUILDS_TOKEN");
-  const conn = await cf(`${A}/builds/repos/connections`, {
-    method: "PUT",
-    token: bt,
-    body: { provider_type: "github", provider_account_id: String(ghUser.id), provider_account_name: ghUser.login, repo_id: String(repo.id), repo_name: repoName },
-  });
-  const tokens = await cf(`${A}/builds/tokens`, { token: bt });
-  if (!tokens?.length) throw new Error("no build token in the account (create one once in any Worker's Settings → Builds)");
-  const base = {
-    external_script_id: tag,
-    repo_connection_uuid: conn.repo_connection_uuid,
-    build_token_uuid: tokens[0].build_token_uuid,
-    build_command: "npm run build",
-    root_directory: "/",
-    path_includes: ["*"],
-    path_excludes: [],
-  };
-  await cf(`${A}/builds/triggers`, { method: "POST", token: bt, body: { ...base, trigger_name: "Deploy production", deploy_command: "npx wrangler deploy", branch_includes: ["main"], branch_excludes: [] } });
-  await cf(`${A}/builds/triggers`, { method: "POST", token: bt, body: { ...base, trigger_name: "Deploy previews", deploy_command: "npx wrangler preview", branch_includes: ["*"], branch_excludes: ["main"] } });
+  await connectBuilds({ A, tag, ghUser, repo });
   done("workers builds", "production and preview triggers connected");
 } catch (e) {
-  warn(`Workers Builds not connected: ${e.message}. Pushes won't deploy until it is (Worker → Settings → Builds).`);
+  warn(`Workers Builds not connected: ${e.message}. Pushes won't deploy until it is: run the "site connect builds" workflow once the Cloudflare GitHub app can see the repo.`);
 }
 
 // ---------- 10. Live check ----------

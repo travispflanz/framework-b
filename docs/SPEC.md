@@ -55,7 +55,7 @@ Both run as workflows in the owner's private ops repo, because this repo's Actio
 4. Creates the Access app on `<host>/admin`. After the first deploy it creates a second one for the Worker's previews.
 5. Copies `starter/`, vendors core, and writes `site.config.json` and `wrangler.jsonc` with real IDs. Previews get their own database and bucket.
 6. Runs migrations on both databases, builds, and deploys with the secrets.
-7. Creates the private repo `site-<id>`, pushes `main`, and connects Workers Builds: `main` deploys production, other branches deploy previews.
+7. Creates the private repo `site-<id>`, pushes `main`, and connects Workers Builds: `main` deploys production, other branches deploy previews. This needs the Cloudflare GitHub app to have access to all repositories. If it fails, the `site connect builds` workflow retries just this step.
 8. Checks `/api/health`, and checks that `/admin` asks for a login.
 
 `teardown` refuses unless the id starts with `selftest-` or the owner types `delete <id>`.
