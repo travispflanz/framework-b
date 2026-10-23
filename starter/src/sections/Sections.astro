@@ -1,0 +1,27 @@
+---
+// Renders a page's sections in order. Content comes from src/content/<page>.json, or from EmDash when client
+// editing is on; both use the same shape: [{ _type: "fb_hero", _key: "...", ...fields }].
+// Bands alternate between the page background and the surface tone, starting after the hero.
+import Area from "./Area.astro";
+import Cta from "./Cta.astro";
+import Faq from "./Faq.astro";
+import Features from "./Features.astro";
+import FormSection from "./FormSection.astro";
+import Hero from "./Hero.astro";
+import Pricing from "./Pricing.astro";
+import Steps from "./Steps.astro";
+import Text from "./Text.astro";
+
+const COMPONENTS = { fb_hero: Hero, fb_steps: Steps, fb_features: Features, fb_pricing: Pricing, fb_area: Area, fb_faq: Faq, fb_cta: Cta, fb_form: FormSection, fb_text: Text };
+
+interface Props { sections: Array<Record<string, any>> }
+const { sections = [] } = Astro.props;
+let band = 0;
+const items = sections.map((value, i) => {
+  const Component = COMPONENTS[value._type];
+  if (!Component) throw new Error(`Unknown section type "${value._type}"`);
+  const tone = value._type === "fb_hero" ? undefined : band++ % 2 === 0 ? "bg" : "surface";
+  return { Component, value, key: value._key || `s${i}`, tone };
+});
+---
+{items.map(({ Component, value, key, tone }) => <Component value={value} blockKey={key} tone={tone} />)}

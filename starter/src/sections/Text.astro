@@ -1,0 +1,16 @@
+---
+// fb_text: plain paragraphs under a headline.
+import Section from "./Section.astro";
+import SectionIntro from "./SectionIntro.astro";
+import { paragraphs } from "./text.js";
+
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+const { value, blockKey, tone } = Astro.props;
+const headingId = `h-${blockKey || value.anchor_id || "text"}`;
+---
+<Section id={value.anchor_id} tone={tone} labelledby={value.headline ? headingId : undefined}>
+  <SectionIntro eyebrow={value.eyebrow} headline={value.headline} id={headingId} />
+  <div class="grid max-w-prose gap-4 text-body text-ink">
+    {paragraphs(value.body).map((p) => <p>{p}</p>)}
+  </div>
+</Section>

@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
-import { checker, launchBrowser, startLocalSite } from "./lib/local-site.mjs";
+import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 
 // The local SQLite file behind CMS_DB: the one holding EmDash's tables.
 function findCmsDatabase(state) {
@@ -41,11 +41,12 @@ try {
   browser = await launchBrowser();
   const page = await browser.newPage();
   const consoleErrors = [];
-  page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
+  page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(m.text()));
 
   // Find a page that renders this form.
-  await page.goto(`${base}/contact?utm_source=e2e&utm_medium=test`);
-  if (!(await page.locator(`form[data-fb-form="${formId}"]`).count())) await page.goto(`${base}/?utm_source=e2e&utm_medium=test`);
+  // The form is on the home page (landing pages) or on /contact.
+  await page.goto(`${base}/?utm_source=e2e&utm_medium=test`);
+  if (!(await page.locator(`form[data-fb-form="${formId}"]`).count())) await page.goto(`${base}/contact?utm_source=e2e&utm_medium=test`);
   const formEl = page.locator(`form[data-fb-form="${formId}"]`).first();
 
   const submit = formEl.locator('button[type="submit"]');
@@ -78,7 +79,14 @@ try {
   }
 
   await page.waitForFunction(() => document.querySelector('[name="cf-turnstile-response"]')?.value, null, { timeout: 30000 });
-  await submit.click();
+  const [submitResponse] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === `/api/submit/${formId}`, { timeout: 30000 }),
+    submit.click(),
+  ]);
+  // The status is read rather than the body: the page moves on to the thank-you page straight away.
+  const status = submitResponse.status();
+  const why = status === 200 ? "" : await submitResponse.text().catch(() => "");
+  check("the server accepted the submission", status === 200, `${status} ${why.slice(0, 200)}`.trim());
   await page.waitForURL((u) => u.pathname === form.thanks, { timeout: 30000 });
   check("submit redirects to the thank-you page", !page.url().includes("file-failed"), page.url());
   check("no console errors in the browser", consoleErrors.length === 0, consoleErrors.join(" | "));
@@ -104,7 +112,7 @@ try {
     check("EmDash created its tables in its own database", !!cms);
     if (cms) {
       const seed = JSON.parse(readFileSync("seed/seed.json", "utf8"));
-      seed.content.pages[0].data.headline = "Edited through EmDash";
+      seed.content.pages[0].data.sections[0].headline = "Edited through EmDash";
       const seedPath = join(mkdtempSync(join(tmpdir(), "e2e-seed-")), "seed.json");
       writeFileSync(seedPath, JSON.stringify(seed));
       execFileSync("npx", ["emdash", "seed", "-d", cms, seedPath, "--skip-media"], { stdio: "ignore" });

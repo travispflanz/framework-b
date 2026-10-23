@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Switches client editing (EmDash) on for this site: `node scripts/editing.mjs on`.
+// `node scripts/editing.mjs seed` rewrites seed/seed.json only, after the section library or src/content changes.
 //
 // What it changes:
 // - copies editing/ over the site (astro.config.mjs, src/worker.js, src/live.config.ts, src/pages/index.astro);
 // - marks every other page prerendered, so only EmDash-driven pages run on request;
-// - writes seed/seed.json (the content model, plus the current copy as the first content);
+// - writes seed/seed.json (the section library as EmDash block types, plus src/content/home.json as the first content);
 // - adds the EmDash packages (exact versions below) and runs npm install;
 // - adds the bindings EmDash needs to wrangler.jsonc (CMS_DB, MEDIA, SESSION, the hourly cron);
 // - sets "editing" in site.config.json.
@@ -13,6 +14,7 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { stripJsonc } from "./lib/jsonc.mjs";
 
 export const EMDASH_PACKAGES = {
@@ -26,39 +28,46 @@ export const EMDASH_PACKAGES = {
 export const EMDASH_CRON = "17 * * * *";
 
 const [mode] = process.argv.slice(2);
-if (mode !== "on") {
-  console.error("usage: node scripts/editing.mjs on");
+if (!["on", "seed"].includes(mode)) {
+  console.error("usage: node scripts/editing.mjs on | seed");
   process.exit(1);
 }
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
-if (site.editing?.enabled) {
+if (mode === "seed" && !site.editing?.enabled) throw new Error("Client editing is off; run `node scripts/editing.mjs on` first");
+if (mode === "on" && site.editing?.enabled) {
   console.log("Client editing is already on.");
   process.exit(0);
 }
 const wrangler = JSON.parse(stripJsonc(readFileSync("wrangler.jsonc", "utf8")));
 
-// 1. Overlay.
-cpSync("editing", ".", { recursive: true });
+if (mode === "on") {
+  // 1. Overlay.
+  cpSync("editing", ".", { recursive: true });
 
-// 2. Everything except the EmDash-driven pages stays static.
-const overlayPages = new Set(readdirSync("editing/src/pages"));
-for (const name of readdirSync("src/pages")) {
-  if (overlayPages.has(name)) continue;
-  const path = join("src/pages", name);
-  const text = readFileSync(path, "utf8");
-  if (/export const prerender/.test(text)) continue;
-  if (name.endsWith(".astro")) writeFileSync(path, text.replace(/^---\n/, "---\nexport const prerender = true;\n"));
-  else if (/\.(js|ts)$/.test(name)) writeFileSync(path, `export const prerender = true;\n${text}`);
+  // 2. Everything except the EmDash-driven pages stays static.
+  const overlayPages = new Set(readdirSync("editing/src/pages"));
+  for (const name of readdirSync("src/pages")) {
+    if (overlayPages.has(name)) continue;
+    const path = join("src/pages", name);
+    const text = readFileSync(path, "utf8");
+    if (/export const prerender/.test(text)) continue;
+    if (name.endsWith(".astro")) writeFileSync(path, text.replace(/^---\n/, "---\nexport const prerender = true;\n"));
+    else if (/\.(js|ts)$/.test(name)) writeFileSync(path, `export const prerender = true;\n${text}`);
+  }
 }
 
-// 3. Seed: the content model and the site's current copy. EmDash applies the model on first request; the
-// owner brings the copy in by choosing the sample content in the setup wizard.
+// 3. Seed: the content model (the section library's block types) and the site's current page content.
+// EmDash applies the model on first request; the owner brings the content in by choosing the sample content in
+// the setup wizard.
+const { SECTIONS, SECTION_TYPES } = await import(pathToFileURL(join(process.cwd(), "src/sections/schema.js")).href);
+const home = JSON.parse(readFileSync("src/content/home.json", "utf8"));
 mkdirSync("seed", { recursive: true });
 writeFileSync("seed/seed.json", JSON.stringify({
   $schema: "https://emdashcms.com/seed.schema.json",
   version: "1",
-  meta: { name: site.site.name, description: "Pages an editor can change", author: "Framework B" },
+  meta: { name: site.site.name, description: "Pages an editor can change, built from the section library", author: "Framework B" },
   settings: { title: site.site.name, tagline: site.site.tagline },
+  blockTypes: SECTIONS,
   collections: [{
     slug: "pages",
     label: "Pages",
@@ -67,15 +76,23 @@ writeFileSync("seed/seed.json", JSON.stringify({
     supports: ["drafts", "revisions", "preview", "seo"],
     fields: [
       { slug: "title", label: "Title", type: "string", required: true },
-      { slug: "headline", label: "Headline", type: "string" },
-      { slug: "intro", label: "Intro", type: "text" },
-      { slug: "content", label: "Content", type: "portableText" },
+      { slug: "sections", label: "Sections", type: "blocks", validation: { allowedTypes: SECTION_TYPES, maxItems: 20 } },
     ],
   }],
   content: {
-    pages: [{ id: "home", slug: "home", status: "published", data: { title: "Home", headline: site.site.name, intro: site.site.tagline } }],
+    pages: [{
+      id: "home",
+      slug: "home",
+      status: "published",
+      data: { title: home.title || "Home", sections: home.sections.map((section) => ({ _version: 1, ...section })) },
+    }],
   },
 }, null, 2) + "\n");
+
+if (mode === "seed") {
+  console.log("Wrote seed/seed.json. A deployed site keeps the model it already has: see EmDash's guide to evolving a deployed site.");
+  process.exit(0);
+}
 
 // 4. Packages.
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));

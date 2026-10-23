@@ -1,0 +1,26 @@
+---
+// fb_faq: questions whose answers open in place (<details>, no JavaScript).
+import Section from "./Section.astro";
+import SectionIntro from "./SectionIntro.astro";
+import { paragraphs } from "./text.js";
+
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+const { value, blockKey, tone } = Astro.props;
+const headingId = `h-${blockKey || value.anchor_id || "faq"}`;
+---
+<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+  <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
+  <div class="grid max-w-prose gap-3">
+    {value.items.map((item) => (
+      <details class="card group p-0">
+        <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 text-title text-ink [&::-webkit-details-marker]:hidden">
+          <span class="font-display">{item.question}</span>
+          <span class="text-accent transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+        </summary>
+        <div class="grid gap-3 px-5 pb-5 text-body text-ink-muted">
+          {paragraphs(item.answer).map((p) => <p>{p}</p>)}
+        </div>
+      </details>
+    ))}
+  </div>
+</Section>

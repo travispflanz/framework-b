@@ -94,3 +94,14 @@ export function checker() {
   };
   return { check, results, failed: () => failures };
 }
+
+// Console errors the site can't fix: the Turnstile widget runs in Cloudflare's own iframe and logs its own
+// CSP refusals and console tricks there. Only messages from that origin are ignored; the page's own errors count.
+export function ownConsoleError(message) {
+  if (message.type() !== "error") return false;
+  try {
+    return !new URL(message.location().url).host.endsWith("challenges.cloudflare.com");
+  } catch {
+    return true;
+  }
+}

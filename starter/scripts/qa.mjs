@@ -8,12 +8,13 @@
 // Checks: content, layout at 360/768/1280/1920 px, console errors, banned fonts, axe (WCAG 2.2 AA tags),
 // page structure, Lighthouse (mobile) accessibility / best practices / SEO = 100 and CLS < 0.1.
 // Screenshots and a JSON report go to qa-output/.
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import * as chromeLauncher from "chrome-launcher";
 import lighthouse from "lighthouse";
-import { checker, launchBrowser, startLocalSite } from "./lib/local-site.mjs";
+import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -62,6 +63,39 @@ if (LAUNCH) {
   check("DESIGN.md is locked (not the placeholder)", !designDoc.includes("until then"));
   check("wrangler.jsonc has no placeholders", !/<[a-z0-9-]+>/.test(readFileSync("wrangler.jsonc", "utf8")));
 }
+// Design contract: DESIGN.md lints clean and tokens.css is generated from it; page content matches the section schema.
+const runs = (cmd) => {
+  try {
+    return { ok: true, out: execFileSync("node", cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }) };
+  } catch (e) {
+    return { ok: false, out: `${e.stdout || ""}${e.stderr || ""}`.trim().split("\n").slice(-3).join(" | ") };
+  }
+};
+if (existsSync("scripts/design-tokens.mjs")) {
+  const r = runs(["scripts/design-tokens.mjs", "--check"]);
+  check("design: DESIGN.md lints clean, meets contrast, and tokens.css is generated from it", r.ok, r.ok ? "" : r.out);
+}
+if (existsSync("scripts/check-content.mjs") && existsSync("src/content")) {
+  const r = runs(["scripts/check-content.mjs"]);
+  check("content: page sections match the section schema", r.ok, r.ok ? "" : r.out);
+}
+
+// Copy rules, over the built pages and the page content (which, with editing on, isn't in the static build).
+// Truth gate: nothing that reads as reviews, ratings, counts of customers or "trusted by" without an owner
+// source (docs/SPEC.md section 12). A source is recorded in PRODUCT.md under "Evidence on hand"; then the
+// matching phrase can be listed there under "Approved claims" to pass.
+const contentText = existsSync("src/content")
+  ? readdirSync("src/content").filter((f) => f.endsWith(".json")).map((f) => JSON.stringify(JSON.parse(readFileSync(join("src/content", f), "utf8")))).join(" ")
+  : "";
+const copy = `${files.map((f) => textOf(readFileSync(f, "utf8"))).join(" ")} ${contentText}`;
+const approved = (existsSync("PRODUCT.md") ? readFileSync("PRODUCT.md", "utf8").split(/##\s+Approved claims/i)[1] || "" : "").toLowerCase();
+const PROOF = [/\b\d[\d,]*\+?\s*(happy\s+)?(customers|clients|homes|households|reviews|five-star)\b/i, /\b(5|five)[- ]star\b/i, /★/, /\brated\s+\d/i, /\btrusted by\b/i, /\btestimonials?\b/i, /\b\d{2,3}(\.\d+)?%\s/];
+const proofHits = PROOF.map((re) => copy.match(re)?.[0]).filter((m) => m && !approved.includes(m.toLowerCase()));
+check("truth gate: no reviews, ratings, customer counts or percentages without an owner source", proofHits.length === 0, proofHits.join(" | "));
+const TELLS = ["delve", "tapestry", "testament", "pivotal", "underscore", "landscape", "foster", "crucial", "empower", "unlock", "transform", "seamless", "elevate", "game-changer", "revolutionize", "cutting-edge", "in today's"];
+const tellHits = TELLS.filter((w) => new RegExp(`\\b${w}`, "i").test(copy));
+check("copy lint: none of the generic AI words", tellHits.length === 0, tellHits.join(", "));
+
 // Brand values belong in site.config.json, not in source files.
 const srcFiles = (function walk(d) {
   return readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
@@ -85,7 +119,7 @@ try {
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       const page = await context.newPage();
       const errors = [];
-      page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+      page.on("console", (m) => ownConsoleError(m) && errors.push(m.text()));
       page.on("pageerror", (e) => errors.push(e.message));
       const res = await page.goto(base + path, { waitUntil: "load" });
       await page.waitForTimeout(1500); // let Turnstile and late layout settle (Turnstile keeps a connection open, so no networkidle)
@@ -142,14 +176,18 @@ try {
     chromeFlags: ["--headless=new", "--no-sandbox", ...(process.env.HTTPS_PROXY ? [`--proxy-server=${process.env.HTTPS_PROXY}`, "--proxy-bypass-list=localhost;127.0.0.1", "--ignore-certificate-errors"] : [])],
   });
   const scores = {};
+  const onCanonicalHost = new URL(base).host === site.site.canonicalHost;
   for (const path of pages) {
+    // "is-crawlable" only applies where a page is meant to be indexed: an indexed site, on its canonical host
+    // (local runs and previews are noindex by design), on a page that doesn't opt out (thanks, 404).
+    const html = await (await fetch(base + path)).text();
+    const pageNoindex = /<meta name="robots" content="[^"]*noindex/i.test(html);
     const { lhr } = await lighthouse(base + path, {
       port: chrome.port,
       output: "json",
       logLevel: "error",
       onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
-      // A noindex site fails "is-crawlable" by design; it's checked separately below.
-      skipAudits: site.site.indexing ? [] : ["is-crawlable"],
+      skipAudits: site.site.indexing && onCanonicalHost && !pageNoindex ? [] : ["is-crawlable"],
     });
     const c = lhr.categories;
     const cls = lhr.audits["cumulative-layout-shift"].numericValue;

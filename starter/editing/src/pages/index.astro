@@ -1,26 +1,16 @@
 ---
-// Home page with client editing on (installed from editing/ by scripts/editing.mjs). The headline, intro
-// and body come from the EmDash page "home".
-// Until an editor publishes it, the page falls back to the name and tagline in site.config.json.
+// Home page with client editing on (installed from editing/ by scripts/editing.mjs). The sections come from the
+// EmDash page "home" (field "sections"), rendered by the same section library as a static site. Until an editor
+// publishes that page, the sections in src/content/home.json are shown.
 import { getEmDashEntry } from "emdash";
-import { PortableText } from "emdash/ui";
 import Base from "../layouts/Base.astro";
-import Form from "../components/Form.astro";
-import config from "../../site.config.json";
+import Sections from "../sections/Sections.astro";
+import fallback from "../content/home.json";
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", "home");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
-const headline = page?.data.headline || config.site.name;
-const intro = page?.data.intro || config.site.tagline;
+const sections = page?.data.sections?.length ? page.data.sections : fallback.sections;
 ---
-<Base>
-  <section class="grid gap-4 py-8">
-    <h1 class="max-w-[var(--container-prose)] text-4xl font-bold leading-tight">{headline}</h1>
-    <p class="max-w-[var(--container-prose)] text-lg text-[var(--color-ink-muted)]">{intro}</p>
-    {page?.data.content && <div class="prose max-w-[var(--container-prose)]"><PortableText value={page.data.content} /></div>}
-  </section>
-  <section aria-labelledby="contact-heading" class="py-8">
-    <h2 id="contact-heading" class="sr-only">Contact</h2>
-    <Form id="contact" />
-  </section>
+<Base bleed title={page?.data.title && page.data.title !== "Home" ? page.data.title : undefined}>
+  <Sections sections={sections} />
 </Base>

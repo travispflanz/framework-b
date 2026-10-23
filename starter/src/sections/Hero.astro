@@ -1,0 +1,33 @@
+---
+// fb_hero: the page's opening. The only section with an <h1>.
+import Icon from "./Icon.astro";
+import { lines } from "./text.js";
+
+interface Props { value: Record<string, any>; blockKey?: string }
+const { value } = Astro.props;
+const points = lines(value.points).slice(0, 4);
+---
+<section id={value.anchor_id || undefined} class="bg-surface px-gutter py-section">
+  <div class="mx-auto grid w-full max-w-content gap-6">
+    {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}
+    <h1 class="max-w-prose font-display text-display text-ink">{value.headline}</h1>
+    {value.subheadline && <p class="max-w-prose text-body text-ink-muted">{value.subheadline}</p>}
+    {(value.primary_cta_label || value.secondary_cta_label) && (
+      <div class="flex flex-wrap items-center gap-4">
+        {value.primary_cta_label && value.primary_cta_url && (
+          <a href={value.primary_cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.primary_cta_label}</a>
+        )}
+        {value.secondary_cta_label && value.secondary_cta_url && (
+          <a href={value.secondary_cta_url} class="inline-flex min-h-12 items-center text-label">{value.secondary_cta_label}</a>
+        )}
+      </div>
+    )}
+    {points.length > 0 && (
+      <ul class="flex flex-wrap gap-x-6 gap-y-2 text-small text-ink">
+        {points.map((p) => (
+          <li class="flex items-center gap-2"><Icon name="check" class="size-5 shrink-0 text-accent" />{p}</li>
+        ))}
+      </ul>
+    )}
+  </div>
+</section>

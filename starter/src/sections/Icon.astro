@@ -1,0 +1,22 @@
+---
+// An inline line icon from icons.js. Decorative by default (aria-hidden); pass a label to make it meaningful.
+import { ICONS } from "./icons.js";
+
+interface Props { name: string; class?: string; label?: string }
+const { name, class: className = "size-6", label } = Astro.props;
+const inner = ICONS[name];
+if (!inner) throw new Error(`Unknown icon "${name}"`);
+---
+<svg
+  class={className}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden={label ? undefined : "true"}
+  role={label ? "img" : undefined}
+  aria-label={label}
+  set:html={inner}
+/>

@@ -1,0 +1,12 @@
+---
+// The eyebrow, headline and supporting sentence most sections start with.
+interface Props { eyebrow?: string; headline?: string; subheadline?: string; id?: string; center?: boolean }
+const { eyebrow, headline, subheadline, id, center = false } = Astro.props;
+---
+{(eyebrow || headline || subheadline) && (
+  <div class:list={["mb-10 grid max-w-prose gap-3", { "mx-auto text-center": center }]}>
+    {eyebrow && <p class="text-label text-accent">{eyebrow}</p>}
+    {headline && <h2 id={id} class="font-display text-headline text-ink">{headline}</h2>}
+    {subheadline && <p class="text-body text-ink-muted">{subheadline}</p>}
+  </div>
+)}

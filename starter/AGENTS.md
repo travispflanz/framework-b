@@ -5,7 +5,9 @@ This site was built with Framework B. `site.config.json` holds every brand value
 ## Layout
 - `site.config.json`: name, mode, host, owner inbox, forms (JSON schema), email mailers, navigation, Turnstile site key.
 - `src/pages/`, `src/layouts/`, `src/components/`: the Astro 7 site. `Form.astro` renders any form from its schema.
-- `src/styles/tokens.css`: design tokens, written by the design phase from `DESIGN.md`. Use tokens only, never raw values.
+- `DESIGN.md`: the design contract in Google's DESIGN.md format. `src/styles/tokens.css` is generated from it by `node scripts/design-tokens.mjs`; never edit tokens.css by hand. Use token utilities only (`bg-surface`, `text-ink`, `text-headline`, `rounded-card`, `px-gutter`), never raw colours or sizes: Tailwind's default palette is switched off.
+- `src/sections/`: the section library (hero, steps, features, pricing, area, faq, cta, form, text). `schema.js` defines every section once; the same definition checks static content, renders the Astro component and becomes an EmDash block type when editing is on.
+- `src/content/<page>.json`: a page's sections, in order. `src/pages/index.astro` renders `home.json`. Check content with `node scripts/check-content.mjs`.
 - `src/worker.js`: three lines that start the core runtime. Don't add routes here.
 - `core/`: a vendored copy of Framework B core (version in `core/VERSION`). Never edit it here; update it with a newer tagged version on a branch.
 - `PRODUCT.md`, `DESIGN.md`: the design contract. `DECISIONS.md`: kickoff answers. `HANDOFF.md`: URLs, monitors, renewals, owner-attested settings. `SECRETS.md`: secret names only.
@@ -24,6 +26,16 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - Content lives in its own D1 database (`CMS_DB`) and media bucket (`MEDIA`), separate from leads (`DB`, `UPLOADS`). Previews use their own copies of both.
 - The content model is in `seed/seed.json`. To change a deployed site's model, follow EmDash's "Evolving a deployed site" guide; don't edit the seed and expect it to re-apply.
 - The hourly Cron Trigger runs EmDash's scheduled publishing and maintenance. The Free plan allows 5 Cron Triggers per account.
+
+## Design
+- Change the look in `DESIGN.md`, then run `node scripts/design-tokens.mjs`. It lints the file with `@google/design.md` and checks the token contract (required colours, type levels, radii and spacing). It also checks the WCAG AA contrast pairs, then writes tokens.css. Fonts must be installed Fontsource packages (`npm i @fontsource-variable/<family>`).
+- Sections follow the page's argument, not a fixed order. The hero comes first and has the only `<h1>`. Bands alternate tones automatically.
+- A nav item with `"cta": true` in `site.config.json` becomes the header button; on phones only the site name and that button show.
+- The QA gate fails on:
+  - a stale tokens.css;
+  - content that doesn't match the schema;
+  - reviews, ratings, customer counts or percentages without a source in `PRODUCT.md` (truth gate);
+  - generic AI words (copy lint).
 
 ## Rules
 - Work on a branch and open a pull request. `main` deploys production immediately.

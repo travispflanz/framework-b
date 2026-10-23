@@ -30,6 +30,11 @@ for (let i = 0; i < 10 && !collections.length; i++) {
   if (!collections.length) await new Promise((r) => setTimeout(r, 3000));
 }
 check("EmDash applied the content model to its own database", collections.some((c) => c.slug === "pages"), collections.map((c) => c.slug).join(", "));
+const q = async (sql) => (await cf(`${A}/d1/database/${db.uuid}/query`, { method: "POST", body: { sql } }))[0].results;
+const fields = (await q("SELECT slug FROM _emdash_fields")).map((r) => r.slug);
+check("pages have the section library's sections field", fields.includes("sections"), fields.join(", "));
+const blockTypes = (await q("SELECT slug FROM _emdash_block_types")).map((r) => r.slug);
+check("the section library is registered as EmDash block types", blockTypes.includes("fb_hero") && blockTypes.includes("fb_form"), blockTypes.join(", "));
 
 const schedules = (await cf(`${A}/workers/scripts/${id}/schedules`)).schedules || [];
 check("the hourly Cron Trigger is set", schedules.some((s) => s.cron === "17 * * * *"), schedules.map((s) => s.cron).join(", "));
