@@ -14,7 +14,7 @@ import { join, relative } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import * as chromeLauncher from "chrome-launcher";
 import lighthouse from "lighthouse";
-import { checker, launchBrowser, startLocalSite } from "./lib/local-site.mjs";
+import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -119,7 +119,7 @@ try {
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       const page = await context.newPage();
       const errors = [];
-      page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+      page.on("console", (m) => ownConsoleError(m) && errors.push(m.text()));
       page.on("pageerror", (e) => errors.push(e.message));
       const res = await page.goto(base + path, { waitUntil: "load" });
       await page.waitForTimeout(1500); // let Turnstile and late layout settle (Turnstile keeps a connection open, so no networkidle)
