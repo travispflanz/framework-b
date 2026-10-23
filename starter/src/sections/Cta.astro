@@ -1,0 +1,16 @@
+---
+// fb_cta: a short closing push toward the main action.
+import Section from "./Section.astro";
+import { paragraphs } from "./text.js";
+
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+const { value, blockKey, tone } = Astro.props;
+const headingId = `h-${blockKey || value.anchor_id || "cta"}`;
+---
+<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+  <div class="card grid justify-items-start gap-4 p-8">
+    <h2 id={headingId} class="font-display text-headline text-ink">{value.headline}</h2>
+    {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-ink-muted">{p}</p>)}
+    <a href={value.cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.cta_label}</a>
+  </div>
+</Section>

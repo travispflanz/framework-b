@@ -2,9 +2,11 @@
 // Every page uses this layout. Brand values come from site.config.json only.
 import config from "../../site.config.json";
 import "../styles/tokens.css";
+import "../sections/sections.css";
 
-interface Props { title?: string; description?: string; noindex?: boolean }
-const { title, description = config.site.tagline, noindex = false } = Astro.props;
+// bleed: the page is made of full-width sections (src/sections), so <main> adds no column or padding.
+interface Props { title?: string; description?: string; noindex?: boolean; bleed?: boolean }
+const { title, description = config.site.tagline, noindex = false, bleed = false } = Astro.props;
 const fullTitle = title ? `${title} | ${config.site.name}` : config.site.name;
 const canonical = new URL(Astro.url.pathname, `https://${config.site.canonicalHost}`).toString();
 const robots = !config.site.indexing || noindex ? "noindex" : "index, follow";
@@ -47,7 +49,7 @@ const year = new Date().getFullYear();
         </ul>
       </nav>
     </header>
-    <main id="main" class="mx-auto w-full max-w-[var(--container-content)] flex-1 px-[var(--spacing-gutter)] py-10">
+    <main id="main" class:list={["flex-1", bleed ? "w-full" : "mx-auto w-full max-w-[var(--container-content)] px-[var(--spacing-gutter)] py-10"]}>
       <slot />
     </main>
     <footer class="border-t border-[var(--color-line)]">

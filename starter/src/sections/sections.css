@@ -1,0 +1,3 @@
+/* Section library layout rules that depend on context. Colours, type and radii come only from tokens.css. */
+/* A card sits on the opposite tone of its band, so it stays visible on both. */
+section.bg-surface .card { background-color: var(--color-bg); }

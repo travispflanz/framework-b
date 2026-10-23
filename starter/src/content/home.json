@@ -1,0 +1,32 @@
+{
+  "title": "Home",
+  "sections": [
+    {
+      "_type": "fb_hero",
+      "_key": "hero",
+      "headline": "Example Co helps you get the thing done.",
+      "subheadline": "One sentence that says who this is for and what changes for them.",
+      "primary_cta_label": "Get in touch",
+      "primary_cta_url": "#contact",
+      "points": "Placeholder reassurance one\nPlaceholder reassurance two"
+    },
+    {
+      "_type": "fb_steps",
+      "_key": "how",
+      "anchor_id": "how-it-works",
+      "headline": "How it works",
+      "steps": [
+        { "title": "You ask", "body": "Send the form below with a few details." },
+        { "title": "We reply", "body": "We answer with what happens next." }
+      ]
+    },
+    {
+      "_type": "fb_form",
+      "_key": "contact",
+      "anchor_id": "contact",
+      "headline": "Get in touch",
+      "subheadline": "We reply to every message.",
+      "form": "contact"
+    }
+  ]
+}

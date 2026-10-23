@@ -104,7 +104,7 @@ try {
     check("EmDash created its tables in its own database", !!cms);
     if (cms) {
       const seed = JSON.parse(readFileSync("seed/seed.json", "utf8"));
-      seed.content.pages[0].data.headline = "Edited through EmDash";
+      seed.content.pages[0].data.sections[0].headline = "Edited through EmDash";
       const seedPath = join(mkdtempSync(join(tmpdir(), "e2e-seed-")), "seed.json");
       writeFileSync(seedPath, JSON.stringify(seed));
       execFileSync("npx", ["emdash", "seed", "-d", cms, seedPath, "--skip-media"], { stdio: "ignore" });

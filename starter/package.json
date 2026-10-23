@@ -19,11 +19,13 @@
   "devDependencies": {
     "@astrojs/sitemap": "3.7.4",
     "@axe-core/playwright": "4.14.0",
+    "@google/design.md": "0.4.0",
     "@tailwindcss/vite": "4.3.3",
     "chrome-launcher": "1.2.2",
     "lighthouse": "13.5.0",
     "playwright": "1.64.1",
     "tailwindcss": "4.3.3",
-    "wrangler": "4.152.0"
+    "wrangler": "4.152.0",
+    "yaml": "2.9.1"
   }
 }

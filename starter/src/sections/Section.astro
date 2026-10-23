@@ -1,0 +1,10 @@
+---
+// Full-width band with the content column inside. `tone` picks the band's background from the tokens.
+interface Props { id?: string; tone?: "bg" | "surface"; labelledby?: string }
+const { id, tone = "bg", labelledby } = Astro.props;
+---
+<section id={id || undefined} aria-labelledby={labelledby} class:list={["px-gutter py-section scroll-mt-20", tone === "surface" ? "bg-surface" : "bg-bg"]}>
+  <div class="mx-auto w-full max-w-content">
+    <slot />
+  </div>
+</section>
