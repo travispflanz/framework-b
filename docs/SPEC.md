@@ -43,7 +43,7 @@ Why ideas share resources: the Workers Free plan allows 10 D1 databases and 5 Cr
 
 `teardown` first exports an idea's leads and uploads to the backup bucket. Then it deletes the idea's Worker, rows, objects and Access app.
 
-### Creating and removing an idea site (untested end to end)
+### Creating and removing an idea site
 
 Both run as workflows in the owner's private ops repo, because this repo's Actions logs are public. The ops workflows call the reusable `site-create.yml` and `site-teardown.yml` here, which run `scripts/site/create.mjs` and `scripts/site/teardown.mjs`.
 
@@ -63,6 +63,10 @@ Both run as workflows in the owner's private ops repo, because this repo's Actio
 1. Exports the site's leads and subscribers to `framework-backups/teardown/<id>/`, then deletes the rows and uploaded files.
 2. Deletes the Builds triggers, both Access apps, the Turnstile widget and the Worker.
 3. Archives the repo. It deletes the repo only when asked.
+
+Self-test on 2026-10-22 (`selftest-1022`):
+- create, live QA (103 checks), a live lead with a file upload, a production build from the repo, and teardown all passed.
+- Preview-branch builds are untested.
 
 R2 objects are written and deleted with Wrangler. The Builds calls follow the [Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/) (checked 2026-10-22). They need a user-scoped token (`CF_BUILDS_TOKEN`).
 
