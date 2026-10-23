@@ -29,22 +29,33 @@ export async function listDatabases(env) {
   return out;
 }
 
-// Starts an export job; returns its bookmark.
+// The live export API nests the dump under result.result ({ status: "complete", result: { signed_url, filename } }),
+// not at result.signed_url as the Workflows backup example shows. Observed with a real database on 2026-10-23.
+// Both shapes are accepted. A small database is often complete in the first response, before any poll.
+function readyFrom(r) {
+  const url = r?.result?.signed_url || r?.signed_url;
+  return url ? { signedUrl: url, filename: r?.result?.filename || r?.filename } : null;
+}
+
+// Starts an export job. Returns { bookmark, ready }, where ready is set if the dump is already done.
 export async function startExport(env, uuid) {
   const body = await cf(env, `/d1/database/${uuid}/export`, { method: "POST", body: JSON.stringify({ output_format: "polling" }) });
-  if (!body.result?.at_bookmark) throw new Error("export did not return at_bookmark");
-  return body.result.at_bookmark;
+  const r = body.result || {};
+  if (r.status === "error" || r.error) throw new Error(`export failed: ${r.error || "unknown"}`);
+  if (!r.at_bookmark) throw new Error("export did not return at_bookmark");
+  return { bookmark: r.at_bookmark, ready: readyFrom(r) };
 }
 
 // Polls the job; returns { signedUrl, filename } when ready, or null while still running.
+// A finished or lost job answers { success: false, error: "Not currently exporting anything." }, which throws.
 export async function pollExport(env, uuid, bookmark) {
   const body = await cf(env, `/d1/database/${uuid}/export`, {
     method: "POST",
     body: JSON.stringify({ output_format: "polling", current_bookmark: bookmark }),
   });
   const r = body.result || {};
-  if (r.status === "error") throw new Error(`export failed: ${r.error || "unknown"}`);
-  return r.signed_url ? { signedUrl: r.signed_url, filename: r.filename } : null;
+  if (r.status === "error" || r.success === false || r.error) throw new Error(`export failed: ${r.error || "unknown"}`);
+  return readyFrom(r);
 }
 
 // Streams the dump into R2 (no buffering, so CPU time stays low). Returns the object key and size.

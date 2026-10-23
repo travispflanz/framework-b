@@ -8,3 +8,7 @@ Weekly backup of **every D1 database in the account** to the R2 bucket `framewor
 - **Restore:** download the dump from R2 and apply it with `wrangler d1 execute <db> --remote --file <dump.sql>` into a new or empty database. Never restore over live data without the owner's approval.
 - **Deploy:** `.github/workflows/deploy-backup-worker.yml`, on merge to `main` or by hand. Needs the `D1_BACKUP_TOKEN` repository secret (Account → D1 → Edit only).
 - **Tests:** `npm test` (7 tests in workerd, including a full Workflow run). Status: **untested** against the real export API until the first deployed run.
+
+## Export API response (checked 2026-10-23)
+
+The live D1 export API returns the dump link under `result.result.signed_url`, with `result.status: "complete"`. The [Workflows backup example](https://developers.cloudflare.com/workflows/examples/backup-d1/) shows `result.signed_url` instead. The Worker accepts both. Small databases are often complete in the first response, so no polling happens. Once a job is finished, a poll answers `"Not currently exporting anything."`. Tested against the live API with all 5 of the account's databases: each was complete on the first call. The polling path is covered by tests only and is untested live.

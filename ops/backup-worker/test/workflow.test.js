@@ -15,7 +15,7 @@ beforeEach(() => {
       const body = JSON.parse(init.body);
       if (!body.current_bookmark) return Response.json({ success: true, result: { at_bookmark: "bm-1" } });
       // Not ready on the first poll, ready on the second.
-      return Response.json({ success: true, result: ++polls < 2 ? { status: "active" } : { signed_url: "https://dumps.example.com/u1.sql" } });
+      return Response.json({ success: true, result: ++polls < 2 ? { status: "active" } : { status: "complete", result: { signed_url: "https://dumps.example.com/u1.sql", filename: "u1.sql" } } });
     }
     if (url === `${API}/d1/database/u2/export`) return Response.json({ success: false, errors: [{ code: 7400, message: "export failed" }] }, { status: 500 });
     if (url === "https://dumps.example.com/u1.sql") return new Response("CREATE TABLE t (x);\n", { headers: { "content-length": "20" } });
