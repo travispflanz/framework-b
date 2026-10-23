@@ -5,7 +5,22 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { readdirSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import { checker, launchBrowser, startLocalSite } from "./lib/local-site.mjs";
+
+// The local SQLite file behind CMS_DB: the one holding EmDash's tables.
+function findCmsDatabase(state) {
+  const dir = join(state, "v3/d1/miniflare-D1DatabaseObject");
+  for (const f of readdirSync(dir).filter((n) => n.endsWith(".sqlite") && n !== "metadata.sqlite")) {
+    const db = new DatabaseSync(join(dir, f), { readOnly: true });
+    const hit = db.prepare("SELECT 1 FROM sqlite_master WHERE name = '_emdash_fields'").get();
+    db.close();
+    if (hit) return join(dir, f);
+  }
+  return null;
+}
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
 const { check, failed } = checker();
@@ -78,6 +93,24 @@ try {
   if (filePath) {
     check("file stored", lead?.upload_status === "stored" && lead?.upload_key === `${site.site.id}/${lead.id}/brief.pdf`, `${lead?.upload_status} ${lead?.upload_key}`);
     check("file bytes in R2 match", local.r2get(lead.upload_key).includes("% e2e test file"));
+  }
+
+  // Client editing on: EmDash serves its admin and the home page, and content an editor publishes reaches the page.
+  if (local.editing) {
+    const admin = await fetch(`${base}/_emdash/admin`, { redirect: "manual" });
+    check("EmDash admin answers (setup or login)", [302, 303].includes(admin.status), `${admin.status} ${admin.headers.get("location") || ""}`);
+    check("home page renders through EmDash", (await fetch(`${base}/`)).status === 200);
+    const cms = findCmsDatabase(local.state);
+    check("EmDash created its tables in its own database", !!cms);
+    if (cms) {
+      const seed = JSON.parse(readFileSync("seed/seed.json", "utf8"));
+      seed.content.pages[0].data.headline = "Edited through EmDash";
+      const seedPath = join(mkdtempSync(join(tmpdir(), "e2e-seed-")), "seed.json");
+      writeFileSync(seedPath, JSON.stringify(seed));
+      execFileSync("npx", ["emdash", "seed", "-d", cms, seedPath, "--skip-media"], { stdio: "ignore" });
+      const html = await (await fetch(`${base}/`)).text();
+      check("published EmDash content shows on the home page", html.includes("Edited through EmDash"));
+    }
   }
 } catch (e) {
   console.error(e);

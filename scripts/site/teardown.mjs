@@ -101,7 +101,7 @@ if (tag) {
 }
 
 // 3. Access applications.
-for (const app of (await cf(`${A}/access/apps`)).filter((a) => a.name === `${id} admin` || a.name === `${id} previews`)) {
+for (const app of (await cf(`${A}/access/apps`)).filter((a) => [`${id} admin`, `${id} editor`, `${id} previews`].includes(a.name))) {
   await cf(`${A}/access/apps/${app.id}`, { method: "DELETE" });
   did(`deleted Access application "${app.name}"`);
 }
@@ -116,6 +116,46 @@ for (const w of (await cf(`${A}/challenges/widgets`)).filter((w) => w.name === i
 if (tag) {
   await cf(`${A}/workers/scripts/${id}?force=true`, { method: "DELETE" });
   did(`deleted Worker ${id}`);
+}
+
+// 5c. Client editing (EmDash) resources, if the site had them. The content databases are exported to the
+// backups bucket first (D1 export API, the same one the weekly backup uses), then deleted.
+for (const name of [`${id}-cms`, `${id}-cms-preview`]) {
+  const uuid = await dbUuid(name);
+  if (!uuid) continue;
+  const startBody = await cf(`${A}/d1/database/${uuid}/export`, { method: "POST", body: { output_format: "polling" } });
+  let r = startBody;
+  for (let i = 0; i < 30 && !(r?.result?.signed_url || r?.signed_url); i++) {
+    await new Promise((res) => setTimeout(res, 3000));
+    r = await cf(`${A}/d1/database/${uuid}/export`, { method: "POST", body: { output_format: "polling", current_bookmark: startBody.at_bookmark } });
+  }
+  const url = r?.result?.signed_url || r?.signed_url;
+  if (!url) throw new Error(`export of ${name} did not finish; nothing of it was deleted`);
+  const file = join(scratch, `${name}.sql`);
+  writeFileSync(file, Buffer.from(await (await fetch(url)).arrayBuffer()));
+  const key = `teardown/${id}/${name}-${new Date().toISOString().replace(/[:.]/g, "-")}.sql`;
+  r2("put", `${SHARED.backups}/${key}`, "--file", file, "--content-type", "application/sql");
+  await cf(`${A}/d1/database/${uuid}`, { method: "DELETE" });
+  did(`exported ${name} to ${SHARED.backups}/${key}, then deleted it`);
+}
+for (const bucket of [`${id}-media`, `${id}-media-preview`]) {
+  if (!(await cf(`${A}/r2/buckets/${bucket}`, { allow404: true }))) continue;
+  try {
+    await cf(`${A}/r2/buckets/${bucket}`, { method: "DELETE" });
+    did(`deleted R2 bucket ${bucket}`);
+  } catch (e) {
+    // A bucket must be empty to delete. Media is left for the owner rather than deleted unseen.
+    did(`R2 bucket ${bucket} not deleted (${e.message}); empty it in the dashboard, then delete it`);
+  }
+}
+try {
+  for (const ns of (await cf(`${A}/storage/kv/namespaces?per_page=100`)) || []) {
+    if (![`${id}-session`, `${id}-session-preview`].includes(ns.title)) continue;
+    await cf(`${A}/storage/kv/namespaces/${ns.id}`, { method: "DELETE" });
+    did(`deleted KV namespace ${ns.title}`);
+  }
+} catch (e) {
+  did(`KV namespaces not checked (${e.message})`); // only sites with client editing have them
 }
 
 // 6. The GitHub repo: archived unless deletion was asked for.

@@ -1,6 +1,7 @@
 # Reusable: the template self-test against the real account. Creates a throwaway idea site
 # (selftest-<run id>, Turnstile test keys), runs the QA gate on its live URL, sends one lead with a
-# file and checks it in D1 and R2, then always tears the site down. Called only from the owner's
+# file and checks it in D1 and R2, then always tears the site down. Runs twice in parallel: as a static
+# site, and with client editing (EmDash) on. Called only from the owner's
 # private ops repo, which holds the secrets.
 name: site selftest
 on:
@@ -21,9 +22,15 @@ jobs:
   selftest:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    concurrency: site-selftest
+    strategy:
+      fail-fast: false
+      matrix:
+        editing: ['off', 'on']
+    name: selftest (editing ${{ matrix.editing }})
+    concurrency: site-selftest-${{ matrix.editing }}
     env:
-      SITE_ID: selftest-${{ github.run_id }}
+      SITE_ID: selftest-${{ github.run_id }}-${{ matrix.editing == 'on' && 'ed' || 'st' }}
+      EDITING: ${{ matrix.editing }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
@@ -65,6 +72,11 @@ jobs:
       - name: Check the uptime monitors
         if: env.UPTIMEROBOT_API_KEY != ''
         run: node scripts/site/verify-monitors.mjs "$(node -p 'new URL(require("./site-summary.json").url).host')"
+      - name: Check client editing (EmDash)
+        if: matrix.editing == 'on'
+        env:
+          SITE_URL: ${{ steps.site.outputs.url }}
+        run: node scripts/site/verify-editing.mjs
       - name: Check the lead in D1 and R2
         env:
           LEAD_FILE: live-lead.json
@@ -75,7 +87,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: selftest-${{ github.run_id }}
+          name: selftest-${{ github.run_id }}-editing-${{ matrix.editing }}
           path: |
             site-summary.json
             ${{ steps.site.outputs.dir }}/qa-output/

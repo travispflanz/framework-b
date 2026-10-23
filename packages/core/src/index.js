@@ -5,7 +5,8 @@
 //   export default createWorker(config);
 //
 // Routes: POST /api/submit/:form, PUT /api/upload/:lead, GET /api/health, GET|POST /u, GET /admin/*.
-// Everything else is served from static assets (env.ASSETS).
+// Everything else is served from static assets (env.ASSETS), or, with client editing on, by the
+// `fallback` handler (the Astro/EmDash server): createWorker(config, { fallback }).
 
 import { loadConfig } from "./config.js";
 import { handleSubmit, handleUpload } from "./forms.js";
@@ -13,9 +14,9 @@ import { handleUnsubscribe } from "./unsubscribe.js";
 import { handleAdmin } from "./admin.js";
 import { json } from "./lib/util.js";
 
-export const CORE_VERSION = "0.1.0";
+export const CORE_VERSION = "0.2.0";
 
-export function createWorker(rawConfig) {
+export function createWorker(rawConfig, { fallback } = {}) {
   const config = loadConfig(rawConfig);
 
   return {
@@ -54,13 +55,13 @@ export function createWorker(rawConfig) {
         return json({ ok: false, error: "server_error" }, 500);
       }
 
-      return serveAsset(request, env, config, url);
+      return serveAsset(request, env, config, url, fallback ? () => fallback(request, env, ctx) : null);
     },
   };
 }
 
-async function serveAsset(request, env, config, url) {
-  const res = await env.ASSETS.fetch(request);
+async function serveAsset(request, env, config, url, fallback) {
+  const res = fallback ? await fallback() : await env.ASSETS.fetch(request);
   // noindex when the site chose not to be indexed (idea default) and on any non-canonical host
   // (workers.dev twin of a launch site, preview URLs).
   if (!config.site.indexing || url.host !== config.site.canonicalHost) {

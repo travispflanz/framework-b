@@ -4,3 +4,6 @@ SIGNING_SECRET=replace-with-at-least-32-random-characters
 MAILER_URL=
 MAILER_SECRET=
 RESEND_API_KEY=
+# Client editing (EmDash) only. Generate the key with: npx emdash secrets generate
+CF_ACCESS_AUDIENCE=local
+EMDASH_ENCRYPTION_KEY=

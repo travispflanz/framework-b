@@ -9,6 +9,7 @@
 //   SITE_TAGLINE     one line (optional)
 //   OWNER_EMAIL      owner inbox: Access login, lead notifications
 //   TURNSTILE_MODE   "real" (default) or "test" (documented test keys; self-test only)
+//   EDITING          "on" switches client editing (EmDash) on; default "off"
 //   FRAMEWORK_DIR    path to a framework-b checkout (default: this repo)
 //   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, CF_BUILDS_TOKEN, GH_SITES_TOKEN
 //   MAILER_URL, MAILER_SECRET (optional: idea-mode Apps Script mailer)
@@ -34,6 +35,7 @@ const name = env("SITE_NAME").trim();
 const tagline = (process.env.SITE_TAGLINE || "").trim() || `${name}.`;
 const owner = env("OWNER_EMAIL").trim().toLowerCase();
 const turnstileMode = (process.env.TURNSTILE_MODE || "real").trim();
+const editing = (process.env.EDITING || "off").trim() === "on";
 const repoName = `site-${id}`;
 const SHARED = { db: "fb-ideas", previewDb: "fb-previews", uploads: "fb-ideas-uploads", previewUploads: "fb-previews" };
 const TEST_SITEKEY = "1x00000000000000000000AA";
@@ -52,6 +54,7 @@ const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: ["pipe", "
 if (!/^[a-z][a-z0-9-]{1,40}[a-z0-9]$/.test(id)) throw new Error("SITE_ID must be 3-42 lowercase letters, digits or dashes, starting with a letter");
 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner)) throw new Error("OWNER_EMAIL is not an email address");
 if (!["real", "test"].includes(turnstileMode)) throw new Error('TURNSTILE_MODE must be "real" or "test"');
+if (!["on", "off"].includes((process.env.EDITING || "off").trim())) throw new Error('EDITING must be "on" or "off"');
 
 // ---------- 1. Preconditions ----------
 const ghUser = await gh("/user");
@@ -61,6 +64,19 @@ const sub = (await cf(`${A}/workers/subdomain`)).subdomain;
 const host = `${id}.${sub}.workers.dev`;
 const authDomain = (await cf(`${A}/access/organizations`)).auth_domain;
 if (!authDomain) throw new Error("Zero Trust organization not set up (docs/ONE-TIME-SETUP.md)");
+// Client editing needs a Cron Trigger and two more D1 databases; the Free plan allows 5 and 10 per account
+// (https://developers.cloudflare.com/workers/platform/limits/, https://developers.cloudflare.com/d1/platform/limits/,
+// checked 2026-10-23). Stop before creating anything if either would run out.
+if (editing) {
+  let crons = 0;
+  for (const script of await cf(`${A}/workers/scripts`)) {
+    crons += ((await cf(`${A}/workers/scripts/${script.id}/schedules`, { allow404: true }))?.schedules || []).length;
+  }
+  const d1Count = (await cf(`${A}/d1/database?per_page=100`)).length;
+  if (crons >= 5) throw new Error(`Client editing needs a Cron Trigger, and this account already uses ${crons} of the Free plan's 5`);
+  if (d1Count + 2 > 10) throw new Error(`Client editing needs 2 D1 databases, and this account already has ${d1Count} of the Free plan's 10`);
+  done("editing budget", `Cron Triggers ${crons}/5 in use, D1 databases ${d1Count}/10`);
+}
 done("preconditions", `repo and Worker names free; host ${host}`);
 
 // ---------- 2. Shared idea resources (created once, reused by every idea site) ----------
@@ -86,6 +102,27 @@ done("shared resources", [
   `${SHARED.uploads} ${uploadsCreated ? "created" : "reused"}`,
   `${SHARED.previewUploads} ${previewUploadsCreated ? "created" : "reused"}`,
 ].join(", "));
+
+// ---------- 2b. Client editing resources (one set per site: EmDash content can't be shared) ----------
+async function ensureKv(title) {
+  const found = (await cf(`${A}/storage/kv/namespaces?per_page=100`)).find((n) => n.title === title);
+  if (found) return found.id;
+  return (await cf(`${A}/storage/kv/namespaces`, { method: "POST", body: { title } })).id;
+}
+let cms = null;
+if (editing) {
+  cms = {
+    db: await ensureD1(`${id}-cms`),
+    previewDb: await ensureD1(`${id}-cms-preview`),
+    media: `${id}-media`,
+    previewMedia: `${id}-media-preview`,
+    session: await ensureKv(`${id}-session`),
+    previewSession: await ensureKv(`${id}-session-preview`),
+  };
+  await ensureBucket(cms.media);
+  await ensureBucket(cms.previewMedia);
+  done("editing resources", `D1 ${id}-cms (+ preview), R2 ${cms.media} (+ preview), KV ${id}-session (+ preview)`);
+}
 
 // ---------- 3. Turnstile ----------
 let siteKey = TEST_SITEKEY;
@@ -114,6 +151,18 @@ const adminApp = await cf(`${A}/access/apps`, {
   },
 });
 done("access /admin", "application created");
+// EmDash checks the Access JWT on all of /_emdash/*, so the application must cover the whole path.
+const editorApp = editing ? await cf(`${A}/access/apps`, {
+  method: "POST",
+  body: {
+    type: "self_hosted",
+    name: `${id} editor`,
+    domain: `${host}/_emdash`,
+    session_duration: "24h",
+    policies: [{ name: "editors", decision: "allow", include: [{ email: { email: owner } }] }],
+  },
+}) : null;
+if (editorApp) done("access /_emdash", "application created (editors: the owner)");
 
 // ---------- 5. Site files ----------
 const work = mkdtempSync(join(tmpdir(), `site-${id}-`));
@@ -156,6 +205,23 @@ const wrangler = {
 };
 writeFileSync(join(dir, "wrangler.jsonc"), "// Written by framework-b scripts/site/create.mjs. Resource IDs are not secrets.\n" + JSON.stringify(wrangler, null, 2) + "\n");
 
+if (editing) {
+  sh("npm", ["ci", "--no-audit", "--no-fund"], { cwd: dir, stdio: ["ignore", "ignore", "inherit"] });
+  sh("node", ["scripts/editing.mjs", "on"], { cwd: dir, stdio: ["ignore", "ignore", "inherit"] });
+  const { stripJsonc } = await import(join(dir, "scripts/lib/jsonc.mjs"));
+  const w = JSON.parse(stripJsonc(readFileSync(join(dir, "wrangler.jsonc"), "utf8")));
+  const fill = (list, binding, value) => list.map((x) => (x.binding === binding ? { ...x, ...value } : x));
+  w.d1_databases = fill(w.d1_databases, "CMS_DB", { database_name: `${id}-cms`, database_id: cms.db.uuid });
+  w.r2_buckets = fill(w.r2_buckets, "MEDIA", { bucket_name: cms.media });
+  w.kv_namespaces = fill(w.kv_namespaces, "SESSION", { id: cms.session });
+  // Previews never touch the production content (EmDash's Cloudflare guide, checked 2026-10-23).
+  w.previews.d1_databases.push({ binding: "CMS_DB", database_name: `${id}-cms-preview`, database_id: cms.previewDb.uuid });
+  w.previews.r2_buckets.push({ binding: "MEDIA", bucket_name: cms.previewMedia });
+  w.previews.kv_namespaces = [{ binding: "SESSION", id: cms.previewSession }];
+  writeFileSync(join(dir, "wrangler.jsonc"), "// Written by framework-b scripts/site/create.mjs, client editing on. Resource IDs are not secrets.\n" + JSON.stringify(w, null, 2) + "\n");
+  done("client editing", "switched on (EmDash at /_emdash/admin)");
+}
+
 mkdirSync(join(dir, ".githooks"), { recursive: true });
 writeFileSync(join(dir, ".githooks/pre-push"), [
   "#!/bin/sh",
@@ -174,13 +240,14 @@ appendFileSync(join(dir, "DECISIONS.md"), [
   `| ${today} | Search engines: noindex (idea default) | Idea default | inferred |`,
   `| ${today} | Email: ${mailer ? "Apps Script mailer to the owner's inbox" : "none yet; leads are in /admin"} | Mailer ${mailer ? "configured" : "not set up"} | inferred |`,
   `| ${today} | Framework B core ${coreVersion} | Current release | inferred |`,
+  `| ${today} | Client editing (EmDash): ${editing ? "on; editors sign in through Cloudflare Access at /_emdash/admin" : "off"} | Kickoff | owner |`,
   "",
 ].join("\n"));
 writeFileSync(join(dir, "HANDOFF.md"), readFileSync(join(dir, "HANDOFF.md"), "utf8")
   .replace("- Site:", `- Site: https://${host}`)
   .replace("- Admin: /admin (Cloudflare Access)", `- Admin: https://${host}/admin (Cloudflare Access, ${owner})`)
   .replace("- Repo:", `- Repo: https://github.com/${ghUser.login}/${repoName}`)
-  + `\n## Resources (agent-verified ${today})\n\n- Worker: \`${id}\`\n- D1: \`${SHARED.db}\` (rows with site = \`${id}\`); previews use \`${SHARED.previewDb}\`\n- R2: \`${SHARED.uploads}\` under \`${id}/\`; previews use \`${SHARED.previewUploads}\`\n- Turnstile: ${turnstileMode === "real" ? `widget \`${id}\`` : "test keys (self-test only)"}\n- Access: applications \`${id} admin\` and \`${id} previews\`\n`);
+  + `\n## Resources (agent-verified ${today})\n\n- Worker: \`${id}\`\n- D1: \`${SHARED.db}\` (rows with site = \`${id}\`); previews use \`${SHARED.previewDb}\`\n- R2: \`${SHARED.uploads}\` under \`${id}/\`; previews use \`${SHARED.previewUploads}\`\n- Turnstile: ${turnstileMode === "real" ? `widget \`${id}\`` : "test keys (self-test only)"}\n- Access: applications \`${id} admin\`${editing ? `, \`${id} editor\`` : ""} and \`${id} previews\`\n${editing ? `- Client editing: D1 \`${id}-cms\` (previews \`${id}-cms-preview\`), R2 \`${cms.media}\` (previews \`${cms.previewMedia}\`), KV \`${id}-session\` (previews \`${id}-session-preview\`), hourly Cron Trigger\n` : ""}`);
 done("site files", `starter + core ${coreVersion}`);
 
 // ---------- 6. Install, migrate, build, deploy ----------
@@ -196,6 +263,11 @@ done("migrations", "applied to both databases");
 run("npm", ["run", "build"]);
 const secrets = { TURNSTILE_SECRET: turnstileSecret, SIGNING_SECRET: randomBytes(36).toString("base64url") };
 if (mailer) Object.assign(secrets, { MAILER_URL: process.env.MAILER_URL, MAILER_SECRET: process.env.MAILER_SECRET });
+if (editing) {
+  secrets.CF_ACCESS_AUDIENCE = editorApp.aud;
+  // Encrypts plugin secrets EmDash stores in D1; generated in EmDash's own format. Kept only as a Worker secret.
+  secrets.EMDASH_ENCRYPTION_KEY = execFileSync("npx", ["emdash", "secrets", "generate"], { cwd: dir, encoding: "utf8" }).trim().split("\n").pop().trim();
+}
 const secretsFile = join(work, "secrets.json");
 writeFileSync(secretsFile, JSON.stringify(secrets), { mode: 0o600 });
 process.on("exit", () => rmSync(secretsFile, { force: true }));
@@ -204,6 +276,7 @@ done("deploy", "Worker deployed with its secrets");
 
 // Previews get the same secrets through the Previews base configuration.
 for (const [k, v] of Object.entries(secrets)) {
+  if (k === "CF_ACCESS_AUDIENCE") continue; // previews sit behind their own Access application; set below
   try {
     execFileSync("npx", ["wrangler", "preview", "base-config", "secret", "put", k], { cwd: dir, input: v, stdio: ["pipe", "ignore", "pipe"] });
   } catch (e) {
@@ -229,6 +302,14 @@ if (tag) {
     },
   });
   done("access previews", "application created");
+  if (editing) {
+    // On a preview URL, the Access JWT comes from the previews application, so EmDash must expect its audience.
+    try {
+      execFileSync("npx", ["wrangler", "preview", "base-config", "secret", "put", "CF_ACCESS_AUDIENCE"], { cwd: dir, input: previewApp.aud, stdio: ["pipe", "ignore", "pipe"] });
+    } catch (e) {
+      warn(`Preview secret CF_ACCESS_AUDIENCE not set (${String(e.stderr || e.message).split("\n").find(Boolean)?.slice(0, 160)})`);
+    }
+  }
 } else {
   warn("Worker tag not found; previews are not behind Access");
 }
@@ -292,7 +373,8 @@ Object.assign(summary, {
   worker: id,
   turnstile: turnstileMode,
   core: coreVersion,
-  ids: { monitors, workerTag: tag, adminApp: adminApp.id, previewApp: previewApp?.id || null, turnstileSitekey: widgetKey },
+  editing,
+  ids: { monitors, workerTag: tag, editorApp: editorApp?.id || null, cmsDb: cms?.db.uuid || null, adminApp: adminApp.id, previewApp: previewApp?.id || null, turnstileSitekey: widgetKey },
 });
 writeFileSync(process.env.SUMMARY_FILE || join(process.cwd(), `site-${id}.json`), JSON.stringify(summary, null, 2));
 if (process.env.GITHUB_STEP_SUMMARY) {
