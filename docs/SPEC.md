@@ -91,7 +91,7 @@ A copied starter never gets later fixes on its own, so `site update` brings an e
 - Afterwards it runs `npm install`, regenerates tokens.css (and the EmDash seed when editing is on), checks the content and writes the new lock. A changed EmDash content model is reported, because a deployed content database keeps its model until it is migrated.
 - The workflow commits on `framework/update-<commit>`, tests a copy of the site with Turnstile test keys (build, e2e, QA gate), and opens a pull request in `site-<id>` with the report and the test results. The preview build runs on that branch; production changes only when the owner merges.
 
-Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. First live run (2026-10-23, an editing site created before the lock existed): 4 files updated or added, no conflicts; build, e2e and QA passed on the copy; the branch was pushed, but opening the pull request needed `GH_SITES_TOKEN` to have "Pull requests: write" (docs/TOKENS.md). The step now fails when the pull request can't be opened. Updating a static site live, and a run with a conflict, are untested.
+Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. First live run (2026-10-23, an editing site created before the lock existed): 4 files updated or added, no conflicts; build, e2e and QA passed on the copy; the branch was pushed, but opening the pull request needed `GH_SITES_TOKEN` to have "Pull requests: write" (docs/TOKENS.md). The step now fails when the pull request can't be opened. After the permission was added, a second run (lock-only change) opened its own pull request, with 14 e2e and 80 QA checks passing. Updating a static site live, and a live run with a conflict, are untested.
 
 ## 3. Kickoff questions
 
@@ -297,7 +297,7 @@ The design phase's foundation is in `starter/`. The intake steps (P2.1–P2.7) a
   - truth gate: no reviews, ratings, customer counts or percentages unless listed under "Approved claims" in `PRODUCT.md`;
   - copy lint for generic AI words;
   - Lighthouse "is-crawlable" only on the canonical host of an indexed site, for pages that don't opt out.
-- **First use:** Sunflower Bin Wash (idea site, editing on), with autopilot direction from research. Its local end-to-end test and QA gate pass with editing on.
+- **First use:** the first real site (idea site, editing on), with autopilot direction from research. Its local end-to-end test and QA gate pass with editing on.
 - **Not built yet:**
   - style tiles and the this-or-that preview (P2.5–P2.6);
   - the pairwise autopilot judge as a script;
