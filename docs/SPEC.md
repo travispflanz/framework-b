@@ -91,7 +91,7 @@ A copied starter never gets later fixes on its own, so `site update` brings an e
 - Afterwards it runs `npm install`, regenerates tokens.css (and the EmDash seed when editing is on), checks the content and writes the new lock. A changed EmDash content model is reported, because a deployed content database keeps its model until it is migrated.
 - The workflow commits on `framework/update-<commit>`, tests a copy of the site with Turnstile test keys (build, e2e, QA gate), and opens a pull request in `site-<id>` with the report and the test results. The preview build runs on that branch; production changes only when the owner merges.
 
-Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. The first live run on a real site is untested.
+Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. First live run (2026-10-23, an editing site created before the lock existed): 4 files updated or added, no conflicts; build, e2e and QA passed on the copy; the branch was pushed, but opening the pull request needed `GH_SITES_TOKEN` to have "Pull requests: write" (docs/TOKENS.md). The step now fails when the pull request can't be opened. Updating a static site live, and a run with a conflict, are untested.
 
 ## 3. Kickoff questions
 

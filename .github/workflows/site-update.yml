@@ -91,8 +91,10 @@ jobs:
           code=$(curl -s -o pr.json -w '%{http_code}' -X POST -H "Authorization: Bearer $GH_SITES_TOKEN" -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${OWNER}/site-${SITE_ID}/pulls" -d "{\"title\":$(jq -Rn --arg t "$title" '$t'),\"head\":\"$BRANCH\",\"base\":\"main\",\"body\":$body}")
           if [ "$code" = "201" ]; then echo "Pull request: $(jq -r .html_url pr.json)" | tee -a "$GITHUB_STEP_SUMMARY";
-          else echo "Branch pushed; open a pull request from $BRANCH (the token couldn't: HTTP $code)" | tee -a "$GITHUB_STEP_SUMMARY"; fi
+          else echo "Branch pushed, but the pull request wasn't opened (HTTP $code). GH_SITES_TOKEN needs the repository permission \"Pull requests: Read and write\". Open one from $BRANCH by hand." | tee -a "$GITHUB_STEP_SUMMARY"; fi
           cat update-report.md >> "$GITHUB_STEP_SUMMARY"
+          cat update-report.md
+          [ "$code" = "201" ]
       - name: Nothing to do
         if: steps.update.outputs.changed == 'no'
         run: echo "The site is already on this framework version." | tee -a "$GITHUB_STEP_SUMMARY"

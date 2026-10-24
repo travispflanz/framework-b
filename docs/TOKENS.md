@@ -65,17 +65,21 @@ Created by the owner when a purchase is approved, used once, then deleted.
 
 ## GitHub: site repo token (fine-grained personal access token)
 
-Lets the ops repo create each site's private repo and push the starter into it.
+Lets the ops repo create each site's private repo and push the starter into it, and lets `site update` open a pull request in it.
 
 - Resource owner: the owner's account. Repository access: **All repositories**, because the token has to reach repos that don't exist yet.
 - Permissions:
   - Administration: Read and write (create repositories)
-  - Contents: Read and write (push the starter)
+  - Contents: Read and write (push the starter and update branches)
   - Workflows: Read and write (push files under `.github/workflows/`)
+  - Pull requests: Read and write (`site update` opens a pull request in the site repo)
   - Metadata: Read (added automatically)
 - Expiration: up to 1 year. Rotate it, then update the `GH_SITES_TOKEN` secret in the ops repo.
+- To add a permission later: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → the token. If GitHub only offers "Regenerate token", update the `GH_SITES_TOKEN` secret with the new value. Whether the value stays the same after an edit is untested.
 
-Source: [permissions required for fine-grained tokens](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) (`POST /user/repos` needs Administration write; contents and workflow files need Contents and Workflows write), checked 2026-10-22. Status: unverified until the first site repo is created.
+Sources:
+- [Permissions required for fine-grained tokens](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens) (`POST /user/repos` needs Administration write; contents and workflow files need Contents and Workflows write), checked 2026-10-22. Site repos have been created with it since then.
+- [Create a pull request](https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request) needs "Pull requests" repository permissions (write), checked 2026-10-23. Without it, the first live `site update` pushed its branch but got HTTP 403 on the pull request.
 
 ## Where secrets live
 
