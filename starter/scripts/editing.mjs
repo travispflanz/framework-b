@@ -6,7 +6,7 @@
 // - copies editing/ over the site (astro.config.mjs, src/worker.js, src/live.config.ts, src/pages/index.astro);
 // - marks every other page prerendered, so only EmDash-driven pages run on request;
 // - writes seed/seed.json (the section library as EmDash block types, plus src/content/home.json as the first content);
-// - adds the EmDash packages (exact versions below) and runs npm install;
+// - adds the EmDash packages (exact versions in editing/packages.json) and runs npm install;
 // - adds the bindings EmDash needs to wrangler.jsonc (CMS_DB, MEDIA, SESSION, the hourly cron);
 // - sets "editing" in site.config.json.
 // Placeholders in <angle brackets> are filled by scripts/site/create.mjs (or by hand) before deploy.
@@ -17,14 +17,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { stripJsonc } from "./lib/jsonc.mjs";
 
-export const EMDASH_PACKAGES = {
-  emdash: "1.3.1",
-  "@emdash-cms/cloudflare": "1.3.1",
-  "@astrojs/cloudflare": "14.4.2",
-  "@astrojs/react": "7.1.1",
-  react: "19.3.1",
-  "react-dom": "19.3.1",
-};
+// Exact package versions live in editing/packages.json, so the site update script can read them too.
+export const EMDASH_PACKAGES = JSON.parse(readFileSync("editing/packages.json", "utf8")).dependencies;
 export const EMDASH_CRON = "17 * * * *";
 
 const [mode] = process.argv.slice(2);
@@ -42,7 +36,7 @@ const wrangler = JSON.parse(stripJsonc(readFileSync("wrangler.jsonc", "utf8")));
 
 if (mode === "on") {
   // 1. Overlay.
-  cpSync("editing", ".", { recursive: true });
+  cpSync("editing", ".", { recursive: true, filter: (src) => !src.endsWith("packages.json") });
 
   // 2. Everything except the EmDash-driven pages stays static.
   const overlayPages = new Set(readdirSync("editing/src/pages"));

@@ -176,6 +176,9 @@ cpSync(join(FRAMEWORK, "starter"), dir, {
 });
 sh("node", [join(FRAMEWORK, "scripts/vendor-core.mjs"), dir]);
 const coreVersion = readFileSync(join(dir, "core/VERSION"), "utf8").trim();
+// Where the site starts from, so scripts/site/update.mjs can bring it up to later framework versions.
+const frameworkCommit = execFileSync("git", ["-C", FRAMEWORK, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+writeFileSync(join(dir, "framework.lock.json"), JSON.stringify({ framework: { repo: "framework-b", commit: frameworkCommit, coreVersion }, editing, updatedAt: new Date().toISOString() }, null, 2) + "\n");
 
 const config = JSON.parse(readFileSync(join(dir, "site.config.json"), "utf8"));
 config.site = { ...config.site, id, name, tagline, mode: "idea", canonicalHost: host, ownerEmail: owner, postalAddress: "", indexing };

@@ -1,0 +1,100 @@
+# Reusable: brings a site up to a newer Framework B version on a branch and opens a pull request in the site's
+# repo. Production only changes when the owner merges it. Called only from the owner's private ops repo.
+name: site update
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      base: { type: string, default: "", description: "framework commit the site was made from (only if it has no framework.lock.json)" }
+    secrets:
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency: site-${{ inputs.site_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          fetch-depth: 0 # the update merges against the version the site started from
+          path: framework
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          echo "OWNER=$owner" >> "$GITHUB_ENV"
+          git clone -q "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
+          git -C site config user.name "Framework B"
+          git -C site config user.email "framework-b@users.noreply.github.com"
+      - name: Update
+        id: update
+        env:
+          BASE: ${{ inputs.base }}
+        run: |
+          to=$(git -C framework rev-parse --short HEAD)
+          echo "branch=framework/update-$to" >> "$GITHUB_OUTPUT"
+          git -C site checkout -q -b "framework/update-$to"
+          set +e
+          node framework/scripts/site/update.mjs --site site --to HEAD ${BASE:+--base "$BASE"} --report update-report.md
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
+          echo "conflicts=$([ "$code" -eq 2 ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+          if [ -z "$(git -C site status --porcelain)" ]; then echo "changed=no" >> "$GITHUB_OUTPUT"; else echo "changed=yes" >> "$GITHUB_OUTPUT"; fi
+      - name: Test the updated site (local Worker, Turnstile test keys)
+        if: steps.update.outputs.changed == 'yes'
+        id: test
+        run: |
+          cp -r site site-test && cd site-test
+          node scripts/fill-test-placeholders.mjs --turnstile-test
+          npx playwright install --with-deps chromium > /dev/null
+          set +e
+          npm run build > ../build.log 2>&1; build=$?
+          [ $build -eq 0 ] && npm run test:e2e > ../e2e.log 2>&1; e2e=$?
+          [ $build -eq 0 ] && npm run qa > ../qa.log 2>&1; qa=$?
+          set -e
+          {
+            echo ""
+            echo "## Tests on the updated site"
+            echo "- Build: $([ $build -eq 0 ] && echo passed || echo FAILED)"
+            echo "- End-to-end: $([ $build -eq 0 ] && [ $e2e -eq 0 ] && echo passed || echo FAILED) ($(grep -cE '^PASS' ../e2e.log 2>/dev/null || echo 0) checks passed)"
+            echo "- QA gate: $(tail -n 1 ../qa.log 2>/dev/null)"
+          } >> ../update-report.md
+          echo "ok=$([ $build -eq 0 ] && [ $e2e -eq 0 ] && [ $qa -eq 0 ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+      - name: Push the branch and open a pull request
+        if: steps.update.outputs.changed == 'yes'
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+          BRANCH: ${{ steps.update.outputs.branch }}
+          TESTS_OK: ${{ steps.test.outputs.ok }}
+          CONFLICTS: ${{ steps.update.outputs.conflicts }}
+        run: |
+          git -C site add -A
+          git -C site commit -q -m "Framework B update ($(git -C framework rev-parse --short HEAD))"
+          git -C site push -q origin "$BRANCH"
+          title="Framework B update to $(git -C framework rev-parse --short HEAD)"
+          [ "$CONFLICTS" = "yes" ] && title="$title (needs attention: conflicts)"
+          [ "$TESTS_OK" != "yes" ] && title="$title (tests failed)"
+          body=$(jq -Rs . < update-report.md)
+          code=$(curl -s -o pr.json -w '%{http_code}' -X POST -H "Authorization: Bearer $GH_SITES_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${OWNER}/site-${SITE_ID}/pulls" -d "{\"title\":$(jq -Rn --arg t "$title" '$t'),\"head\":\"$BRANCH\",\"base\":\"main\",\"body\":$body}")
+          if [ "$code" = "201" ]; then echo "Pull request: $(jq -r .html_url pr.json)" | tee -a "$GITHUB_STEP_SUMMARY";
+          else echo "Branch pushed, but the pull request wasn't opened (HTTP $code). GH_SITES_TOKEN needs the repository permission \"Pull requests: Read and write\". Open one from $BRANCH by hand." | tee -a "$GITHUB_STEP_SUMMARY"; fi
+          cat update-report.md >> "$GITHUB_STEP_SUMMARY"
+          cat update-report.md
+          [ "$code" = "201" ]
+      - name: Nothing to do
+        if: steps.update.outputs.changed == 'no'
+        run: echo "The site is already on this framework version." | tee -a "$GITHUB_STEP_SUMMARY"
