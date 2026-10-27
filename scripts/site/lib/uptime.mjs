@@ -24,21 +24,25 @@ export async function addMonitors({ name, host }) {
   const assignedAlertContacts = contacts.map((c) => ({ alertContactId: c.id, threshold: 0, recurrence: 0 }));
   const base = { type: "KEYWORD", interval: 300, timeout: 30, keywordType: "ALERT_NOT_EXISTS", keywordCaseType: "CaseSensitive", httpMethodType: "GET", assignedAlertContacts };
   const made = [];
+  // Idempotent: a monitor with the same name and URL is kept, not duplicated (promote finish can be rerun).
+  const existing = ((await ur(`/monitors?url=${encodeURIComponent(host)}`)).data || []).map((m) => `${m.friendlyName}|${m.url}`);
   for (const m of [
     { friendlyName: `${name} - homepage`, url: `https://${host}/`, keywordValue: name },
     { friendlyName: `${name} - API + database`, url: `https://${host}/api/health`, keywordValue: '"ok":true' },
   ]) {
+    if (existing.includes(`${m.friendlyName}|${m.url}`)) continue;
     made.push((await ur("/monitors", { method: "POST", body: { ...base, ...m } })).id);
   }
   return { ids: made, contacts: contacts.length };
 }
 
-// Deletes every monitor whose URL is on this host.
-export async function removeMonitors(host) {
+// Deletes the monitors whose URL is on this host. With a site name, only that site's own pair ("<name> - ..."), so
+// another site's monitors on the same host (for example a parked site's) are left alone.
+export async function removeMonitors(host, { name } = {}) {
   const list = (await ur(`/monitors?url=${encodeURIComponent(host)}`)).data || [];
   const mine = list.filter((m) => {
     try {
-      return new URL(m.url).host === host;
+      return new URL(m.url).host === host && (!name || String(m.friendlyName).startsWith(`${name} - `));
     } catch {
       return false;
     }
