@@ -95,7 +95,45 @@ function upload(url, file, onProgress) {
   });
 }
 
+// Turnstile loads on the first interaction with a form, not with the page. Its challenge runs on page load
+// otherwise and took about 3.8 s of main-thread time in Lighthouse's mobile run, failing the launch performance
+// check on every page with a form (2026-10-27). Cloudflare suggests deferring it for exactly this reason
+// (developers.cloudflare.com/turnstile/get-started/client-side-rendering/, checked 2026-10-27). Explicit
+// rendering, so the widget appears whenever the script arrives.
+const TURNSTILE = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+let turnstileLoading = null;
+function loadTurnstile() {
+  if (!turnstileLoading) {
+    turnstileLoading = new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = TURNSTILE;
+      script.async = true;
+      script.onload = () => {
+        for (const el of document.querySelectorAll("form[data-fb-form] .cf-turnstile")) {
+          if (el.dataset.rendered) continue;
+          el.dataset.rendered = "1";
+          window.turnstile.render(el, { sitekey: el.dataset.sitekey, action: el.dataset.action, size: el.dataset.size || "normal" });
+        }
+        resolve();
+      };
+      script.onerror = () => resolve();
+      document.head.appendChild(script);
+    });
+  }
+  return turnstileLoading;
+}
+
+// Waits for the widget's token (it fills the hidden cf-turnstile-response field), up to 20 s.
+async function turnstileToken(form) {
+  await loadTurnstile();
+  for (let waited = 0; waited < 20000; waited += 200) {
+    if (form.querySelector('[name="cf-turnstile-response"]')?.value) return;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
+
 function wire(form) {
+  for (const type of ["focusin", "pointerdown", "touchstart"]) form.addEventListener(type, loadTurnstile, { once: true, passive: true });
   form.noValidate = true; // the engine reports errors itself, inline
   const status = form.querySelector("[data-fb-status]");
   const steps = [...form.querySelectorAll("[data-fb-step]")];
@@ -118,6 +156,7 @@ function wire(form) {
     const button = form.querySelector('button[type="submit"]');
     button.disabled = true;
     status.textContent = "Sending…";
+    await turnstileToken(form);
 
     const data = {};
     for (const el of form.elements) {

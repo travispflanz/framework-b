@@ -245,12 +245,16 @@ try {
       skipAudits: site.site.indexing && onCanonicalHost && !pageNoindex ? [] : ["is-crawlable"],
     }, undefined, lhPage)).lhr;
     let lhr = await runLighthouse();
-    // The first load after a deploy can be slow while the edge caches fill (a production run scored 0.70 on
-    // the first page it tested and 0.98 on the same page minutes later, 2026-10-27). The performance tripwire
-    // gets one more run before it fails; every other Lighthouse result comes from the first run.
+    // One Lighthouse run's performance score swings widely on a shared machine (0.73 and 0.99 for the same page,
+    // minutes apart, 2026-10-27). Lighthouse's own guidance is to judge on the median of several runs: "the median
+    // Lighthouse score of 5 runs is twice as stable as 1 run" (github.com/GoogleChrome/lighthouse/blob/main/docs/
+    // variability.md, checked 2026-10-27). So when the tripwire would fail, it takes the median of 5 runs. Every
+    // other Lighthouse result comes from the first run.
     if (LAUNCH && lhr.categories.performance.score < 0.9) {
-      const again = await runLighthouse();
-      if (again.categories.performance.score > lhr.categories.performance.score) lhr = { ...lhr, categories: { ...lhr.categories, performance: again.categories.performance } };
+      const runs = [lhr.categories.performance];
+      for (let i = 0; i < 4; i++) runs.push((await runLighthouse()).categories.performance);
+      runs.sort((a, b) => a.score - b.score);
+      lhr = { ...lhr, categories: { ...lhr.categories, performance: runs[2] } };
     }
     await lhPage.close();
     const c = lhr.categories;
