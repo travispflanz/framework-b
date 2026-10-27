@@ -37,6 +37,8 @@ This site was built with Framework B. `site.config.json` holds every brand value
 
 ## Design
 - Compare looks before choosing one: `node scripts/design-tiles.mjs <draft.md> <draft.md> [<draft.md>]` renders each draft on this site's real content into `design/tiles/`. It swaps DESIGN.md and tokens.css while it builds and puts them back at the end; if a run was killed, the next run restores them first. On autopilot, `node scripts/design-judge.mjs prepare`, answer each ballot LEFT or RIGHT, then `tally`.
+- Before drafts, with an owner: this-or-that pairs. Write `design/pairs.json`, `node scripts/design-pairs.mjs render`, send the PNGs, record answers with `pick <id> a|b` (`defaults` if the owner is silent).
+- After the gates pass: at most three critique rounds with `node scripts/design-critique.mjs start | score | compare | decide` (rules in its header). A fix stays only if it wins the pairwise judge both ways round.
 - Every image in `public/` or `src/` needs an entry in `design/credits.json` (source, alt text; creator, licence and link for stock). Never generate people, premises or products.
 - Change the look in `DESIGN.md`, then run `node scripts/design-tokens.mjs`. It lints the file with `@google/design.md` and checks the token contract (required colours, type levels, radii and spacing). It also checks the WCAG AA contrast pairs, then writes tokens.css. Fonts must be installed Fontsource packages (`npm i @fontsource-variable/<family>`).
 - Sections follow the page's argument, not a fixed order. The hero comes first and has the only `<h1>`. Bands alternate tones automatically.

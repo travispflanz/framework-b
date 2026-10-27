@@ -55,6 +55,21 @@ jobs:
           node scripts/design-judge.mjs prepare --tiles "$RUNNER_TEMP/tiles" --out "$RUNNER_TEMP/judge"
           jq -e '.ballots | length == 2' "$RUNNER_TEMP/judge/ballot.json"
         working-directory: starter
+      - name: This-or-that pairs (four pairs on the real hero; a font fetched from Fontsource)
+        if: matrix.editing == 'off'
+        run: |
+          cat > "$RUNNER_TEMP/pairs.json" <<'EOF'
+          { "pairs": [
+            { "id": "type", "question": "Which headline?", "recommended": "a", "a": { "label": "Serif", "display": "Lora" }, "b": { "label": "Sans", "display": "Figtree" } },
+            { "id": "palette", "question": "Which colours?", "recommended": "b", "a": { "label": "Green", "colors": { "accent": "#1d5c3a" } }, "b": { "label": "Rust", "colors": { "bg": "#faf6ef", "accent": "#9a3b16" } } },
+            { "id": "density", "question": "Roomy or compact?", "recommended": "a", "a": { "label": "Roomy", "density": "airy" }, "b": { "label": "Compact", "density": "compact" } },
+            { "id": "shape", "question": "Soft or square?", "recommended": "a", "a": { "label": "Soft", "radius": 12 }, "b": { "label": "Square", "radius": 0 } }
+          ] }
+          EOF
+          node scripts/design-pairs.mjs render --pairs "$RUNNER_TEMP/pairs.json" --out "$RUNNER_TEMP/pairs"
+          for p in type palette density shape; do test -s "$RUNNER_TEMP/pairs/$p.png"; done
+          test ! -e design/intake.json
+        working-directory: starter
       - name: Full-site fixture (extra page, hero image, text and image, gallery, credits)
         if: matrix.editing == 'off'
         run: node scripts/test/fixture-full-site.mjs
