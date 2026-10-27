@@ -1,0 +1,73 @@
+# Reusable: switches client editing (EmDash) off for a site with the site's own `scripts/editing.mjs off --remote`,
+# then opens a pull request in the site's repo. The published home page and its media-library images come back as
+# files; nothing in Cloudflare is deleted (the report lists what the owner can remove). Production changes when the
+# owner merges the pull request. Called only from the owner's private ops repo.
+# A site switched on before `editing off` existed needs the ops repo's "Site update" first.
+name: site editing
+on:
+  workflow_call:
+    inputs:
+      site_id: { type: string, required: true }
+      mode: { type: string, default: "off", description: '"off" (the only mode so far; site create switches editing on)' }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  editing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency: site-${{ inputs.site_id }}
+    steps:
+      - name: Check the mode
+        env:
+          MODE: ${{ inputs.mode }}
+        run: '[ "$MODE" = "off" ] || { echo "Unknown mode \"$MODE\"; only \"off\" is supported." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          echo "OWNER=$owner" >> "$GITHUB_ENV"
+          git clone -q "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
+          git -C site config user.name "Framework B"
+          git -C site config user.email "framework-b@users.noreply.github.com"
+          cd site && npm ci --no-audit --no-fund > /dev/null
+      - name: Switch editing off
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: site
+        run: |
+          if ! grep -q 'mode === "off"' scripts/editing.mjs; then
+            echo "This site's scripts/editing.mjs can't switch off yet. Run the ops repo's \"Site update\" workflow, merge its pull request, then run this again." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          node scripts/editing.mjs off --remote > ../off.log 2>&1 || { cat ../off.log; exit 1; }
+          grep -E '^(Client editing|!|Kept in Cloudflare|Content matches)' ../off.log | tee ../report.md
+          cat ../report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Build the static site
+        working-directory: site
+        run: npm run build > ../build.log 2>&1 || { tail -n 40 ../build.log; exit 1; }
+      - name: Open a pull request
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          branch="editing/off"
+          git -C site checkout -q -b "$branch"
+          git -C site add -A
+          git -C site commit -qm "Switch client editing off"
+          git -C site push -q -f origin "$branch"
+          body=$( { echo "Switches client editing (EmDash) off. The published home page and the images it uses are now files in this repo; the site builds as a static site again. Check the content and every image credit before merging."; echo; sed 's/^/- /' report.md; echo; echo "Editors lose /_emdash/admin when this is merged. Nothing in Cloudflare was deleted."; } | jq -Rs . )
+          code=$(curl -s -o pr.json -w '%{http_code}' -X POST -H "Authorization: Bearer $GH_SITES_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${OWNER}/site-${SITE_ID}/pulls" -d "{\"title\":\"Switch client editing off\",\"head\":\"$branch\",\"base\":\"main\",\"body\":$body}")
+          if [ "$code" = "201" ]; then echo "Pull request: $(jq -r .html_url pr.json)" | tee -a "$GITHUB_STEP_SUMMARY";
+          else echo "Branch pushed, but the pull request wasn't opened (HTTP $code). Open one from $branch by hand." | tee -a "$GITHUB_STEP_SUMMARY"; fi
+          [ "$code" = "201" ]

@@ -1,5 +1,5 @@
 # Builds the starter with the current core, runs its end-to-end test in a real browser, then the QA gate,
-# twice: as a static site, and with client editing (EmDash) switched on.
+# twice: as a static site, and with client editing (EmDash) switched on, then switched off again.
 # Local Worker, local D1 and R2, Turnstile test keys, no email, no Cloudflare account access.
 name: starter tests
 on:
@@ -64,6 +64,14 @@ jobs:
       - run: npm run test:e2e
         working-directory: starter
       - run: npm run qa
+        working-directory: starter
+      - name: Switch client editing off (an editor's change and image come back as files), then test the static site
+        if: matrix.editing == 'on'
+        run: |
+          node scripts/test/editing-round-trip.mjs
+          npm run build
+          npm run test:e2e
+          npm run qa
         working-directory: starter
       - uses: actions/upload-artifact@v4
         if: always()

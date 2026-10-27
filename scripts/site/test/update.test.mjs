@@ -141,6 +141,22 @@ test("an editing site gets the overlay and prerendered pages", () => {
   assert.equal(JSON.parse(read("package.json")).dependencies.emdash, "1.1.0");
 });
 
+test("an editing site switched on before `editing.mjs off` existed gets the static files it needs", () => {
+  const { fw, site } = setup({ editing: true });
+  release(fw, { "starter/scripts/lib/editing-off.mjs": "// off\n", "starter/src/pages/index.astro": lines("---", "// static home v2", "---", "<p>home</p>") });
+  const { code, out } = update(fw, site);
+  const read = (p) => readFileSync(join(site, p), "utf8");
+  assert.equal(code, 0, out);
+  assert.equal(read("editing/static/src/pages/index.astro"), lines("---", "// static home v2", "---", "<p>home</p>"));
+  assert.match(read("src/pages/index.astro"), /editing home/, "the live page stays the overlay");
+  assert.equal(read("scripts/lib/editing-off.mjs"), "// off\n");
+
+  const plain = setup();
+  release(plain.fw, { "starter/scripts/lib/editing-off.mjs": "// off\n" });
+  assert.equal(update(plain.fw, plain.site).code, 0);
+  assert.equal(existsSync(join(plain.site, "editing/static")), false, "a static site gets no editing/static");
+});
+
 test("a file the site took from a later framework version is updated, not treated as a local edit", () => {
   const { fw, site } = setup();
   release(fw, { "starter/scripts/a.mjs": lines("// a v2", "one") });

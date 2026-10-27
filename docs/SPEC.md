@@ -211,7 +211,15 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     - Writes `seed/seed.json`: the content model, plus the current copy.
     - Adds the EmDash packages, pinned to exact versions.
     - Adds the bindings EmDash needs.
-  - `editing off`, which would export the content back to files, is not built.
+    - Keeps the static versions of the files it replaces in `editing/static/`. Site updates keep them current; a site switched on before `off` existed gets them from its next update.
+- **Switching it off:**
+  - `node scripts/editing.mjs off --remote` (or `--local`, or `--database <file.sqlite>`) in a site:
+    - Reads the content database. `--remote` runs `wrangler d1 export` on `CMS_DB` and loads the SQL into a temporary SQLite file ([D1 import and export](https://developers.cloudflare.com/d1/best-practices/import-export-data/), checked 2026-10-27: a running export blocks other requests to that database, and a database with virtual tables can't be exported; the section model creates none).
+    - Runs EmDash's own `emdash export-seed --with-content pages` on it and writes the published home page to `src/content/home.json`, dropping EmDash's `_version`. Other EmDash pages are listed, not exported, because only the home page was served from EmDash. Unpublished drafts are listed too. With no published home page, `home.json` stays as it was, since that is what the site was showing.
+    - Copies each media-library image the home page uses from the `MEDIA` bucket (`wrangler r2 object get`) or `--media-dir` into `src/assets/images/`, and credits it in `design/credits.json` as the owner's, with a note to confirm the source. Images from other providers keep their URL.
+    - Puts back `editing/static/`, removes `src/live.config.ts`, the added prerender lines, the EmDash packages and the `emdash` key, the `CMS_DB`/`MEDIA`/`SESSION` bindings (previews too), the cron, `nodejs_compat` and `seed/`, restores the assets 404 page, removes `editing` from `site.config.json`, then runs the content check.
+    - Deletes nothing in Cloudflare. It lists the content database, media bucket, session namespace, the editor Access application and the two editing secrets for the owner to remove.
+  - CI switches the starter on, edits the content database the way an editor would (new headline, a media-library image), switches off, checks every file `on` changed is back byte for byte, then runs the build, e2e and QA gate on the static site (`starter/scripts/test/editing-round-trip.mjs`). It was also run against a copy of a live editing site's deployed content on 2026-10-27; `--remote` with media-library images is untested.
 - **How the Worker is wired:**
   - Core runs first: `createWorker(config, { fallback })`, core 0.2.0. `/api/*`, `/admin` and `/u` behave exactly as on a static site.
   - Everything else goes to the Astro/EmDash handler, including the pages and `/_emdash`.

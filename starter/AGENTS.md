@@ -25,7 +25,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - End-to-end test: `npm run build && npm run test:e2e`. It uses a local Worker, a real browser and Turnstile test keys, and sends no email.
 - QA gate: `npm run build && npm run qa` (local), `npm run qa -- --url <preview-url>` (P6), `npm run qa -- --url https://<domain> --launch` (P8). It fails on any check; screenshots and the report land in `qa-output/`.
 - Migrations: `npm run db:migrate:remote` (never `d1 execute` with schema SQL).
-- Client editing (EmDash): `node scripts/editing.mjs on` switches it on (see "Client editing" below). Local tests of an editing build first need `node scripts/fill-test-placeholders.mjs` if the site has no real resources yet.
+- Client editing (EmDash): `node scripts/editing.mjs on` switches it on; `node scripts/editing.mjs off --remote` switches it off and brings the published home page and its images back into files (see "Client editing" below). Local tests of an editing build first need `node scripts/fill-test-placeholders.mjs` if the site has no real resources yet.
 
 ## Client editing (EmDash)
 - When `site.config.json` has `"editing": { "enabled": true }`, pages that read EmDash content render on request (cached in Workers Cache); every other page is prerendered (`export const prerender = true`).
@@ -33,6 +33,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - Content lives in its own D1 database (`CMS_DB`) and media bucket (`MEDIA`), separate from leads (`DB`, `UPLOADS`). Previews use their own copies of both.
 - The content model is in `seed/seed.json`. To change a deployed site's model, follow EmDash's "Evolving a deployed site" guide; don't edit the seed and expect it to re-apply.
 - The hourly Cron Trigger runs EmDash's scheduled publishing and maintenance. The Free plan allows 5 Cron Triggers per account.
+- Switching off: `node scripts/editing.mjs off --remote` (needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`) on a branch, then a pull request. Only the published home page is exported; unpublished drafts are not. It deletes nothing in Cloudflare and lists what the owner can remove. Confirm the source of every image it credits.
 
 ## Design
 - Compare looks before choosing one: `node scripts/design-tiles.mjs <draft.md> <draft.md> [<draft.md>]` renders each draft on this site's real content into `design/tiles/`. It swaps DESIGN.md and tokens.css while it builds and puts them back at the end; if a run was killed, the next run restores them first. On autopilot, `node scripts/design-judge.mjs prepare`, answer each ballot LEFT or RIGHT, then `tally`.
