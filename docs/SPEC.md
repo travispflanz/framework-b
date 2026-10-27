@@ -248,10 +248,12 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
 
 ## 10. Modules
 
-- **CRM mirror:**
-  - Each new lead goes on a Cloudflare Queue, and a consumer upserts it into HubSpot, Attio, Zoho or Google Sheets.
-  - The lead id is the idempotency key, so a lead never appears twice.
-  - Failures retry, and a dead-letter queue keeps leads that keep failing. D1 is never blocked by a mirror.
+- **CRM mirror** (built 2026-10-27; core 0.3.0; untested end to end until the first site switches it on): `site.config.json` `"crm": { "sheet": true, "webhook": false }`.
+  - After a lead is saved, the Worker copies one flat row (lead id, time, form, email, the form's fields, page, country, attribution) in `waitUntil`, so D1 is never blocked by a mirror.
+  - `sheet`: a Google Sheet in the owner's Drive, through the account's Apps Script mailer: the spreadsheet "Framework B leads", one tab per site, created on first use. New fields add columns; values that would start a formula are stored as text.
+  - `webhook`: a POST to the Worker secret `CRM_WEBHOOK_URL` (Zapier, Make, n8n or a CRM's own webhook), with `Idempotency-Key: <lead id>` and, with `CRM_WEBHOOK_SECRET`, an `X-Framework-B-Signature: sha256=<hmac of the body>` header.
+  - The lead id is the idempotency key, so the ops `site crm sync` workflow can resend every lead: it brings in older leads when the mirror is switched on and retries a copy that failed.
+  - Why not a Cloudflare Queue, as first designed: Queues are on the Free plan (10,000 operations a day, 24-hour retention; [changelog](https://developers.cloudflare.com/changelog/post/2026-02-04-queues-free-plan/), checked 2026-10-27), but a Worker consumer is registered by `wrangler deploy`, and the token Workers Builds creates has no Queues permission ([Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#api-token), checked 2026-10-27). D1 already holds every lead durably, and both targets dedupe by id, so a resend replaces the queue's retry.
 - **Newsletter** (built 2026-10-27, untested end to end until the first real issue): `scripts/site/newsletter.mjs`, run by the ops repo's `site newsletter` workflow.
   - An issue is a Markdown file in the site's repo (`newsletter/<date>-<slug>.md`, front matter `subject` and optional `preview`), written on a branch and merged by the owner like any other change.
   - `test` sends it to one inbox, from `main` or from the issue's pull request branch, so the owner can read a draft before approving it. Before the site has a domain it goes from Resend's test sender, which only delivers to the Resend account's own address.

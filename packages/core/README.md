@@ -27,6 +27,7 @@ All other paths are static assets. Static responses never run the Worker, so ind
 - `src/config.js`: reads and checks `site.config.json`, and refuses bad combinations (for example, a domain mailer on an idea site).
 - `src/forms.js`: submit and upload.
 - `src/mailers.js`: `apps-script`, `cloudflare` (`send_email`), `resend`, `none`.
+- `src/crm.js`: the CRM mirror (Google Sheet through the Apps Script mailer, signed webhook), keyed by the lead id.
 - `src/unsubscribe.js`, `src/admin.js`, `src/headers.js`.
 - `src/lib/`: helpers for Turnstile, Access JWT, HMAC signing and HTML/CSV.
 - `migrations/0001_init.sql`: the `leads` and `subscribers` tables, with a `site` column so idea sites can share one database.
@@ -42,7 +43,8 @@ All other paths are static assets. Static responses never run the Worker, so ind
 | `EMAIL` | send_email | `cloudflare` mailer |
 | `TURNSTILE_SECRET` | secret | always |
 | `SIGNING_SECRET` | secret, 32+ characters | unsubscribe links, upload URLs |
-| `MAILER_URL`, `MAILER_SECRET` | secrets | `apps-script` mailer |
+| `MAILER_URL`, `MAILER_SECRET` | secrets | `apps-script` mailer; the CRM Sheet mirror |
+| `CRM_WEBHOOK_URL`, `CRM_WEBHOOK_SECRET` | secrets | the CRM webhook mirror (the secret is optional) |
 | `RESEND_API_KEY` | secret | `resend` mailer |
 | `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` | vars | `/admin` |
 
@@ -53,7 +55,7 @@ All other paths are static assets. Static responses never run the Worker, so ind
 The tests do **not** cover:
 - a real deploy;
 - real Turnstile keys;
-- the real Apps Script redirect;
+- the real Apps Script redirect, or the Sheet the mirror writes to;
 - Resend;
 - `send_email`;
 - the rate limit binding on the Workers Free plan;

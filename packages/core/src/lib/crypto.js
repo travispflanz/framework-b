@@ -38,3 +38,9 @@ export function safeEqual(a, b) {
 export async function verify(secret, message, signature) {
   return safeEqual(await sign(secret, message), signature);
 }
+
+// Hex HMAC-SHA256, for signing webhook bodies (CRM mirror). The receiver recomputes it with the shared secret.
+export async function hmacHex(secret, message) {
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return [...new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(message)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+}

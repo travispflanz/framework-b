@@ -1,0 +1,18 @@
+# Caller: copies a site's leads to its CRM mirror (the "Framework B leads" Google Sheet and/or its webhook).
+# Safe to rerun. Replace OWNER. Uses the repo secrets MAILER_URL and MAILER_SECRET for the Sheet.
+name: site crm sync
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      days: { description: "only leads from the last N days (0 = all)", required: false, default: "0" }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  sync:
+    uses: OWNER/framework-b/.github/workflows/site-crm-sync.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      days: ${{ inputs.days }}
+    secrets: inherit
