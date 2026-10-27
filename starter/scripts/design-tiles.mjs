@@ -63,7 +63,7 @@ try {
       run("node", ["scripts/design-tokens.mjs"]);
     } catch (e) {
       results.push({ name, ok: false, why: why(e), front });
-      console.log(`✗ ${name}: the draft fails the design checks`);
+      console.log(`✗ ${name}: the draft fails the design checks: ${results.at(-1).why}`);
       continue;
     }
     cpSync(join(SITE, "scripts/design-tile/tile.astro"), join(work, "src/pages/design-tile.astro"));
@@ -71,7 +71,7 @@ try {
       run("npm", ["run", "build"], { TILE_NAME: name });
     } catch (e) {
       results.push({ name, ok: false, why: `build failed: ${why(e)}`, front });
-      console.log(`✗ ${name}: build failed`);
+      console.log(`✗ ${name}: ${results.at(-1).why}`);
       continue;
     }
     const dist = existsSync(join(work, "dist/client")) ? join(work, "dist/client") : join(work, "dist");
