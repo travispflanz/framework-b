@@ -1,0 +1,24 @@
+# Caller: sends a newsletter issue from a site's repo. Replace OWNER. Needs the secret RESEND_ADMIN_KEY.
+# Run "test" first; "send" goes to every subscriber and works only once the site is in launch mode.
+name: site newsletter
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      issue: { description: "issue file in the site repo, e.g. newsletter/2026-11-01-dates.md", required: true }
+      mode: { description: "test or send", required: true, default: test, type: choice, options: [test, send] }
+      to: { description: "test only: inbox to send to (blank = the site owner)", required: false, default: "" }
+      force: { description: "yes = send an issue that was already sent", required: false, default: "no", type: choice, options: ["no", "yes"] }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  newsletter:
+    uses: OWNER/framework-b/.github/workflows/site-newsletter.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      issue: ${{ inputs.issue }}
+      mode: ${{ inputs.mode }}
+      to: ${{ inputs.to }}
+      force: ${{ inputs.force }}
+    secrets: inherit

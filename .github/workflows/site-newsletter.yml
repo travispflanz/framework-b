@@ -1,0 +1,52 @@
+# Reusable: sends a newsletter issue (a Markdown file in the site's repo) with scripts/site/newsletter.mjs.
+# Called only from the owner's private ops repo. "test" sends to one inbox; "send" goes to every subscriber.
+# Status: untested end to end until the first real issue.
+name: site newsletter
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      issue: { type: string, required: true, description: "path in the site repo, e.g. newsletter/2026-11-01-dates.md" }
+      mode: { type: string, default: test, description: '"test" or "send"' }
+      to: { type: string, default: "", description: "test only: the inbox to send to (default: the site owner)" }
+      force: { type: string, default: "no", description: '"yes" sends an issue again' }
+    secrets:
+      RESEND_ADMIN_KEY: { required: true }
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  newsletter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency: newsletter-${{ inputs.site_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          path: framework
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          git clone -q --depth 1 "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
+      - name: Newsletter (${{ inputs.mode }})
+        env:
+          RESEND_ADMIN_KEY: ${{ secrets.RESEND_ADMIN_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ISSUE: ${{ inputs.issue }}
+          MODE: ${{ inputs.mode }}
+          TO: ${{ inputs.to }}
+          FORCE: ${{ inputs.force }}
+        run: node framework/scripts/site/newsletter.mjs --site site --issue "$ISSUE" --mode "$MODE" ${TO:+--to "$TO"} $([ "$FORCE" = "yes" ] && echo --force)
