@@ -262,6 +262,10 @@ async function prepare() {
       done("email routing", "already on");
     }
   } else if (plan.notify === "apps-script") {
+    // The mailer's doGet answers {"ok":true,"service":"framework-b-mailer"} to anyone when its access is "Anyone";
+    // otherwise Google answers 403 "Access Denied" and every notification would fail quietly (seen 2026-10-27).
+    const probe = await fetch(process.env.MAILER_URL.trim(), { redirect: "follow" }).then(async (r) => ({ status: r.status, ok: /framework-b-mailer/.test(await r.text()) })).catch((e) => ({ status: 0, ok: false, error: e.message }));
+    if (!probe.ok) warn(`The Apps Script mailer isn't reachable (HTTP ${probe.status}): notifications will fail until its deployment's access is "Anyone". Run the "site mailer" workflow with check_only for a diagnosis.`);
     runWrangler(["secret", "put", "MAILER_URL", "--name", id], { input: process.env.MAILER_URL });
     runWrangler(["secret", "put", "MAILER_SECRET", "--name", id], { input: process.env.MAILER_SECRET });
     done("mailer", "MAILER_URL and MAILER_SECRET stored on the Worker");
