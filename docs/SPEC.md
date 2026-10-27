@@ -93,9 +93,24 @@ A copied starter never gets later fixes on its own, so `site update` brings an e
 
 Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. First live run (2026-10-23, an editing site created before the lock existed): 4 files updated or added, no conflicts; build, e2e and QA passed on the copy; the branch was pushed, but opening the pull request needed `GH_SITES_TOKEN` to have "Pull requests: write" (docs/TOKENS.md). The step now fails when the pull request can't be opened. After the permission was added, a second run (lock-only change) opened its own pull request, with 14 e2e and 80 QA checks passing. Updating a static site live, and a live run with a conflict, are untested.
 
+### Checking a preview (P6)
+
+`site preview check` (ops repo; inputs: site id, branch) calls the reusable `site-preview-check.yml`, which runs `scripts/site/preview-check.mjs`:
+
+1. Makes sure the site's previews Access application has the reusable "framework-b agent" Service Auth policy (include: any valid service token). `create` adds it to new sites.
+2. Waits for the Workers Builds build of the branch's head commit, and reads the preview URL from its log (`npx wrangler preview` prints `Preview URL: https://<branch>-<worker>.<subdomain>.workers.dev`, with `/` in the branch name turned into `-`).
+3. Mints an Access service token that lives 30 minutes (the API refuses less than 10: "must be greater than or equal to 10m", 2026-10-26), waits until Access accepts it, and runs the site's QA gate on the preview. A new token is refused with a redirect to the login page for a few seconds (3–4 s seen on 2026-10-26).
+4. Deletes the token, uploads the screenshots, and comments on the branch's pull request.
+
+QA sends the token headers only to the preview's own origin: on `fetch`, on Playwright requests (a context route), and in Lighthouse (a Puppeteer page with CDP Fetch interception limited to that origin). Third-party requests such as the Turnstile script never carry them. This also works with Access's "strict service token authentication", which issues no cookie ([service tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/), checked 2026-10-23). `starter/scripts/test/access-auth.test.mjs` proves the scoping with two local origins.
+
+No long-lived service token or secret is stored. The deploy token needs Access: Service Tokens Edit (docs/TOKENS.md). The check runs the site's own QA script, so a site made before it needs `site update` first.
+
+Tested live on 2026-10-26: on the first real site's update branch (editing on), the QA gate passed with 81 checks, twice; in the self-test, on a static site's preview (108 checks) and an editing site's preview (107 checks), neither with a pull request. On the fresh editing preview the first request to the home page gave no response within 25 s (EmDash's first-request setup is the likely cause), so the check now waits up to 2 minutes for that first response before QA. Not tested yet: a preview whose build fails.
+
 ## 3. Kickoff questions
 
-Asked once, in one message. Every question has a default, so an unanswered one never blocks the run. Answers are written to `site.config.json` and `DECISIONS.md`.
+Asked once, in one message. Every question has a default, so an unanswered one never blocks the run. The agent writes the answers to the site's `brief.json` (format: `scripts/site/lib/brief.mjs`), each marked stated, inferred or default; `create` turns them into `site.config.json` values and `DECISIONS.md` rows. Runbook: `docs/BUILD.md`.
 
 | # | Question | Default |
 |---|---|---|
@@ -120,7 +135,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 | P3 Build | Pages, copy, JSON-LD, sitemap, `robots.txt`, forms from the schema, privacy page matching what is collected | |
 | P4 Data | `bootstrap`: D1, R2, Turnstile hostname, secrets, Access apps, Builds triggers; register the site in `ops/registry` | |
 | P5 Integrations | Mailers, unsubscribe, optional modules | |
-| P6 Staging | Preview behind Access; end-to-end lead and upload test with Turnstile test keys; QA gate | **Owner approves the preview** |
+| P6 Staging | Preview behind Access; end-to-end lead and upload test with Turnstile test keys; QA gate on the deployed preview (`site preview check`) | **Owner approves the preview** |
 | P7 Domain | Idea: none. Launch: existing zone, or check → price → approval → register | **Owner approves any purchase** |
 | P8 Go-live | Merge to `main`; QA gate on production; custom domain and redirect (launch); DMARC; Web Analytics | **QA gate passes** (automatic) |
 | P9 Handoff | `HANDOFF.md`: URLs, renewal dates, monitors, backups, secrets inventory, owner-attested checklist; release tag | |

@@ -8,13 +8,19 @@
 // Checks: content, layout at 360/768/1280/1920 px, console errors, banned fonts, axe (WCAG 2.2 AA tags),
 // page structure, Lighthouse (mobile) accessibility / best practices / SEO = 100 and CLS < 0.1.
 // Screenshots and a JSON report go to qa-output/.
+//
+// Previews sit behind Cloudflare Access. With ACCESS_CLIENT_ID and ACCESS_CLIENT_SECRET set (an Access service
+// token with a Service Auth policy on the site's previews application), every request to the URL's own host
+// carries the token headers. Requests to any other host (the Turnstile script, for example) never do.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import * as chromeLauncher from "chrome-launcher";
 import lighthouse from "lighthouse";
+import puppeteer from "puppeteer-core";
 import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
+import { accessAuth } from "./lib/access-auth.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -112,11 +118,18 @@ try {
     base = local.base;
   }
   base = String(base).replace(/\/$/, "");
+  const auth = accessAuth(base);
+  if (auth.on) {
+    const r = await auth.fetch(base + "/api/health", { redirect: "manual" });
+    check("access: the service token opens the protected URL", r.status === 200, `HTTP ${r.status}`);
+    if (r.status !== 200) throw new Error(`the Access service token was refused (HTTP ${r.status}); check the Service Auth policy on the previews application`);
+  }
   browser = await launchBrowser();
 
   for (const path of pages) {
     for (const width of WIDTHS) {
       const context = await browser.newContext({ viewport: { width, height: 900 } });
+      await auth.playwright(context);
       const page = await context.newPage();
       const errors = [];
       page.on("console", (m) => ownConsoleError(m) && errors.push(m.text()));
@@ -177,18 +190,22 @@ try {
   });
   const scores = {};
   const onCanonicalHost = new URL(base).host === site.site.canonicalHost;
+  // Lighthouse gets a page we control, so the Access headers can be added to the site's own host only.
+  const pptr = await puppeteer.connect({ browserURL: `http://127.0.0.1:${chrome.port}`, defaultViewport: null });
   for (const path of pages) {
     // "is-crawlable" only applies where a page is meant to be indexed: an indexed site, on its canonical host
     // (local runs and previews are noindex by design), on a page that doesn't opt out (thanks, 404).
-    const html = await (await fetch(base + path)).text();
+    const html = await (await auth.fetch(base + path)).text();
     const pageNoindex = /<meta name="robots" content="[^"]*noindex/i.test(html);
+    const lhPage = await pptr.newPage();
+    await auth.puppeteer(lhPage);
     const { lhr } = await lighthouse(base + path, {
-      port: chrome.port,
       output: "json",
       logLevel: "error",
       onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
       skipAudits: site.site.indexing && onCanonicalHost && !pageNoindex ? [] : ["is-crawlable"],
-    });
+    }, undefined, lhPage);
+    await lhPage.close();
     const c = lhr.categories;
     const cls = lhr.audits["cumulative-layout-shift"].numericValue;
     scores[path] = { performance: c.performance.score, accessibility: c.accessibility.score, bestPractices: c["best-practices"].score, seo: c.seo.score, cls };
@@ -199,9 +216,10 @@ try {
     check(`lighthouse ${path}: CLS below 0.1`, cls < 0.1, cls.toFixed(3));
     if (LAUNCH) check(`lighthouse ${path}: performance at least 90 (production tripwire)`, c.performance.score >= 0.9, String(c.performance.score));
   }
+  await pptr.disconnect();
   writeFileSync(join(OUT, "lighthouse.json"), JSON.stringify(scores, null, 2));
   if (!site.site.indexing) {
-    const r = await fetch(base + "/");
+    const r = await auth.fetch(base + "/");
     check("indexing: noindex header present (site chose not to be indexed)", (r.headers.get("x-robots-tag") || "").includes("noindex"));
   }
 } catch (e) {

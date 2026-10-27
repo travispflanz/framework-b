@@ -1,7 +1,8 @@
 # Reusable: the template self-test against the real account. Creates a throwaway idea site
 # (selftest-<run id>, Turnstile test keys), runs the QA gate on its live URL, sends one lead with a
-# file and checks it in D1 and R2, then always tears the site down. Runs twice in parallel: as a static
-# site, and with client editing (EmDash) on. Called only from the owner's
+# file and checks it in D1 and R2, checks a preview branch through Access, then always tears the site down.
+# Runs twice in parallel: as a static site created from a kickoff brief, and with client editing (EmDash) on
+# created from plain inputs. Called only from the owner's
 # private ops repo, which holds the secrets.
 name: site selftest
 on:
@@ -21,7 +22,7 @@ permissions:
 jobs:
   selftest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 70
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +47,14 @@ jobs:
           node-version-file: starter/.node-version
           cache: npm
           cache-dependency-path: starter/package-lock.json
+      - name: Write a kickoff brief (static leg)
+        if: matrix.editing == 'off'
+        run: |
+          jq -nc --arg id "$SITE_ID" --arg email "${{ inputs.owner_email }}" '{version: 1,
+            business: {id: $id, name: "Selftest Example Co", offer: "A throwaway site that proves the framework works."},
+            owner: {email: $email}, editing: false, indexing: false, inferred: ["business.offer"]}' > brief.json
+          node scripts/site/brief.mjs check brief.json
+          echo "BRIEF=$(cat brief.json)" >> "$GITHUB_ENV"
       - name: Create the site
         env:
           SITE_NAME: Selftest Example Co
@@ -81,6 +90,15 @@ jobs:
         env:
           LEAD_FILE: live-lead.json
         run: node scripts/site/verify-lead.mjs
+      - name: Check a preview branch through Access
+        working-directory: ${{ steps.site.outputs.dir }}
+        run: |
+          git checkout -q -b selftest/preview
+          printf '\nPreview check %s\n' "${{ github.run_id }}" >> README.md
+          git -c user.name="Framework B" -c user.email="framework-b@users.noreply.github.com" commit -q -am "Self-test preview"
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          git push -q "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" selftest/preview
+          node "$GITHUB_WORKSPACE/scripts/site/preview-check.mjs" --site . --site-id "$SITE_ID" --branch selftest/preview --commit "$(git rev-parse HEAD)" --report "$GITHUB_WORKSPACE/preview-report.md"
       - name: Tear the site down
         if: always()
         run: node scripts/site/teardown.mjs
@@ -90,6 +108,7 @@ jobs:
           name: selftest-${{ github.run_id }}-editing-${{ matrix.editing }}
           path: |
             site-summary.json
+            preview-report.md
             ${{ steps.site.outputs.dir }}/qa-output/
           if-no-files-found: ignore
           retention-days: 14

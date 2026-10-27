@@ -1,15 +1,18 @@
 # Caller: creates an idea-mode site. Replace OWNER with your GitHub user name.
+# Either paste a kickoff brief (docs/BUILD.md; it supplies id, name, tagline, inbox, editing and indexing), or fill
+# in the fields below it.
 name: site create
 on:
   workflow_dispatch:
     inputs:
-      site_id: { description: "lowercase id, e.g. tidy-garden", required: true }
-      site_name: { description: "display name", required: true }
-      site_tagline: { description: "one line", required: false, default: "" }
-      owner_email: { description: "owner inbox", required: true }
+      brief: { description: "kickoff brief JSON (leave the fields below empty)", required: false, default: "" }
+      site_id: { description: "lowercase id, e.g. tidy-garden (without a brief)", required: false, default: "" }
+      site_name: { description: "display name (without a brief)", required: false, default: "" }
+      site_tagline: { description: "one line (without a brief)", required: false, default: "" }
+      owner_email: { description: "owner inbox (without a brief)", required: false, default: "" }
       turnstile_mode: { description: "real, or test for self-tests", required: false, default: real }
-      editing: { description: "on switches client editing (EmDash) on", required: false, default: "off" }
-      indexing: { description: "on lets search engines index the idea site", required: false, default: "off" }
+      editing: { description: "on switches client editing (EmDash) on (without a brief)", required: false, default: "off" }
+      indexing: { description: "on lets search engines index the idea site (without a brief)", required: false, default: "off" }
       framework_ref: { description: "framework-b branch or tag", required: false, default: main }
 jobs:
   create:
@@ -17,6 +20,7 @@ jobs:
     with:
       framework_repo: OWNER/framework-b
       framework_ref: ${{ inputs.framework_ref }}
+      brief: ${{ inputs.brief }}
       site_id: ${{ inputs.site_id }}
       site_name: ${{ inputs.site_name }}
       site_tagline: ${{ inputs.site_tagline }}

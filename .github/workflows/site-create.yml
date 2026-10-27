@@ -6,10 +6,11 @@ on:
     inputs:
       framework_repo: { type: string, required: true, description: owner/name of the framework repo }
       framework_ref: { type: string, default: main }
-      site_id: { type: string, required: true }
-      site_name: { type: string, required: true }
+      brief: { type: string, default: "", description: "kickoff brief JSON; when set it supplies id, name, tagline, owner email, editing and indexing" }
+      site_id: { type: string, default: "" }
+      site_name: { type: string, default: "" }
       site_tagline: { type: string, default: "" }
-      owner_email: { type: string, required: true }
+      owner_email: { type: string, default: "" }
       turnstile_mode: { type: string, default: real, description: '"real" or "test" (self-test only)' }
       editing: { type: string, default: "off", description: '"on" switches client editing (EmDash) on' }
       indexing: { type: string, default: "off", description: '"on" lets search engines index the idea site' }
@@ -27,7 +28,7 @@ jobs:
   create:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    concurrency: site-${{ inputs.site_id }}
+    concurrency: site-${{ inputs.site_id || github.run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,6 +39,7 @@ jobs:
           node-version: 24
       - name: Create the site
         env:
+          BRIEF: ${{ inputs.brief }}
           SITE_ID: ${{ inputs.site_id }}
           SITE_NAME: ${{ inputs.site_name }}
           SITE_TAGLINE: ${{ inputs.site_tagline }}
@@ -57,6 +59,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: site-summary-${{ inputs.site_id }}
+          name: site-summary-${{ inputs.site_id || github.run_id }}
           path: site-summary.json
           if-no-files-found: ignore
