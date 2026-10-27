@@ -55,6 +55,21 @@ if (mode === "on") {
 // the setup wizard.
 const { SECTIONS, SECTION_TYPES } = await import(pathToFileURL(join(process.cwd(), "src/sections/schema.js")).href);
 const home = JSON.parse(readFileSync("src/content/home.json", "utf8"));
+// EmDash image fields hold media-library entries ({ id, src, ... }); a static site's images are files in
+// src/assets/images. Those can't be seeded as media, so they're left out of the seed: editors add images in the
+// admin's media library instead. (Untested: carrying local images into EmDash media.)
+const isLocalImage = (v) => v && typeof v === "object" && typeof v.src === "string" && !v.id && !/^(https?:)?\/\//.test(v.src);
+let droppedImages = 0;
+function withoutLocalImages(value) {
+  if (Array.isArray(value)) return value.map(withoutLocalImages);
+  if (!value || typeof value !== "object") return value;
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (isLocalImage(v)) droppedImages++;
+    else out[k] = withoutLocalImages(v);
+  }
+  return out;
+}
 mkdirSync("seed", { recursive: true });
 writeFileSync("seed/seed.json", JSON.stringify({
   $schema: "https://emdashcms.com/seed.schema.json",
@@ -78,10 +93,11 @@ writeFileSync("seed/seed.json", JSON.stringify({
       id: "home",
       slug: "home",
       status: "published",
-      data: { title: home.title || "Home", sections: home.sections.map((section) => ({ _version: 1, ...section })) },
+      data: { title: home.title || "Home", sections: home.sections.map((section) => ({ _version: 1, ...withoutLocalImages(section) })) },
     }],
   },
 }, null, 2) + "\n");
+if (droppedImages) console.log(`! ${droppedImages} image(s) from src/content/home.json were left out of the seed; add them in the EmDash media library after setup.`);
 
 if (mode === "seed") {
   console.log("Wrote seed/seed.json. A deployed site keeps the model it already has: see EmDash's guide to evolving a deployed site.");

@@ -22,7 +22,15 @@ function checkFields(fields, value, where) {
     }
     if (["string", "text"].includes(f.type) && typeof v !== "string") errors.push(`${where}.${f.slug} must be text`);
     if (f.type === "boolean" && typeof v !== "boolean") errors.push(`${where}.${f.slug} must be true or false`);
-    if (f.type === "select" && !f.options.includes(v)) errors.push(`${where}.${f.slug} "${v}" is not one of: ${f.options.join(", ")}`);
+    const choices = f.options || f.validation?.options || [];
+    if (f.type === "select" && !choices.includes(v)) errors.push(`${where}.${f.slug} "${v}" is not one of: ${choices.join(", ")}`);
+    if (f.type === "image") {
+      if (typeof v !== "object" || typeof v.src !== "string" || !v.src) errors.push(`${where}.${f.slug} must be { "src": "<file in src/assets/images>", "alt": "..." }`);
+      else {
+        if (!/^(https?:)?\/\//.test(v.src) && !existsSync(join("src/assets/images", v.src))) errors.push(`${where}.${f.slug}: src/assets/images/${v.src} doesn't exist`);
+        if (typeof v.alt !== "string" || !v.alt.trim()) errors.push(`${where}.${f.slug}: "alt" is required; describe what the image shows`);
+      }
+    }
     if (f.validation?.pattern && typeof v === "string" && !new RegExp(f.validation.pattern).test(v)) errors.push(`${where}.${f.slug} "${v}" has the wrong format`);
     if (f.type === "repeater") {
       if (!Array.isArray(v)) {
@@ -38,8 +46,19 @@ function checkFields(fields, value, where) {
   for (const k of Object.keys(value)) if (!known.has(k)) errors.push(`${where}.${k} is not a field of this section`);
 }
 
+// Pages: home.json is the home page; every other <slug>.json is /<slug> (src/pages/[page].astro).
+const BUILT_IN = new Set(readdirSync("src/pages").map((f) => f.replace(/\.(astro|js|ts|md)$/, "")).filter((f) => !f.startsWith("[")));
 for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))) {
   const page = JSON.parse(readFileSync(join("src/content", file), "utf8"));
+  const slug = file.replace(/\.json$/, "");
+  if (slug !== "home") {
+    if (!/^[a-z][a-z0-9-]*$/.test(slug)) errors.push(`${file}: page file names are lowercase letters, digits and dashes (the name is the URL)`);
+    if (BUILT_IN.has(slug)) errors.push(`${file}: /${slug} is already a page in src/pages/`);
+    if (!page.title || typeof page.title !== "string") errors.push(`${file}: "title" is required (the browser tab and search result title)`);
+  }
+  if (page.description !== undefined && typeof page.description !== "string") errors.push(`${file}: "description" must be text`);
+  if (!(page.sections || []).length) errors.push(`${file}: a page needs at least one section`);
+  else if (page.sections[0]._type !== "fb_hero") errors.push(`${file}: the first section must be a hero (the page's only <h1>)`);
   const keys = new Set();
   (page.sections || []).forEach((section, i) => {
     const where = `${file} sections[${i}] (${section._type})`;

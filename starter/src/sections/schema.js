@@ -21,6 +21,10 @@ const link = (slug, label, required = false) => ({
   validation: { pattern: "^(?:$|/|#|https://|mailto:|tel:)" },
 });
 
+// An image, in EmDash's media shape ({ src, alt, ... }). On a static site src is a file in src/assets/images/,
+// credited in design/credits.json; alt text is required unless the image is purely decorative.
+const image = (slug, label, required = false) => ({ slug, label, type: "image", ...(required ? { required: true } : {}) });
+
 const block = (slug, label, description, fields) => ({
   slug,
   label,
@@ -40,6 +44,7 @@ export const SECTIONS = [
     { slug: "secondary_cta_label", label: "Second link text", type: "string" },
     link("secondary_cta_url", "Second link"),
     { slug: "points", label: "Short reassurances (one per line, 2 to 4)", type: "text" },
+    image("image", "Image beside the headline (optional)"),
   ]),
   block("fb_steps", "Steps", "How it works, as numbered steps", [
     { slug: "eyebrow", label: "Small label above the headline", type: "string" },
@@ -144,6 +149,36 @@ export const SECTIONS = [
     { slug: "headline", label: "Headline", type: "string", required: true },
     { slug: "subheadline", label: "Supporting text", type: "text" },
     { slug: "form", label: "Form ID from site.config.json, for example contact", type: "string", required: true },
+  ]),
+  block("fb_split", "Text and image", "A headline and text beside an image", [
+    { slug: "eyebrow", label: "Small label above the headline", type: "string" },
+    { slug: "headline", label: "Headline", type: "string", required: true },
+    { slug: "body", label: "Text (leave a blank line between paragraphs)", type: "text", required: true },
+    image("image", "Image", true),
+    // Block-level selects keep their choices in validation.options (EmDash rejects a top-level options here).
+    { slug: "image_side", label: "Image on the", type: "select", validation: { options: ["right", "left"] } },
+    { slug: "cta_label", label: "Button text", type: "string" },
+    link("cta_url", "Button link"),
+  ]),
+  block("fb_gallery", "Gallery", "A grid of images with optional captions", [
+    { slug: "eyebrow", label: "Small label above the headline", type: "string" },
+    { slug: "headline", label: "Headline", type: "string", required: true },
+    { slug: "subheadline", label: "Supporting sentence", type: "text" },
+    {
+      slug: "items",
+      label: "Images",
+      type: "repeater",
+      required: true,
+      validation: {
+        minItems: 2,
+        maxItems: 12,
+        subFields: [
+          image("image", "Image", true),
+          { slug: "caption", label: "Caption", type: "string" },
+        ],
+      },
+    },
+    { slug: "note", label: "Small print under the images", type: "text" },
   ]),
   block("fb_text", "Text", "Plain paragraphs under a headline", [
     { slug: "eyebrow", label: "Small label above the headline", type: "string" },

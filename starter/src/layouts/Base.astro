@@ -1,6 +1,7 @@
 ---
 // Every page uses this layout. Brand values come from site.config.json only.
 import config from "../../site.config.json";
+import credits from "../../design/credits.json";
 import "../styles/tokens.css";
 import "../sections/sections.css";
 
@@ -18,6 +19,8 @@ const org = {
   ...(config.site.postalAddress ? { address: config.site.postalAddress } : {}),
 };
 const year = new Date().getFullYear();
+// The footer links to /credits when an image from another creator needs attribution.
+const needsCredits = (credits.images || []).some((c) => c.source === "openverse" || c.source === "stock");
 const hasCta = config.nav.some((item) => item.cta);
 ---
 <!doctype html>
@@ -64,7 +67,7 @@ const hasCta = config.nav.some((item) => item.cta);
     <footer class="border-t border-[var(--color-line)] px-[var(--spacing-gutter)]">
       <div class="mx-auto flex max-w-[var(--container-content)] flex-wrap justify-between gap-4 py-6 text-sm text-[var(--color-ink-muted)]">
         <p>© {year} {config.site.name}{config.site.postalAddress ? ` · ${config.site.postalAddress}` : ""}</p>
-        <a href="/privacy">Privacy</a>
+        <p class="flex gap-4">{needsCredits && <a href="/credits">Image credits</a>}<a href="/privacy">Privacy</a></p>
       </div>
     </footer>
   </body>

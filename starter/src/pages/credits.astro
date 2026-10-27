@@ -1,0 +1,26 @@
+---
+// Image credits: every image from another creator, with its licence and source, from design/credits.json.
+// CC BY and CC BY-SA require this attribution; the footer links here whenever there is something to credit.
+export const prerender = true;
+import Base from "../layouts/Base.astro";
+import credits from "../../design/credits.json";
+
+const LICENSE_URL = { "cc0": "https://creativecommons.org/publicdomain/zero/1.0/", "pdm": "https://creativecommons.org/publicdomain/mark/1.0/" };
+const items = (credits.images || []).filter((c) => c.source === "openverse" || c.source === "stock");
+---
+<Base title="Image credits" noindex>
+  <h1 class="font-display text-headline text-ink">Image credits</h1>
+  {items.length === 0 ? (
+    <p class="mt-6 text-body text-ink-muted">Every image on this site belongs to us.</p>
+  ) : (
+    <ul class="mt-8 grid gap-4 text-body text-ink" role="list">
+      {items.map((c) => (
+        <li>
+          <a href={c.url} class="underline underline-offset-2">{c.title || c.file.split("/").pop()}</a> by {c.creator}, licensed under{" "}
+          {c.license_url || LICENSE_URL[String(c.license).toLowerCase()] ? <a href={c.license_url || LICENSE_URL[String(c.license).toLowerCase()]} class="underline underline-offset-2">{c.license}</a> : c.license}.
+          {c.changes && <span class="text-ink-muted"> {c.changes}</span>}
+        </li>
+      ))}
+    </ul>
+  )}
+</Base>
