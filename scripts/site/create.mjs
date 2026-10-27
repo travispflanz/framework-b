@@ -5,7 +5,7 @@
 //
 // Inputs (environment):
 //   BRIEF            optional: a kickoff brief as JSON (scripts/site/lib/brief.mjs). When set, it supplies SITE_ID,
-//                    SITE_NAME, SITE_TAGLINE, OWNER_EMAIL, EDITING and INDEXING, and is kept in the site as brief.json
+//                    SITE_NAME, SITE_TAGLINE, OWNER_EMAIL, EDITING, INDEXING and CRM, and is kept in the site as brief.json
 //   SITE_ID          lowercase letters, digits, dashes; becomes the Worker name and repo "site-<id>"
 //   SITE_NAME        display name
 //   SITE_TAGLINE     one line (optional)
@@ -48,6 +48,7 @@ const owner = from("OWNER_EMAIL").trim().toLowerCase();
 const turnstileMode = (process.env.TURNSTILE_MODE || "real").trim();
 const editing = (input?.EDITING ?? process.env.EDITING ?? "off").trim() === "on";
 const indexing = (input?.INDEXING ?? process.env.INDEXING ?? "off").trim() === "on";
+const crm = (input?.CRM ?? process.env.CRM ?? "none").trim();
 const repoName = `site-${id}`;
 const SHARED = { db: "fb-ideas", previewDb: "fb-previews", uploads: "fb-ideas-uploads", previewUploads: "fb-previews" };
 const TEST_SITEKEY = "1x00000000000000000000AA";
@@ -197,6 +198,10 @@ config.turnstile = { siteKey };
 const mailer = process.env.MAILER_URL && process.env.MAILER_SECRET;
 config.email = { notify: mailer ? "apps-script" : "none", confirm: "none" };
 if (!mailer) warn("No mailer configured: leads are saved in D1 and visible in /admin, but no email is sent yet");
+// CRM mirror: the Google Sheet goes through the same Apps Script mailer; the webhook needs its URL as a secret later.
+config.crm = { sheet: crm.includes("sheet") && !!mailer, webhook: crm.includes("webhook") };
+if (crm.includes("sheet") && !mailer) warn("CRM sheet asked for, but no Apps Script mailer is configured: the Sheet copy stays off");
+if (config.crm.sheet || config.crm.webhook) done("crm", `each lead is copied to ${[config.crm.sheet && "the owner's Google Sheet", config.crm.webhook && "the webhook (set CRM_WEBHOOK_URL)"].filter(Boolean).join(" and ")}`);
 writeFileSync(join(dir, "site.config.json"), JSON.stringify(config, null, 2) + "\n");
 
 const rateNamespace = String(1000 + (parseInt(createHash("sha256").update(id).digest("hex").slice(0, 8), 16) % 1_000_000_000));

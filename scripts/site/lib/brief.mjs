@@ -9,6 +9,8 @@
 //
 // Minimal input:  { "business": { "name": "Example Co" }, "owner": { "email": "owner@example.com" } }
 
+// CRM mirror (core src/crm.js): copy each lead to the owner's Google Sheet, a webhook, or both.
+export const CRM = ["none", "sheet", "webhook", "sheet+webhook"];
 export const SHAPES = ["landing", "full", "hybrid"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GDPR_CASL = new Set(["eu", "uk", "ca", "eea"]);
@@ -79,7 +81,7 @@ export function normalizeBrief(input) {
     indexing: pick("indexing", false, isBool),
     editing: pick("editing", false, isBool),
     newsletter,
-    crm: pick("crm", "none", (v) => typeof v === "string"),
+    crm: pick("crm", "none", (v) => CRM.includes(v)),
     design: {
       autopilot: pick("design.autopilot", true, isBool),
       words: pick("design.words", []),
@@ -90,7 +92,7 @@ export function normalizeBrief(input) {
     claims: pick("claims", []),
     inferred: [...inferred],
   };
-  if (brief.crm !== "none") warnings.push(`crm "${brief.crm}": the CRM mirror module isn't built yet (SPEC section 10); leads stay in D1 and /admin`);
+  if (brief.crm.includes("webhook")) warnings.push(`crm "${brief.crm}": the webhook needs its URL as the Worker secret CRM_WEBHOOK_URL (and optionally CRM_WEBHOOK_SECRET) before leads are sent to it`);
   if (!brief.business.offer) warnings.push("business.offer is empty: the hero needs a one-line offer; infer one and list it in `inferred`");
   for (const c of brief.claims) if (!c?.text || !c?.source) errors.push(`claims: every claim needs text and an owner source (${JSON.stringify(c)})`);
   return { brief, sources, errors, warnings };
@@ -104,6 +106,7 @@ export const createInputs = (b) => ({
   OWNER_EMAIL: b.owner.email,
   EDITING: b.editing ? "on" : "off",
   INDEXING: b.indexing ? "on" : "off",
+  CRM: b.crm,
 });
 
 // DECISIONS.md rows for the kickoff answers ("owner" for stated, "inferred" for inferred or default).
@@ -121,6 +124,7 @@ export function decisionRows(b, sources, date) {
     row(`Lead auto-reply: ${b.autoReply ? "on" : "off"}`, "autoReply"),
     row(`Search engines: ${b.indexing ? "indexed" : "noindex"}`, "indexing"),
     row(`Client editing (EmDash): ${b.editing ? "on" : "off"}`, "editing"),
+    row(`CRM copy of each lead: ${b.crm === "none" ? "off (leads are in /admin)" : b.crm.replace("+", " and ")}`, "crm"),
     row(`Newsletter: ${b.newsletter ? (b.mode === "idea" ? "collect subscribers now, send after launch" : "on") : "off"}`, "newsletter"),
     row(`Design: ${b.design.autopilot ? "autopilot" : "intake with the owner"}${b.design.words.length ? `, "${b.design.words.join(", ")}"` : ""}`, "design.autopilot", "design.words"),
   ];

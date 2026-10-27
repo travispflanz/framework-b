@@ -125,7 +125,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 | 5 | Lead auto-reply on or off; launch sender | Idea: off. Launch: Resend |
 | 6 | Index now? | Idea: no (`create` input `indexing: on` makes the workers.dev address indexable; previews stay noindex). Launch: yes |
 | 7 | Client editing (EmDash) | Off |
-| 8 | CRM mirror | None |
+| 8 | CRM mirror: `none`, `sheet` (the owner's Google Sheet, through the Apps Script mailer), `webhook`, or `sheet+webhook` (brief `crm`; `create` sets `site.config.json` `crm`, and the webhook URL is set later as a secret) | None |
 | 9 | Newsletter or drips (launch only) | None |
 | 10 | Design intake | Required |
 
