@@ -4,9 +4,10 @@
 import raw from "../../site.config.json";
 import { loadConfig } from "../../core/src/config.js";
 
-interface Props { id: string }
+// showTitle: false when the page already heads the form (the form section has its own headline).
+interface Props { id: string; showTitle?: boolean }
 const config = loadConfig(raw);
-const { id } = Astro.props;
+const { id, showTitle = true } = Astro.props;
 const form = config.forms[id];
 if (!form) throw new Error(`Form "${id}" is not in site.config.json`);
 
@@ -21,7 +22,7 @@ const fieldId = (name) => `${id}-${name}`;
   data-steps={steps.length}
   class="grid w-full max-w-[var(--container-prose)] grid-cols-[minmax(0,1fr)] gap-6"
 >
-  {form.title && <h2 class="text-2xl font-semibold">{form.title}</h2>}
+  {showTitle && form.title && <h2 class="text-2xl font-semibold">{form.title}</h2>}
   {steps.length > 1 && (
     <p class="text-sm text-[var(--color-ink-muted)]" data-fb-progress aria-live="polite">Step 1 of {steps.length}</p>
   )}

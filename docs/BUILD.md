@@ -4,8 +4,8 @@ How an agent turns one owner prompt into a reviewed idea-mode site. Each step na
 does it and the gate that ends it. The agent decides everything it can and asks only for what it can't: a required
 answer that is missing, a choice that can't be undone and could go either way, or a credential.
 
-Status (2026-10-26): every scripted step below has run live. The design and content steps are agent work with
-gates, not scripts yet; the style tiles and the autopilot judge (SPEC section 12) are not built.
+Status (2026-10-27): every scripted step below has run live. The design and content steps are agent work with
+gates and scripts: style tiles, the autopilot judge, this-or-that pairs and the critique rounds (SPEC section 12).
 
 | Step | Phase | Who | Tool | Ends when |
 |---|---|---|---|---|
@@ -76,6 +76,11 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which, then `node scripts/design-judge.mjs tally`;
   - copy the pick (or, on a tie, the draft closer to the brief) to `DESIGN.md` and record the result in its Overview.
   With an owner intake, the owner picks from `design/tiles/index.html` instead.
+- With an owner intake, before the drafts: this-or-that (P2.5). Write 4–6 pairs in `design/pairs.json` (each changes
+  one thing: display type, palette, imagery, density or shape; format at the top of `scripts/design-pairs.mjs`), run
+  `node scripts/design-pairs.mjs render`, send the owner `design/pairs/*.png`, and record each answer with
+  `node scripts/design-pairs.mjs pick <id> a|b`. If the owner doesn't answer, `defaults` records the recommended sides
+  as inferred. The drafts then follow the picks in `design/intake.json`.
 - `node scripts/design-tokens.mjs`. It fails on lint errors, a missing token or a contrast pair below WCAG AA.
 - Images: owner photos first, open-licensed second, generated only for abstract texture. Every image gets an entry in `design/credits.json`.
 
@@ -97,6 +102,13 @@ Run them in a scratch copy of the site (without `dist/`, `.wrangler/` and `qa-ou
 The site's real Turnstile widget only allows the account's workers.dev hostname, so on localhost it fails with
 error 110200 and every form page logs a console error (seen 2026-10-27); the copy uses Turnstile's test keys instead.
 With editing on, the same command also fills the missing resource IDs. Never commit test keys.
+
+When the gates pass, run the critique rounds in the same copy (at most three; SPEC section 8 and the header of
+`scripts/design-critique.mjs`): `node scripts/design-critique.mjs start`, fill in `design/critique/round-N.md`
+(five 1–5 scores, the tells, at most three located fixes), `score`, apply the fixes without committing, `compare`
+(rebuild, QA gate, ballots), answer each ballot LEFT or RIGHT without looking up which side is which, then `decide`.
+A fix is kept only if it wins both ways round on every changed page; otherwise it is reverted. Copy the kept files
+(listed in `design/critique/state.json`) and `design/critique/` back to the site's branch.
 
 ## 6. Preview (P6)
 
