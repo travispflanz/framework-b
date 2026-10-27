@@ -30,7 +30,7 @@ Used by the builder agent for everything except Workers Builds. Scope it to the 
 |---|---|---|
 | Zone: Read | Find zone IDs | Verified |
 | DNS: Edit | Resend records, verification records | Verified |
-| Workers Routes: Edit | Custom domains | Verified |
+| Workers Routes: Edit | Custom domains (promote attaches the domain through the Workers domains API) | Verified |
 | Zone Settings: Edit | Always Use HTTPS, minimum TLS | Verified |
 | Single Redirect: Edit | `www` → apex rule | Verified |
 | Email Routing Rules: Edit | `hello@` forwarding | Verified |
@@ -59,6 +59,10 @@ Used only by the `framework-backups` Worker (`ops/backup-worker`) to call D1's e
 It's stored once as the `D1_BACKUP_TOKEN` repository secret in `framework-b`. The deploy workflow copies it into the Worker as a secret. Status: unverified until the first scheduled run.
 
 The deploy token (section 1) also deploys this Worker and its Workflow, and creates the `framework-backups` bucket and its expiry rule. Whether Workers Scripts: Edit and Workers R2 Storage: Edit cover the Workflow and the lifecycle rule is unverified until the first deploy.
+
+## Resend setup key (only during promote)
+
+A temporary **full-access** Resend API key, stored as the ops repo secret `RESEND_SETUP_KEY` for one promote run. Promote uses it to add `mail.<domain>` and create a sending-only key restricted to that domain, which becomes the Worker secret `RESEND_API_KEY`. Delete the full-access key in Resend (https://resend.com/api-keys) and the ops secret afterwards. Status: untested.
 
 ## 4. Registrar token (only when buying a domain)
 
