@@ -38,8 +38,36 @@ const done = (step, detail = "") => {
 async function callMailer(payload) {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ secret, ...payload }), redirect: "follow" });
   const data = await res.json().catch(() => null);
-  if (!data || data.ok !== true) throw new Error(`The mailer answered ${res.status} ${data?.error || "(no JSON)"}. Check the web app URL, that it is deployed with access "Anyone", and that its MAILER_SECRET script property matches.`);
+  if (!data || data.ok !== true) {
+    console.log(await diagnose());
+    throw new Error(`The mailer answered ${res.status} ${data?.error || "(no JSON)"}. See the diagnosis above.`);
+  }
   return data;
+}
+
+// What's wrong with a failing mailer URL, without printing the URL itself (it holds the deployment id).
+async function diagnose() {
+  const out = [];
+  let u;
+  try {
+    u = new URL(url.trim());
+  } catch {
+    return "- MAILER_URL isn't a URL.";
+  }
+  if (url !== url.trim()) out.push("- MAILER_URL has spaces or a line break around it.");
+  out.push(`- Host: ${u.host}; path ends with "${u.pathname.split("/").pop()}"`);
+  if (u.host !== "script.google.com") out.push("- Expected the host script.google.com (Deploy → Manage deployments → Web app URL).");
+  if (/\/dev$/.test(u.pathname)) out.push('- This is the test deployment ("/dev"), which only works signed in as the owner. Use the Web app URL that ends in "/exec".');
+  if (!/\/exec$/.test(u.pathname)) out.push('- The Web app URL should end in "/exec".');
+  if (/\/u\/\d+\//.test(u.pathname)) out.push('- The URL has "/u/<n>/" in it (copied while signed in to several Google accounts). Remove that part, or copy it from Manage deployments.');
+  if (/^\/a\/macros\//.test(u.pathname)) out.push('- This is a Google Workspace URL ("/a/macros/<domain>"), which requires a sign-in in that domain. Deploy from a personal Gmail account, or allow "Anyone".');
+  const first = await fetch(u, { method: "POST", headers: { "content-type": "application/json" }, body: "{}", redirect: "manual" });
+  out.push(`- POST answered ${first.status}${first.headers.get("location") ? ` with a redirect to ${new URL(first.headers.get("location")).host}` : ""}.`);
+  const get = await fetch(u, { redirect: "follow" });
+  const body = (await get.text()).slice(0, 2000);
+  out.push(`- GET answered ${get.status}${/framework-b-mailer/.test(body) ? " with the mailer's own reply, so the deployment is reachable" : /accounts\.google\.com|ServiceLogin|Sign in/i.test(body) ? " with a Google sign-in page: the web app's access isn't \"Anyone\"" : ""}.`);
+  if (first.status === 403 || get.status === 403) out.push('- 403 from Google means the web app refuses anonymous callers: Deploy → Manage deployments → edit (pencil) → Who has access: "Anyone" → Version: New version → Deploy. The /exec URL stays the same.');
+  return out.join("\n");
 }
 
 try {
