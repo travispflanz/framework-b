@@ -55,7 +55,7 @@ if (uptimeEnabled()) {
   try {
     const sub = (await cf(`${A}/workers/subdomain`)).subdomain;
     let n = await removeMonitors(`${id}.${sub}.workers.dev`);
-    if (launch) n += await removeMonitors(launch);
+    if (launch) n += await removeMonitors(launch, { name: siteConfig.site.name });
     if (n) did(`deleted ${n} uptime monitor(s)`);
   } catch (e) {
     did(`uptime monitors not removed: ${e.message}`);
