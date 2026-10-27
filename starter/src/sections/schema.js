@@ -155,7 +155,8 @@ export const SECTIONS = [
     { slug: "headline", label: "Headline", type: "string", required: true },
     { slug: "body", label: "Text (leave a blank line between paragraphs)", type: "text", required: true },
     image("image", "Image", true),
-    { slug: "image_side", label: "Image on the", type: "select", options: ["right", "left"] },
+    // Block-level selects keep their choices in validation.options (EmDash rejects a top-level options here).
+    { slug: "image_side", label: "Image on the", type: "select", validation: { options: ["right", "left"] } },
     { slug: "cta_label", label: "Button text", type: "string" },
     link("cta_url", "Button link"),
   ]),

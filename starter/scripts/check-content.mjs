@@ -22,7 +22,8 @@ function checkFields(fields, value, where) {
     }
     if (["string", "text"].includes(f.type) && typeof v !== "string") errors.push(`${where}.${f.slug} must be text`);
     if (f.type === "boolean" && typeof v !== "boolean") errors.push(`${where}.${f.slug} must be true or false`);
-    if (f.type === "select" && !f.options.includes(v)) errors.push(`${where}.${f.slug} "${v}" is not one of: ${f.options.join(", ")}`);
+    const choices = f.options || f.validation?.options || [];
+    if (f.type === "select" && !choices.includes(v)) errors.push(`${where}.${f.slug} "${v}" is not one of: ${choices.join(", ")}`);
     if (f.type === "image") {
       if (typeof v !== "object" || typeof v.src !== "string" || !v.src) errors.push(`${where}.${f.slug} must be { "src": "<file in src/assets/images>", "alt": "..." }`);
       else {
