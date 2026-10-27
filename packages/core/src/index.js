@@ -14,7 +14,7 @@ import { handleUnsubscribe } from "./unsubscribe.js";
 import { handleAdmin } from "./admin.js";
 import { json } from "./lib/util.js";
 
-export const CORE_VERSION = "0.2.1";
+export const CORE_VERSION = "0.3.0";
 
 export function createWorker(rawConfig, { fallback } = {}) {
   const config = loadConfig(rawConfig);

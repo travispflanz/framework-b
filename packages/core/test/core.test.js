@@ -7,6 +7,7 @@ import { buildHeadersFile } from "../src/headers.js";
 import { sign } from "../src/lib/crypto.js";
 import { csv } from "../src/lib/util.js";
 import { verifyTurnstile } from "../src/lib/turnstile.js";
+import pkg from "../package.json";
 
 const BASE = "https://example-idea.example.workers.dev";
 const ORIGIN = { origin: BASE };
@@ -84,7 +85,7 @@ describe("headers file", () => {
 describe("health", () => {
   it("reports D1 reachable", async () => {
     const res = await call("/api/health");
-    expect(await res.json()).toMatchObject({ ok: true, site: "example-idea" });
+    expect(await res.json()).toMatchObject({ ok: true, site: "example-idea", core: pkg.version });
   });
 });
 
