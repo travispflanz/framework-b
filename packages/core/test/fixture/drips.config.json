@@ -1,0 +1,26 @@
+{
+  "site": {
+    "id": "example-launch",
+    "name": "Example Co",
+    "mode": "launch",
+    "canonicalHost": "example.com",
+    "ownerEmail": "owner@example.com",
+    "postalAddress": "1 Main St, Town, KS 66000"
+  },
+  "email": { "notify": "none", "confirm": "resend", "confirmFrom": "hello@mail.example.com" },
+  "forms": {
+    "contact": {
+      "fields": [
+        { "name": "name", "type": "text", "label": "Name" },
+        { "name": "email", "type": "email", "label": "Email", "required": true }
+      ]
+    }
+  },
+  "drips": {
+    "forms": ["contact"],
+    "emails": [
+      { "after": "1 day", "subject": "Welcome to Example Co", "text": "Thanks for signing up.\n\nRead more at https://example.com/guide." },
+      { "after": "3 days", "subject": "A tip from Example Co", "text": "Here is one tip." }
+    ]
+  }
+}

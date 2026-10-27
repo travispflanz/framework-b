@@ -1,5 +1,6 @@
 // Reads and checks site.config.json once, when the Worker module loads.
 // Every brand value the runtime uses comes from here; nothing site-specific is hard-coded.
+import { dripErrors } from "./drips-config.js";
 
 const FIELD_TYPES = new Set(["text", "email", "tel", "url", "textarea", "select", "checkbox", "hidden"]);
 const MAILERS = new Set(["none", "apps-script", "cloudflare", "resend"]);
@@ -49,6 +50,7 @@ export function loadConfig(raw) {
   cfg.crm = { sheet: false, webhook: false, ...(cfg.crm || {}) };
   for (const k of ["sheet", "webhook"]) if (typeof cfg.crm[k] !== "boolean") errors.push(`crm.${k} must be true or false`);
 
+  // Drips (src/drips.js): an email series after a form, launch sites only. Checked after the forms below.
   const forms = cfg.forms || {};
   if (!Object.keys(forms).length) errors.push("forms: define at least one form");
   for (const [formId, form] of Object.entries(forms)) {
@@ -78,6 +80,8 @@ export function loadConfig(raw) {
     }
     form.thanks = form.thanks || "/thanks";
   }
+
+  errors.push(...dripErrors(cfg));
 
   if (errors.length) throw new Error("site.config.json is invalid:\n- " + errors.join("\n- "));
   return cfg;

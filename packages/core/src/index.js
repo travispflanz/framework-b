@@ -1,7 +1,8 @@
 // Framework B core runtime. A site's Worker is:
 //
 //   import config from "../site.config.json";
-//   import { createWorker } from "../core/src/index.js";
+//   import { createWorker, dripWorkflow } from "../core/src/index.js";
+//   export const DripWorkflow = dripWorkflow(config); // drips (src/drips.js); idle unless configured
 //   export default createWorker(config);
 //
 // Routes: POST /api/submit/:form, PUT /api/upload/:lead, GET /api/health, GET|POST /u, GET /admin/*.
@@ -12,9 +13,16 @@ import { loadConfig } from "./config.js";
 import { handleSubmit, handleUpload } from "./forms.js";
 import { handleUnsubscribe } from "./unsubscribe.js";
 import { handleAdmin } from "./admin.js";
+import { dripWorkflowClass } from "./drips.js";
 import { json } from "./lib/util.js";
 
-export const CORE_VERSION = "0.3.0";
+export const CORE_VERSION = "0.4.0";
+
+// The drips Workflow class for this site: `export const DripWorkflow = dripWorkflow(config);` in the site's Worker.
+// It does nothing until site.config.json has a "drips" block and wrangler.jsonc binds it as DRIPS.
+export function dripWorkflow(rawConfig) {
+  return dripWorkflowClass(loadConfig(rawConfig));
+}
 
 export function createWorker(rawConfig, { fallback } = {}) {
   const config = loadConfig(rawConfig);
