@@ -63,8 +63,18 @@ try {
   const swept = await sweepCheckTokens(A);
   if (swept) log("access", `deleted ${swept} stale check token(s)`);
   token = await mintCheckToken(A, `${id} ${branch}`.replace(/[^\w .-]/g, "-"));
-  // Probe each page once before the browser checks, so a slow or stuck page is named with its timing.
   const auth = { "CF-Access-Client-Id": token.clientId, "CF-Access-Client-Secret": token.clientSecret };
+  // A new service token is refused (302 to the login page) for a few seconds until Access has it everywhere
+  // (seen 2026-10-26). Wait until it's accepted, up to two minutes.
+  const t0 = Date.now();
+  for (;;) {
+    const r = await fetch(`${url}/api/health`, { headers: auth, redirect: "manual", signal: AbortSignal.timeout(15_000) }).catch(() => null);
+    if (r?.status === 200) break;
+    if (Date.now() - t0 > 120_000) throw new Error(`Access still refuses the new service token after 2 min (last: HTTP ${r?.status ?? "no response"}); is the "framework-b agent" policy on the previews application?`);
+    await new Promise((res) => setTimeout(res, 3000));
+  }
+  report.push(`- Access accepted the check's service token after ${Math.round((Date.now() - t0) / 1000)} s`);
+  // Probe each page once before the browser checks, so a slow or stuck page is named with its timing.
   for (const path of ["/api/health", "/"]) {
     const t0 = Date.now();
     try {
