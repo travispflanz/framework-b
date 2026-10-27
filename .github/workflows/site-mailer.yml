@@ -1,0 +1,69 @@
+# Reusable: connects an existing site to the account's Apps Script mailer with scripts/site/mailer.mjs, then opens a
+# pull request in the site's repo that turns lead notifications on. New sites get the mailer from site create.
+# Called only from the owner's private ops repo.
+name: site mailer
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      check_only: { type: string, default: "no", description: '"yes" only sends the test notification' }
+    secrets:
+      MAILER_URL: { required: true }
+      MAILER_SECRET: { required: true }
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  mailer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency: site-${{ inputs.site_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          path: framework
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          echo "OWNER=$owner" >> "$GITHUB_ENV"
+          git clone -q "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
+          git -C site config user.name "Framework B"
+          git -C site config user.email "framework-b@users.noreply.github.com"
+          cd site && npm ci --no-audit --no-fund > /dev/null
+      - name: Connect the mailer
+        env:
+          MAILER_URL: ${{ secrets.MAILER_URL }}
+          MAILER_SECRET: ${{ secrets.MAILER_SECRET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CHECK_ONLY: ${{ inputs.check_only }}
+        run: node framework/scripts/site/mailer.mjs --site site $([ "$CHECK_ONLY" = "yes" ] && echo --check-only)
+      - name: Open a pull request
+        if: inputs.check_only != 'yes'
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          if [ -z "$(git -C site status --porcelain)" ]; then echo "Notifications were already on; no pull request needed." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          branch="mailer/apps-script"
+          git -C site checkout -q -b "$branch"
+          git -C site commit -qam "Turn on lead notifications through the Apps Script mailer"
+          git -C site push -q -f origin "$branch"
+          body=$(jq -Rn '"Turns on lead notifications: each new lead is emailed to the site owner through the account'"'"'s Apps Script mailer. The Worker already has the mailer secrets, and a test notification was sent when this pull request was opened. Notifications start when this is merged."')
+          code=$(curl -s -o pr.json -w '%{http_code}' -X POST -H "Authorization: Bearer $GH_SITES_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${OWNER}/site-${SITE_ID}/pulls" -d "{\"title\":\"Turn on lead notifications\",\"head\":\"$branch\",\"base\":\"main\",\"body\":$body}")
+          if [ "$code" = "201" ]; then echo "Pull request: $(jq -r .html_url pr.json)" | tee -a "$GITHUB_STEP_SUMMARY";
+          else echo "Branch pushed, but the pull request wasn't opened (HTTP $code). Open one from $branch by hand." | tee -a "$GITHUB_STEP_SUMMARY"; fi
+          [ "$code" = "201" ]

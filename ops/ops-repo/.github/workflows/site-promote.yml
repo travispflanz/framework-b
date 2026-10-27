@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       site_id: { description: "site id", required: true }
-      domain: { description: "apex domain (an active zone in the Cloudflare account)", required: true }
+      domain: { description: "domain or one-level subdomain of a zone in the Cloudflare account", required: true }
       phase: { description: "prepare or finish", required: true, default: prepare, type: choice, options: [prepare, finish] }
       postal_address: { description: "postal address for marketing email (prepare only)", required: false, default: "" }
       dry_run: { description: "yes = only check the preconditions", required: false, default: "no", type: choice, options: ["no", "yes"] }

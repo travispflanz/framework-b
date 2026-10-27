@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { launchConfig, launchNames, launchWrangler, mergeRedirectRules, redirectRule, REDIRECT_REF, resendRecordName, ownerChecklist } from "../lib/promote.mjs";
+import { launchConfig, launchNames, launchWrangler, mergeRedirectRules, notifyPlan, redirectRule, REDIRECT_REF, resendRecordName, ownerChecklist, zoneFor } from "../lib/promote.mjs";
 
 const ideaConfig = {
   site: { id: "example-co", name: "Example Co", mode: "idea", canonicalHost: "example-co.acct.workers.dev", ownerEmail: "owner@example.com", postalAddress: "", indexing: false },
@@ -85,4 +85,30 @@ test("owner checklist names the domain in every dashboard step", () => {
   assert.equal(list.length, 4);
   assert.ok(list.every((l) => l.includes("https://")));
   assert.ok(list.filter((l) => l.includes("example.com")).length >= 3);
+});
+
+test("a subdomain finds its zone; the longest matching zone wins", () => {
+  const zones = [{ name: "example.com", id: "a" }, { name: "shop.example.com", id: "b" }, { name: "other.org", id: "c" }];
+  assert.equal(zoneFor("example.com", zones).id, "a");
+  assert.equal(zoneFor("site.example.com", zones).id, "a");
+  assert.equal(zoneFor("x.shop.example.com", zones).id, "b");
+  assert.equal(zoneFor("notexample.com", zones), null);
+});
+
+test("notifications use Email Routing only on a whole zone with no other mail provider", () => {
+  assert.equal(notifyPlan({ ownsZone: true, apexMx: [] }).notify, "cloudflare");
+  assert.equal(notifyPlan({ ownsZone: true, apexMx: ["route1.mx.cloudflare.net."] }).notify, "cloudflare");
+  assert.equal(notifyPlan({ ownsZone: true, apexMx: ["mx.mailhost.example."], mailer: true }).notify, "apps-script");
+  assert.equal(notifyPlan({ ownsZone: false, apexMx: [], mailer: true }).notify, "apps-script");
+  const none = notifyPlan({ ownsZone: false, mailer: false });
+  assert.equal(none.notify, "none");
+  assert.match(none.why, /MAILER_URL/);
+});
+
+test("launch files for an Apps Script site: no notifyFrom, no send_email binding", () => {
+  const c = launchConfig({ ...ideaConfig, email: { notify: "none", confirm: "none" } }, { domain: "site.example.com", postalAddress: "PO Box 1", resend: true, notify: "apps-script" });
+  assert.deepEqual(c.email, { notify: "apps-script", confirm: "resend", confirmFrom: "hello@mail.site.example.com" });
+  const w = launchWrangler({ ...ideaWrangler, send_email: [{ name: "EMAIL" }] }, { id: "example-co", domain: "site.example.com", owner: "o@example.com", db: "p", stagingDb: "s", sendEmail: false });
+  assert.equal(w.send_email, undefined);
+  assert.deepEqual(w.routes, [{ pattern: "site.example.com", custom_domain: true }]);
 });
