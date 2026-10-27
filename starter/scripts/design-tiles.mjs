@@ -42,10 +42,11 @@ function serve(dir) {
 }
 
 // The useful part of a failed command's output: lines that name an error, not the stack under them.
+const plain = (e) => `${e.stdout || ""}${e.stderr || ""}`.replace(/\x1b\[[0-9;]*m/g, "");
 const why = (e) => {
-  const lines = `${e.stdout || ""}${e.stderr || ""}`.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("at ") && !/^Node\.js v/.test(l));
+  const lines = plain(e).split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("at ") && !/^Node\.js v/.test(l) && !/^Build failed in/.test(l.replace(/^.*\] /, "")));
   const errs = lines.filter((l) => /error|fail|missing|contrast|not installed|cannot/i.test(l));
-  return [...new Set(errs.length ? errs : lines)].slice(-3).join(" | ").slice(0, 400);
+  return [...new Set(errs.length ? errs : lines)].slice(-4).join(" | ").slice(0, 600);
 };
 const results = [];
 const scratch = mkdtempSync(join(tmpdir(), "fb-tiles-"));
@@ -70,7 +71,9 @@ try {
     try {
       run("npm", ["run", "build"], { TILE_NAME: name });
     } catch (e) {
-      results.push({ name, ok: false, why: `build failed: ${why(e)}`, front });
+      mkdirSync(join(OUT, name), { recursive: true });
+      writeFileSync(join(OUT, name, "build.log"), plain(e));
+      results.push({ name, ok: false, why: `build failed (log in ${name}/build.log): ${why(e)}`, front });
       console.log(`✗ ${name}: ${results.at(-1).why}`);
       continue;
     }
