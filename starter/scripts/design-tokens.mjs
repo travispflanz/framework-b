@@ -21,6 +21,7 @@ import { parse } from "yaml";
 
 const CHECK = process.argv.includes("--check");
 const OUT = "src/styles/tokens.css";
+const FONTS_OUT = "src/styles/fonts.js";
 const REQUIRED = {
   colors: ["bg", "surface", "ink", "ink-muted", "line", "field", "accent", "accent-ink", "highlight", "highlight-ink", "error", "focus"],
   typography: ["display", "headline", "title", "body", "small", "label"],
@@ -104,6 +105,24 @@ for (const family of families) {
   else if (has(fixed)) imports.push(fixed);
   else throw new Error(`Font "${family}" is not installed. Run: npm i ${variable}  (or ${fixed} if it has no variable version)`);
 }
+// The Latin files of the design's fonts, preloaded by Base.astro so a heading doesn't reflow (and push the hero
+// image down) when its web font arrives after the first paint: a font-swap layout shift failed the CLS check
+// on a preview (2026-10-27). Variable packages ship one file per subset; fixed ones one per weight.
+const preload = [];
+for (const pkg of imports) {
+  const family = pkg.split("/")[1];
+  const weights = [...new Set(Object.values(tokens.typography).filter((t) => slug(t.fontFamily.split(",")[0].trim().replace(/^["']|["']$/g, "")) === family).map((t) => String(t.fontWeight || 400)))];
+  const files = pkg.startsWith("@fontsource-variable/") ? [`${family}-latin-wght-normal.woff2`] : weights.map((w) => `${family}-latin-${w}-normal.woff2`);
+  for (const f of files) if (existsSync(`node_modules/${pkg}/files/${f}`)) preload.push(`${pkg}/files/${f}`);
+}
+const fontsJs = [
+  "// Generated from DESIGN.md by scripts/design-tokens.mjs. Do not edit: change DESIGN.md and run it again.",
+  "// The design's Latin font files, preloaded by src/layouts/Base.astro.",
+  ...preload.map((f, i) => `import f${i} from "${f}?url";`),
+  `export default [${preload.map((_, i) => `f${i}`).join(", ")}];`,
+  "",
+].join("\n");
+
 const stack = (fontFamily) => {
   const [first, ...rest] = fontFamily.split(",").map((s) => s.trim()).filter(Boolean);
   const name = first.replace(/^["']|["']$/g, "");
@@ -202,8 +221,11 @@ const css = lines.join("\n");
 if (CHECK) {
   const current = existsSync(OUT) ? readFileSync(OUT, "utf8") : "";
   if (current !== css) throw new Error(`${OUT} is out of date with DESIGN.md. Run: node scripts/design-tokens.mjs`);
-  console.log(`${OUT} matches DESIGN.md`);
+  const currentFonts = existsSync(FONTS_OUT) ? readFileSync(FONTS_OUT, "utf8") : "";
+  if (currentFonts !== fontsJs) throw new Error(`${FONTS_OUT} is out of date with DESIGN.md. Run: node scripts/design-tokens.mjs`);
+  console.log(`${OUT} and ${FONTS_OUT} match DESIGN.md`);
 } else {
   writeFileSync(OUT, css);
+  writeFileSync(FONTS_OUT, fontsJs);
   console.log(`Wrote ${OUT} from DESIGN.md (${families.join(", ")})`);
 }

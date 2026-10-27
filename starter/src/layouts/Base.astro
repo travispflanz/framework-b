@@ -3,6 +3,7 @@
 import config from "../../site.config.json";
 import credits from "../../design/credits.json";
 import "../styles/tokens.css";
+import fonts from "../styles/fonts.js";
 import "../sections/sections.css";
 
 // bleed: the page is made of full-width sections (src/sections), so <main> adds no column or padding.
@@ -37,6 +38,7 @@ const hasCta = config.nav.some((item) => item.cta);
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content="website" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {fonts.map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
     <link rel="preconnect" href="https://challenges.cloudflare.com" />
     <script type="application/ld+json" set:html={JSON.stringify(org)} />
     <script src="../scripts/attribution.js"></script>
