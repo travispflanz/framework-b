@@ -1,0 +1,42 @@
+# Reusable: takes a Worker off its domain without deleting anything, or puts it back (scripts/site/park.mjs). The
+# record of what changed lives in the private framework-backups bucket at park/<worker>.json, so "undo" reverses
+# exactly what "park" did. Take a snapshot first. Called only from the owner's private ops repo.
+name: site park
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      worker: { type: string, required: true }
+      zone: { type: string, required: true }
+      action: { type: string, default: park, description: '"park" or "undo"' }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      CF_BUILDS_TOKEN: { required: false }
+      UPTIMEROBOT_API_KEY: { required: false }
+permissions:
+  contents: read
+jobs:
+  park:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency: site-${{ inputs.worker }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Park or undo
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
+          UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
+          WORKER: ${{ inputs.worker }}
+          ZONE: ${{ inputs.zone }}
+          ACTION: ${{ inputs.action }}
+        run: node scripts/site/park.mjs --worker "$WORKER" --zone "$ZONE" --record "r2:framework-backups/park/${WORKER}.json" $([ "$ACTION" = "undo" ] && echo --undo)

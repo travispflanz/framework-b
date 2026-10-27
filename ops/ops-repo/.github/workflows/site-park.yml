@@ -1,0 +1,20 @@
+# Caller: takes a Worker off its domain without deleting anything ("park"), or puts it back ("undo"). Replace OWNER.
+# Take a snapshot first.
+name: site park
+on:
+  workflow_dispatch:
+    inputs:
+      worker: { description: "Worker name", required: true }
+      zone: { description: "zone it serves, e.g. example.com", required: true }
+      action: { description: "park or undo", required: true, default: park, type: choice, options: [park, undo] }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  park:
+    uses: OWNER/framework-b/.github/workflows/site-park.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      worker: ${{ inputs.worker }}
+      zone: ${{ inputs.zone }}
+      action: ${{ inputs.action }}
+    secrets: inherit

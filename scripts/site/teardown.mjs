@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-// Removes an idea-mode site and frees its resources. Exports its leads and subscribers to the
-// framework-backups bucket first, then deletes them.
+// Removes a site and frees its resources. Exports its leads and subscribers to the framework-backups bucket first,
+// then deletes them. Idea sites keep their rows in the shared databases; a launch site (after promote) also has its
+// own databases and uploads bucket, a Custom Domain, and on a zone it owns, the www record and redirect rule promote
+// added. Those are exported and removed too. The zone itself, its other DNS records, its settings, Email Routing,
+// and the Resend domain stay: they belong to the zone's owner and may serve other things.
 //
 // Deleting leads needs the owner's approval, so this refuses unless either:
 //   - SITE_ID starts with "selftest-" (throwaway sites made by the template self-test), or
@@ -40,11 +43,19 @@ async function query(uuid, sql, params = []) {
   return (await cf(`${A}/d1/database/${uuid}/query`, { method: "POST", body: { sql, params } }))[0]?.results || [];
 }
 
-// 0. Uptime monitors on the site's host, first, so none reports the site down while it is removed.
+// The site's own config, read from its repo: a launch site has more to remove.
+const login = (await gh("/user")).login;
+const cfgFile = await gh(`/repos/${login}/site-${id}/contents/site.config.json`, { allow404: true });
+const siteConfig = cfgFile?.content ? JSON.parse(Buffer.from(cfgFile.content, "base64").toString("utf8")) : null;
+const launch = siteConfig?.site?.mode === "launch" ? siteConfig.site.canonicalHost : null;
+if (launch) did(`launch site on ${launch}`);
+
+// 0. Uptime monitors on the site's hosts, first, so none reports the site down while it is removed.
 if (uptimeEnabled()) {
   try {
     const sub = (await cf(`${A}/workers/subdomain`)).subdomain;
-    const n = await removeMonitors(`${id}.${sub}.workers.dev`);
+    let n = await removeMonitors(`${id}.${sub}.workers.dev`);
+    if (launch) n += await removeMonitors(launch);
     if (n) did(`deleted ${n} uptime monitor(s)`);
   } catch (e) {
     did(`uptime monitors not removed: ${e.message}`);
@@ -112,15 +123,38 @@ for (const w of (await cf(`${A}/challenges/widgets`)).filter((w) => w.name === i
   did("deleted Turnstile widget");
 }
 
+// 4b. A launch site: its Custom Domains, and on a zone it owns, the www record and redirect rule promote added.
+if (launch) {
+  for (const d of (await cf(`${A}/workers/domains?service=${encodeURIComponent(id)}`)) || []) {
+    await cf(`${A}/workers/domains/${d.id}`, { method: "DELETE" });
+    did(`detached Custom Domain ${d.hostname}`);
+  }
+  const zone = ((await cf(`/zones?name=${encodeURIComponent(launch)}`)) || [])[0];
+  if (zone) {
+    for (const r of (await cf(`/zones/${zone.id}/dns_records?name=${encodeURIComponent(`www.${launch}`)}`)) || []) {
+      if (r.comment !== "Framework B: www redirects to the apex") continue;
+      await cf(`/zones/${zone.id}/dns_records/${r.id}`, { method: "DELETE" });
+      did(`deleted the www.${launch} record promote added`);
+    }
+    const entry = await cf(`/zones/${zone.id}/rulesets/phases/http_request_dynamic_redirect/entrypoint`, { allow404: true });
+    const ours = (entry?.rules || []).filter((r) => r.ref === "framework_b_www_to_apex");
+    if (ours.length) {
+      const keep = entry.rules.filter((r) => r.ref !== "framework_b_www_to_apex").map(({ id: _i, version, last_updated, ...r }) => r);
+      await cf(`/zones/${zone.id}/rulesets/phases/http_request_dynamic_redirect/entrypoint`, { method: "PUT", body: { rules: keep } });
+      did("removed the www redirect rule promote added (other redirect rules kept)");
+    }
+  }
+}
+
 // 5. The Worker.
 if (tag) {
   await cf(`${A}/workers/scripts/${id}?force=true`, { method: "DELETE" });
   did(`deleted Worker ${id}`);
 }
 
-// 5c. Client editing (EmDash) resources, if the site had them. The content databases are exported to the
-// backups bucket first (D1 export API, the same one the weekly backup uses), then deleted.
-for (const name of [`${id}-cms`, `${id}-cms-preview`]) {
+// 5c. The site's own databases: client editing (EmDash) content, and a launch site's production and staging leads.
+// Each is exported to the backups bucket first (D1 export API, the same one the weekly backup uses), then deleted.
+for (const name of [`${id}-cms`, `${id}-cms-preview`, `${id}-prod`, `${id}-staging`]) {
   const uuid = await dbUuid(name);
   if (!uuid) continue;
   const startBody = await cf(`${A}/d1/database/${uuid}/export`, { method: "POST", body: { output_format: "polling" } });
@@ -138,7 +172,18 @@ for (const name of [`${id}-cms`, `${id}-cms-preview`]) {
   await cf(`${A}/d1/database/${uuid}`, { method: "DELETE" });
   did(`exported ${name} to ${SHARED.backups}/${key}, then deleted it`);
 }
-for (const bucket of [`${id}-media`, `${id}-media-preview`]) {
+// A launch site's own uploads bucket: each file is copied to the backups bucket, then deleted, then the bucket.
+if (launch && (await cf(`${A}/r2/buckets/${id}-uploads`, { allow404: true }))) {
+  const objects = (await cf(`${A}/r2/buckets/${id}-uploads/objects?per_page=1000`)) || [];
+  for (const o of objects) {
+    const file = join(scratch, "object");
+    r2("get", `${id}-uploads/${o.key}`, "--file", file);
+    r2("put", `${SHARED.backups}/teardown/${id}/uploads/${o.key}`, "--file", file);
+    r2("delete", `${id}-uploads/${o.key}`);
+  }
+  if (objects.length) did(`copied ${objects.length} uploaded file(s) to ${SHARED.backups}/teardown/${id}/uploads/`);
+}
+for (const bucket of [`${id}-media`, `${id}-media-preview`, ...(launch ? [`${id}-uploads`] : [])]) {
   if (!(await cf(`${A}/r2/buckets/${bucket}`, { allow404: true }))) continue;
   try {
     await cf(`${A}/r2/buckets/${bucket}`, { method: "DELETE" });
@@ -158,9 +203,21 @@ try {
   did(`KV namespaces not checked (${e.message})`); // only sites with client editing have them
 }
 
+// 5d. A launch site's Resend sending key (the Resend domain stays: it belongs to the zone's mail).
+if (launch && process.env.RESEND_ADMIN_KEY) {
+  try {
+    const keys = (await (await fetch("https://api.resend.com/api-keys", { headers: { authorization: `Bearer ${process.env.RESEND_ADMIN_KEY}` } })).json()).data || [];
+    for (const k of keys.filter((k) => k.name === `${id} sending`)) {
+      await fetch(`https://api.resend.com/api-keys/${k.id}`, { method: "DELETE", headers: { authorization: `Bearer ${process.env.RESEND_ADMIN_KEY}` } });
+      did(`deleted Resend key "${k.name}"`);
+    }
+  } catch (e) {
+    did(`Resend key not removed (${e.message})`);
+  }
+}
+
 // 6. The GitHub repo: archived unless deletion was asked for.
-const user = await gh("/user");
-const repoPath = `/repos/${user.login}/site-${id}`;
+const repoPath = `/repos/${login}/site-${id}`;
 if (await gh(repoPath, { allow404: true })) {
   if (process.env.DELETE_REPO === "yes" || id.startsWith("selftest-")) {
     await gh(repoPath, { method: "DELETE" });

@@ -1,0 +1,50 @@
+# Reusable: a complete, read-only snapshot of a Worker and its zone (scripts/site/snapshot.mjs), stored in the private
+# framework-backups bucket under snapshots/<worker>/<date>/. Works for any Worker, Framework B or not. Called only
+# from the owner's private ops repo.
+name: site snapshot
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      worker: { type: string, required: true }
+      zone: { type: string, required: true, description: "the zone the Worker serves, e.g. example.com" }
+      repo: { type: string, default: "", description: "owner/name of the site's GitHub repo, bundled into the snapshot" }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      GH_SITES_TOKEN: { required: false }
+      UPTIMEROBOT_API_KEY: { required: false }
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          path: framework
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site's repo
+        if: inputs.repo != ''
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          REPO: ${{ inputs.repo }}
+        run: git clone -q "https://x-access-token:${GH_SITES_TOKEN}@github.com/${REPO}.git" site
+      - name: Snapshot
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
+          WORKER: ${{ inputs.worker }}
+          ZONE: ${{ inputs.zone }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          prefix="snapshots/${WORKER}/$(date -u +%Y-%m-%dT%H%M%SZ)"
+          node framework/scripts/site/snapshot.mjs --worker "$WORKER" --zone "$ZONE" --out snapshot $([ -n "$REPO" ] && echo --repo site) --upload "framework-backups/${prefix}"
+          echo "Snapshot stored in framework-backups/${prefix}/" >> "$GITHUB_STEP_SUMMARY"
