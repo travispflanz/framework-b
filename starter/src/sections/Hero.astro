@@ -1,14 +1,17 @@
 ---
 // fb_hero: the page's opening. The only section with an <h1>.
 import Icon from "./Icon.astro";
+import Picture from "./Picture.astro";
 import { lines } from "./text.js";
 
 interface Props { value: Record<string, any>; blockKey?: string }
 const { value } = Astro.props;
 const points = lines(value.points).slice(0, 4);
+const hasImage = !!value.image?.src;
 ---
 <section id={value.anchor_id || undefined} class="bg-surface px-gutter py-section">
-  <div class="mx-auto grid w-full max-w-content gap-6">
+  <div class:list={["mx-auto grid w-full max-w-content items-center gap-10", { "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]": hasImage }]}>
+  <div class="grid gap-6">
     {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}
     <h1 class="max-w-prose font-display text-display text-ink">{value.headline}</h1>
     {value.subheadline && <p class="max-w-prose text-body text-ink-muted">{value.subheadline}</p>}
@@ -29,5 +32,7 @@ const points = lines(value.points).slice(0, 4);
         ))}
       </ul>
     )}
+  </div>
+  {hasImage && <Picture image={value.image} sizes="(min-width: 1024px) 45vw, 100vw" class="aspect-[4/3] w-full rounded-card object-cover" eager />}
   </div>
 </section>

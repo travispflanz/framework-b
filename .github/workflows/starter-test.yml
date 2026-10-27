@@ -55,6 +55,10 @@ jobs:
           node scripts/design-judge.mjs prepare --tiles "$RUNNER_TEMP/tiles" --out "$RUNNER_TEMP/judge"
           jq -e '.ballots | length == 2' "$RUNNER_TEMP/judge/ballot.json"
         working-directory: starter
+      - name: Full-site fixture (extra page, hero image, text and image, gallery, credits)
+        if: matrix.editing == 'off'
+        run: node scripts/test/fixture-full-site.mjs
+        working-directory: starter
       - run: npm run build
         working-directory: starter
       - run: npm run test:e2e

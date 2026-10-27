@@ -82,8 +82,11 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 ## 4. Content (P3)
 
 - `site.config.json`: forms (fields from the brief's purpose), navigation (one `cta` item), indexing as briefed.
-- `src/content/home.json` (and one file per page for `full` or `hybrid`): sections from the library, following the
-  page's argument. Copy uses the owner's facts; nothing invented.
+- `src/content/home.json` (and one file per page for `full` or `hybrid`, each with a `title` and `description`, added to
+  `nav`): sections from the library, following the page's argument. Copy uses the owner's facts; nothing invented.
+- Images: the owner's photos first. Otherwise `node scripts/images.mjs search "<query>"`, look at the contact sheet,
+  `add` the ones that fit with real alt text. A stock photo is never presented as the business's own work, customers or
+  staff; prefer photos without identifiable people.
 - `node scripts/check-content.mjs`.
 - With client editing on: `node scripts/editing.mjs seed` after the content changes.
 

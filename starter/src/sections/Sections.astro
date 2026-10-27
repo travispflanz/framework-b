@@ -5,14 +5,16 @@
 import Area from "./Area.astro";
 import Cta from "./Cta.astro";
 import Faq from "./Faq.astro";
+import Gallery from "./Gallery.astro";
 import Features from "./Features.astro";
 import FormSection from "./FormSection.astro";
 import Hero from "./Hero.astro";
 import Pricing from "./Pricing.astro";
+import Split from "./Split.astro";
 import Steps from "./Steps.astro";
 import Text from "./Text.astro";
 
-const COMPONENTS = { fb_hero: Hero, fb_steps: Steps, fb_features: Features, fb_pricing: Pricing, fb_area: Area, fb_faq: Faq, fb_cta: Cta, fb_form: FormSection, fb_text: Text };
+const COMPONENTS = { fb_hero: Hero, fb_steps: Steps, fb_features: Features, fb_pricing: Pricing, fb_area: Area, fb_faq: Faq, fb_cta: Cta, fb_form: FormSection, fb_text: Text, fb_split: Split, fb_gallery: Gallery };
 
 interface Props { sections: Array<Record<string, any>> }
 const { sections = [] } = Astro.props;

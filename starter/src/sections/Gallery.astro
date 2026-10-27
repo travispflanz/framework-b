@@ -1,0 +1,25 @@
+---
+// fb_gallery: a grid of images with optional captions.
+import Picture from "./Picture.astro";
+import Section from "./Section.astro";
+import SectionIntro from "./SectionIntro.astro";
+import { paragraphs } from "./text.js";
+
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+const { value, blockKey, tone } = Astro.props;
+const headingId = `h-${blockKey || value.anchor_id || "gallery"}`;
+---
+<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+  <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
+  <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="list">
+    {value.items.map((item) => (
+      <li>
+        <figure class="grid gap-2">
+          <Picture image={item.image} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" class="aspect-[4/3] w-full rounded-card object-cover" />
+          {item.caption && <figcaption class="text-small text-ink-muted">{item.caption}</figcaption>}
+        </figure>
+      </li>
+    ))}
+  </ul>
+  {value.note && paragraphs(value.note).map((p) => <p class="mt-8 max-w-prose text-small text-ink-muted">{p}</p>)}
+</Section>

@@ -1,0 +1,24 @@
+---
+// fb_split: a headline and text beside an image, the image on the left or right (stacked on phones).
+import Picture from "./Picture.astro";
+import Section from "./Section.astro";
+import { paragraphs } from "./text.js";
+
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+const { value, blockKey, tone } = Astro.props;
+const headingId = `h-${blockKey || value.anchor_id || "split"}`;
+const imageLeft = value.image_side === "left";
+---
+<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+  <div class="grid items-center gap-10 md:grid-cols-2">
+    <div class:list={["grid content-start gap-4", { "md:order-2": imageLeft }]}>
+      {value.eyebrow && <p class="text-label text-accent">{value.eyebrow}</p>}
+      <h2 id={headingId} class="font-display text-headline text-ink">{value.headline}</h2>
+      {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-ink-muted">{p}</p>)}
+      {value.cta_label && value.cta_url && (
+        <p><a href={value.cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.cta_label}</a></p>
+      )}
+    </div>
+    <Picture image={value.image} sizes="(min-width: 768px) 50vw, 100vw" class="aspect-[4/3] w-full rounded-card object-cover" />
+  </div>
+</Section>
