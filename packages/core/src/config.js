@@ -45,6 +45,10 @@ export function loadConfig(raw) {
 
   cfg.optIn = { text: DEFAULT_OPT_IN_TEXT, ...(cfg.optIn || {}) };
 
+  // CRM mirror (src/crm.js): copy each lead to the owner's Google Sheet and/or a webhook. Off unless set.
+  cfg.crm = { sheet: false, webhook: false, ...(cfg.crm || {}) };
+  for (const k of ["sheet", "webhook"]) if (typeof cfg.crm[k] !== "boolean") errors.push(`crm.${k} must be true or false`);
+
   const forms = cfg.forms || {};
   if (!Object.keys(forms).length) errors.push("forms: define at least one form");
   for (const [formId, form] of Object.entries(forms)) {

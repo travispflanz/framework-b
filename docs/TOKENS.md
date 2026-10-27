@@ -64,6 +64,10 @@ The deploy token (section 1) also deploys this Worker and its Workflow, and crea
 
 One **full-access** Resend API key, stored only as the ops repo secret `RESEND_ADMIN_KEY`. Resend keys are either full access or sending only ([API keys](https://resend.com/docs/api-reference/api-keys/create-api-key), checked 2026-10-27), and adding a domain, managing contacts and sending broadcasts all need full access. Promote uses it to add `mail.<domain>` and create a sending-only key restricted to that domain, which becomes the Worker secret `RESEND_API_KEY`; the newsletter module uses it for contacts and broadcasts. Workers never get it. Rotate it in Resend (https://resend.com/api-keys) and update the secret. Status: untested.
 
+## Per-site Worker secrets for the CRM webhook
+
+Only for a site with `"crm": { "webhook": true }`: `CRM_WEBHOOK_URL` (where leads are POSTed) and optionally `CRM_WEBHOOK_SECRET` (signs each body). Set them with `wrangler secret put` on the site's Worker; they are listed by name in the site's `SECRETS.md`.
+
 ## 4. Registrar token (only when buying a domain)
 
 Created by the owner when a purchase is approved, used once, then deleted.

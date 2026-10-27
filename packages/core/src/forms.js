@@ -10,6 +10,7 @@ import { verifyTurnstile } from "./lib/turnstile.js";
 import { sign, verify } from "./lib/crypto.js";
 import { EMAIL_RE, clip, json, safeFileName } from "./lib/util.js";
 import { deliver } from "./mailers.js";
+import { crmRow, mirror } from "./crm.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
 const UPLOAD_TICKET_SECONDS = 15 * 60;
@@ -165,6 +166,10 @@ export async function handleSubmit(request, env, ctx, config, formId) {
 
   const lead = { id, email, fields: values, page, upload: file };
   ctx.waitUntil(deliver(env, config, formId, lead, url.origin).catch((e) => console.error("deliver", e)));
+  if (config.crm?.sheet || config.crm?.webhook) {
+    const row = crmRow(config, { id, form: formId, email, createdAt: now, page, country: request.cf?.country, fields: values, attribution: attr });
+    ctx.waitUntil(mirror(env, config, row).catch((e) => console.error("crm mirror", e)));
+  }
 
   const res = { ok: true, id, redirect: form.thanks };
   if (file) {

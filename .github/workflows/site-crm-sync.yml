@@ -1,0 +1,46 @@
+# Reusable: copies a site's leads to its CRM mirror (Google Sheet and/or webhook) with scripts/site/crm-sync.mjs.
+# Safe to run any number of times: the lead id is the idempotency key. Called only from the owner's ops repo.
+name: site crm sync
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      days: { type: string, default: "0", description: "only leads from the last N days (0 = all)" }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      GH_SITES_TOKEN: { required: true }
+      MAILER_URL: { required: false }
+      MAILER_SECRET: { required: false }
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          path: framework
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          git clone -q --depth 1 "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
+      - name: Sync
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MAILER_URL: ${{ secrets.MAILER_URL }}
+          MAILER_SECRET: ${{ secrets.MAILER_SECRET }}
+          DAYS: ${{ inputs.days }}
+        run: node framework/scripts/site/crm-sync.mjs --site site --days "$DAYS"

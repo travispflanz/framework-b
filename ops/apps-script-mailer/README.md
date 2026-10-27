@@ -32,3 +32,11 @@ If the mailer fails or the daily quota runs out, the lead is still saved in D1 a
 ## Changing the script
 
 Edit `Code.gs`, then **Deploy → Manage deployments → Edit → Version: New version → Deploy**. The URL stays the same.
+
+## Updating it for the CRM mirror (Google Sheet)
+
+The Sheet mirror needs the 2026-10-27 version of `Code.gs` and permission to create a spreadsheet:
+
+1. Open the project at [script.google.com](https://script.google.com), replace `Code.gs` with the current one from this folder, and save.
+2. **Deploy → Manage deployments →** pencil (**Edit**) **→ Version: New version → Deploy.** Approve the new permission (Google Sheets / Drive) when Google asks. The `/exec` URL stays the same.
+3. The first lead a site with `"crm": { "sheet": true }` receives creates the spreadsheet **Framework B leads** in this account's Drive, with one tab per site.
