@@ -12,7 +12,8 @@ This repo is the framework itself, not a website. Websites are built from `start
 - Mark anything not yet proven by a test as "untested".
 
 ## Layout
-- `docs/`: `SPEC.md` (how a site is built), `ONE-TIME-SETUP.md`, `TOKENS.md`, `DECISIONS.md`, `ROADMAP.md`
+- `docs/`: `SPEC.md` (how a site is built), `BUILD.md` (runbook: one prompt to a reviewed site), `ONE-TIME-SETUP.md`, `TOKENS.md`, `DECISIONS.md`, `ROADMAP.md`
+- `.claude/skills/build-site/`: the agent skill that follows `docs/BUILD.md`
 - `starter/`: the template copied for each new site
 - `packages/core/`: the versioned runtime sites depend on
 - `packages/modules/`: optional modules (CRM mirror, newsletter, drips)
