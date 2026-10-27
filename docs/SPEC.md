@@ -67,6 +67,7 @@ Both run as workflows in the owner's private ops repo, because this repo's Actio
 1. Exports the site's leads and subscribers to `framework-backups/teardown/<id>/`, then deletes the rows and uploaded files.
 2. Deletes the Builds triggers, both Access apps, the Turnstile widget and the Worker.
 3. Archives the repo. It deletes the repo only when asked.
+4. For a launch site (after promote; read from the repo's `site.config.json`): first removes the domain's monitors. It detaches the Custom Domain, and removes the `www` record and redirect rule that promote added (other redirect rules stay). It exports `<id>-prod` and `<id>-staging` to `framework-backups/teardown/<id>/` and deletes them. It copies the `<id>-uploads` files there, then empties and deletes the bucket. It deletes the `<id> sending` Resend key. The zone, its other records and settings, Email Routing and the Resend domain stay, because they belong to the zone's owner. Untested until the promote test site is torn down.
 
 Self-test on 2026-10-22 (`selftest-1022`):
 - create, live QA (103 checks), a live lead with a file upload, a production build from the repo, and teardown all passed.
@@ -177,6 +178,24 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 
 - **`/admin`:** lead list, lead detail (with upload links) and CSV export. Behind an Access app with email one-time PIN; the Worker also verifies the JWT. CSV cells are protected against spreadsheet formula injection.
 - **Backups:** one account-wide Worker (`ops/backup-worker`) starts a Workflow every Monday from a Cron Trigger. Workflow `schedules` need a paid plan, so they are not used. It exports every D1 database in the account through D1's export API (a full SQL dump) and streams each dump to the `framework-backups` bucket, which deletes dumps after 90 days. New sites are covered with no registration step. `GET /status` on the Worker feeds an uptime keyword monitor. The monitor alerts when `"ok":true` is missing, which happens when a run fails or no run has finished in 8 days. D1 Time Travel separately covers the last 7 days on the Free plan.
+- **Snapshot and park (any Worker, Framework B or not; built 2026-10-27):**
+  - `scripts/site/snapshot.mjs` (ops repo **site snapshot**) is read-only. It saves everything needed to put a site back into `framework-backups/snapshots/<worker>/<time>/`:
+    - the Worker: settings and bindings, cron, secret names, deployments, versions, Custom Domains, Builds triggers and its code;
+    - the zone: settings, DNS (JSON and BIND), rulesets with their rules, page rules, Email Routing settings, rules and catch-all;
+    - the Access apps and their policies on the zone's hostnames, and the Turnstile widgets that list them (without secrets);
+    - every bound D1 database (production and previews, `wrangler d1 export`) and every object in each bound R2 bucket;
+    - UptimeRobot monitors, and a git bundle of the site's repo.
+  - Secret values can't be read back from Cloudflare, so park never deletes the Worker that holds them. Preview bindings have no read API, so they come from the repo's Wrangler file ([Previews configuration](https://developers.cloudflare.com/workers/previews/configuration/), checked 2026-10-27).
+  - `scripts/site/park.mjs` (ops repo **site park**) takes a Worker off its domain and deletes nothing:
+    - pauses its monitors (UptimeRobot v2 `editMonitor`, status 0);
+    - points its Builds production trigger at a branch that doesn't exist, so a push can't put it back on the domain (`PATCH /builds/triggers/{uuid}`, [Builds API](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/), checked 2026-10-27);
+    - detaches its Custom Domains;
+    - moves each Access app on the zone to a `/_parked` path, keeping its policies and AUD (checked after the change).
+  - Every change goes to a record (`framework-backups/park/<worker>.json`), and `undo` reverses exactly that.
+  - First use (2026-10-27), on the first real site's Worker, to free its whole zone for the promote test:
+    - snapshot: 17 DNS records, 2 databases with row counts matching production, 6 R2 objects, the repo bundle (clone checked);
+    - park: 2 monitors paused, 1 trigger held, 2 domains detached, 1 Access app moved with the same AUD.
+  - `undo`: untested until the site is restored.
 - **Monitoring:** `/api/health` checks the Worker and D1. `create` gives every site two UptimeRobot keyword monitors: the homepage must show the site's name, and `/api/health` must say `"ok":true`. Both alert every active alert contact, and `teardown` deletes them first. They are skipped when the ops repo has no `UPTIMEROBOT_API_KEY` secret. The calls follow UptimeRobot's v3 OpenAPI spec (in `@uptimerobot/cli` 1.0.0, checked 2026-10-23). The Free plan allows 50 monitors at 5-minute checks ([UptimeRobot CLI page](https://uptimerobot.com/cli), checked 2026-10-23).
 
 ## 8. QA gate

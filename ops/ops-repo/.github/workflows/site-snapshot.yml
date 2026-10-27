@@ -1,0 +1,19 @@
+# Caller: a complete, read-only snapshot of a Worker and its zone, stored in framework-backups/snapshots/. Replace OWNER.
+name: site snapshot
+on:
+  workflow_dispatch:
+    inputs:
+      worker: { description: "Worker name", required: true }
+      zone: { description: "zone it serves, e.g. example.com", required: true }
+      repo: { description: "owner/name of the site's repo (optional, bundled into the snapshot)", required: false, default: "" }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  snapshot:
+    uses: OWNER/framework-b/.github/workflows/site-snapshot.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      worker: ${{ inputs.worker }}
+      zone: ${{ inputs.zone }}
+      repo: ${{ inputs.repo }}
+    secrets: inherit

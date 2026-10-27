@@ -1,4 +1,4 @@
-# Reusable: removes a site with scripts/site/teardown.mjs. Leads and subscribers are exported to the
+# Reusable: removes a site (idea or launch) with scripts/site/teardown.mjs. Leads and subscribers are exported to the
 # framework-backups bucket first. Refuses unless the site is a self-test site or confirm is
 # "delete <site_id>". Called only from the owner's private ops repo.
 name: site teardown
@@ -16,6 +16,7 @@ on:
       CF_BUILDS_TOKEN: { required: true }
       GH_SITES_TOKEN: { required: true }
       UPTIMEROBOT_API_KEY: { required: false }
+      RESEND_ADMIN_KEY: { required: false }
 permissions:
   contents: read
 jobs:
@@ -41,4 +42,5 @@ jobs:
           CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
           GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
           UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
+          RESEND_ADMIN_KEY: ${{ secrets.RESEND_ADMIN_KEY }}
         run: node scripts/site/teardown.mjs
