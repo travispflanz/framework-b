@@ -29,8 +29,21 @@ const opt = (name) => {
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Anonymous Openverse use: at most 20 results a page (more is a 401) and about one request a second
+// (make.wordpress.org/openverse, 2022-06-17, checked 2026-10-27). Thumbnails count too, so all its calls are paced.
+let lastOpenverse = 0;
 async function get(url, { json = false, waited = false } = {}) {
+  if (new URL(url).host === "api.openverse.org") {
+    const gap = Date.now() - lastOpenverse;
+    if (gap < 1100) await sleep(1100 - gap);
+    lastOpenverse = Date.now();
+  }
   const res = await fetch(url, { headers: { "user-agent": UA, accept: json ? "application/json" : "*/*" }, redirect: "follow" });
+  // Openverse answers a burst over its anonymous throttle with 403; one paced retry is enough.
+  if (res.status === 403 && new URL(url).host === "api.openverse.org" && !waited) {
+    await sleep(5000);
+    return get(url, { json, waited: true });
+  }
   if (res.status === 429 && !waited) {
     const wait = Math.min(Number(res.headers.get("retry-after")) || 60, 600);
     console.log(`  ${new URL(url).host} is rate-limiting this machine; waiting ${wait} s as it asks…`);
@@ -46,9 +59,15 @@ const licenseName = (r) => (r.license === "cc0" ? "CC0 1.0" : r.license === "pdm
 if (cmd === "search" && arg) {
   const count = Number(opt("count")) || 20;
   // Openverse's own "large" filter returns almost only Wikimedia originals, so the width filter is applied here.
-  const q = new URLSearchParams({ q: arg, license: LICENSES.join(","), page_size: "50", mature: "false" });
-  const data = await get(`${API}/?${q}`, { json: true });
-  const wide = (data.results || []).filter((r) => opt("any-size") || Math.max(r.width || 0, r.height || 0) >= 1000).slice(0, count);
+  const pool = [];
+  let data = {};
+  for (let page = 1; page <= 3 && pool.length < count; page++) {
+    const q = new URLSearchParams({ q: arg, license: LICENSES.join(","), page_size: "20", page: String(page), mature: "false" });
+    data = await get(`${API}/?${q}`, { json: true });
+    pool.push(...(data.results || []).filter((r) => opt("any-size") || Math.max(r.width || 0, r.height || 0) >= 1000));
+    if (!data.page_count || page >= data.page_count) break;
+  }
+  const wide = pool.slice(0, count);
   const results = wide.map((r, i) => ({
     n: i + 1, id: r.id, title: r.title, creator: r.creator, license: licenseName(r), source: r.source,
     width: r.width, height: r.height, landing: r.foreign_landing_url, thumbnail: r.thumbnail,
