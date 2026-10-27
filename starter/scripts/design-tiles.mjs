@@ -4,18 +4,22 @@
 //
 //   node scripts/design-tiles.mjs design/drafts/a.md design/drafts/b.md design/drafts/c.md [--out design/tiles]
 //
-// For each draft, in a scratch copy of the site (the site itself is never touched):
+// For each draft, in this site (built into a scratch folder; the site's own files are restored afterwards):
 //   1. the draft becomes DESIGN.md and scripts/design-tokens.mjs runs: the same lint, token contract and WCAG AA
 //      contrast checks as the real thing. A draft that fails is reported and gets no tile.
-//   2. the tile page (scripts/design-tile/tile.astro) is added and the site is built;
+//   2. the tile page (scripts/design-tile/tile.astro) is added and the site is built into a scratch folder;
 //   3. the tile is screenshotted at 1280 and 390 px, full page.
+// It builds in place because a copy of the site can't share node_modules: Astro mis-resolves EmDash's own .astro
+// files through a symlink (seen in CI, 2026-10-26). DESIGN.md, tokens.css and the Cloudflare adapter's
+// .wrangler/deploy/config.json are saved first and restored at the end, on Ctrl-C, and on the next run if the
+// process was killed (.design-tiles-restore.json).
 // Output: <out>/<draft>/tile-1280.png, tile-390.png, and <out>/index.html side by side, with each draft's
 // colours and fonts. Fonts a draft names must be installed in the site first (npm i @fontsource-variable/<family>).
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { parse } from "yaml";
 import { launchBrowser } from "./lib/local-site.mjs";
 
@@ -26,7 +30,25 @@ const drafts = args.map((a) => resolve(a));
 if (drafts.length < 2) throw new Error("give two or three DESIGN.md drafts: node scripts/design-tiles.mjs a.md b.md [c.md]");
 for (const d of drafts) if (!existsSync(d)) throw new Error(`no such draft: ${d}`);
 const SITE = process.cwd();
-const SKIP = new Set(["node_modules", "dist", ".astro", ".wrangler", "qa-output", "design", ".git"]);
+const RESTORE = join(SITE, ".design-tiles-restore.json");
+const TOUCHED = ["DESIGN.md", "src/styles/tokens.css", ".wrangler/deploy/config.json", "src/pages/design-tile.astro"];
+const restore = (saved) => {
+  for (const [p, text] of Object.entries(saved)) {
+    if (text === null) rmSync(join(SITE, p), { force: true });
+    else {
+      mkdirSync(dirname(join(SITE, p)), { recursive: true });
+      writeFileSync(join(SITE, p), text);
+    }
+  }
+  rmSync(RESTORE, { force: true });
+};
+if (existsSync(RESTORE)) {
+  restore(JSON.parse(readFileSync(RESTORE, "utf8")));
+  console.log("Restored the site's files from an interrupted earlier run.");
+}
+const saved = Object.fromEntries(TOUCHED.map((p) => [p, existsSync(join(SITE, p)) ? readFileSync(join(SITE, p), "utf8") : null]));
+writeFileSync(RESTORE, JSON.stringify(saved));
+for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => (restore(saved), process.exit(130)));
 
 const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".woff2": "font/woff2", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json", ".ico": "image/x-icon" };
 function serve(dir) {
@@ -50,16 +72,15 @@ const why = (e) => {
 };
 const results = [];
 const scratch = mkdtempSync(join(tmpdir(), "fb-tiles-"));
-const browser = await launchBrowser();
+const run = (cmd, a, env = {}) => execFileSync(cmd, a, { cwd: SITE, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } });
+let browser;
 try {
+  browser = await launchBrowser();
+  cpSync(join(SITE, "scripts/design-tile/tile.astro"), join(SITE, "src/pages/design-tile.astro"));
   for (const draft of drafts) {
     const name = basename(draft, extname(draft)).replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
-    const work = join(scratch, name);
-    cpSync(SITE, work, { recursive: true, filter: (src) => !SKIP.has(basename(src)) || src === SITE });
-    symlinkSync(join(SITE, "node_modules"), join(work, "node_modules"));
-    cpSync(draft, join(work, "DESIGN.md"));
     const front = parse(readFileSync(draft, "utf8").match(/^---\n([\s\S]*?)\n---/)?.[1] || "") || {};
-    const run = (cmd, a, env = {}) => execFileSync(cmd, a, { cwd: work, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } });
+    cpSync(draft, join(SITE, "DESIGN.md"));
     try {
       run("node", ["scripts/design-tokens.mjs"]);
     } catch (e) {
@@ -67,9 +88,9 @@ try {
       console.log(`✗ ${name}: the draft fails the design checks: ${results.at(-1).why}`);
       continue;
     }
-    cpSync(join(SITE, "scripts/design-tile/tile.astro"), join(work, "src/pages/design-tile.astro"));
+    const outDir = join(scratch, name);
     try {
-      run("npm", ["run", "build"], { TILE_NAME: name });
+      run("npx", ["astro", "build", "--outDir", outDir], { TILE_NAME: name });
     } catch (e) {
       mkdirSync(join(OUT, name), { recursive: true });
       writeFileSync(join(OUT, name, "build.log"), plain(e));
@@ -77,7 +98,7 @@ try {
       console.log(`✗ ${name}: ${results.at(-1).why}`);
       continue;
     }
-    const dist = existsSync(join(work, "dist/client")) ? join(work, "dist/client") : join(work, "dist");
+    const dist = existsSync(join(outDir, "client")) ? join(outDir, "client") : outDir;
     const { server, base } = await serve(dist);
     mkdirSync(join(OUT, name), { recursive: true });
     for (const width of [1280, 390]) {
@@ -93,7 +114,8 @@ try {
     console.log(`✓ ${name}`);
   }
 } finally {
-  await browser.close();
+  await browser?.close();
+  restore(saved);
   rmSync(scratch, { recursive: true, force: true });
 }
 
