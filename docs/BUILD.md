@@ -71,7 +71,13 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   marked for the owner to confirm, and "Approved claims" (only from `claims`).
 - `DESIGN.md` in Google's format: autopilot follows SPEC section 12 by hand (direction from the brief's words and
   research, a deliberate choice off the ban list). If `design.autopilot` is false, run the intake with the owner.
+- Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette and type pair; install their fonts), then:
+  - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content (drafts that fail the design checks are rejected);
+  - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which, then `node scripts/design-judge.mjs tally`;
+  - copy the pick (or, on a tie, the draft closer to the brief) to `DESIGN.md` and record the result in its Overview.
+  With an owner intake, the owner picks from `design/tiles/index.html` instead.
 - `node scripts/design-tokens.mjs`. It fails on lint errors, a missing token or a contrast pair below WCAG AA.
+- Images: owner photos first, open-licensed second, generated only for abstract texture. Every image gets an entry in `design/credits.json`.
 
 ## 4. Content (P3)
 

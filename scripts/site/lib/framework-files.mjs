@@ -19,7 +19,10 @@ export const SITE_OWNED = [
   /^\.githooks\//,
   /^framework\.lock\.json$/,
   /^brief\.json$/,
+  /^design\//,
 ];
+// Seeded: added to a site that doesn't have them yet, then site-owned (the site edits them; updates never touch them).
+export const SEEDED = [/^design\/credits\.json$/];
 export const GENERATED = [/^src\/styles\/tokens\.css$/, /^seed\//, /^package-lock\.json$/];
 const IGNORED = [/(^|\/)(node_modules|dist|\.astro|\.wrangler|qa-output)\//, /^core\//, /^\.dev\.vars$/];
 // The overlay targets: with editing on, these come from starter/editing/<path>.
@@ -61,6 +64,10 @@ export function framework(dir) {
     for (const p of list(commit, "starter/")) {
       const rel = p.slice("starter/".length);
       if (isIn(IGNORED, rel)) continue;
+      if (isIn(SEEDED, rel)) {
+        out.set(rel, { from: p, seed: true });
+        continue;
+      }
       if (classify(rel) !== "framework") continue;
       out.set(rel, { from: p });
     }
@@ -112,5 +119,6 @@ export function framework(dir) {
     return between.get(key);
   }
 
-  return { resolve, show, list, paths, render, packageView, emdashPackages, commitsBetween };
+  const isSeed = (commit, path, editing) => !!paths(commit, editing).get(path)?.seed;
+  return { resolve, show, list, paths, render, packageView, emdashPackages, commitsBetween, isSeed };
 }

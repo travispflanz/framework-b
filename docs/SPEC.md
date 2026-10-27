@@ -282,9 +282,9 @@ Full rationale, sources and tool versions: `docs/research/design-layer.md`. Summ
 | P2.7 Check | Five-word check; one refine round at most | Picks five words | Final draft |
 | P2.8 Lock | Writes `DESIGN.md` (Google format), `tokens.css` (Tailwind 4 `@theme`), image plan and credits | — | Locked contract |
 
-### What's built (2026-10-23)
+### What's built (2026-10-23, tools added 2026-10-26)
 
-The design phase's foundation is in `starter/`. The intake steps (P2.1–P2.7) are still run by the agent by hand. Nothing below is a tool for them yet.
+The design phase's foundation and its tools are in `starter/`. The intake conversation (P2.1–P2.5) is still run by the agent by hand; tiles, the judge and the credits ledger (P2.6–P2.8) are scripts.
 
 - **`DESIGN.md` → tokens:** `scripts/design-tokens.mjs` reads Google's DESIGN.md format.
   - It lints with `@google/design.md` 0.4.0 ([repo](https://github.com/google-labs-code/design.md), checked 2026-10-23); errors fail.
@@ -316,11 +316,11 @@ The design phase's foundation is in `starter/`. The intake steps (P2.1–P2.7) a
   - truth gate: no reviews, ratings, customer counts or percentages unless listed under "Approved claims" in `PRODUCT.md`;
   - copy lint for generic AI words;
   - Lighthouse "is-crawlable" only on the canonical host of an indexed site, for pages that don't opt out.
+- **Style tiles (`scripts/design-tiles.mjs`, P2.6):** each DESIGN.md draft is built in a scratch copy of the site, with the same lint, token-contract and contrast checks as the real `design-tokens.mjs`. A draft that fails gets no tile, and the report says why. The tile page (`scripts/design-tile/tile.astro`, never part of the site) shows the real hero, the colour tokens, the type scale, the site's real form and its first section after the hero. Each is screenshotted at 1280 and 390 px into `design/tiles/`, with a side-by-side `index.html`. The fonts a draft names must already be installed in the site. Tested 2026-10-26 on the first real site (editing on): two drafts rendered, and a low-contrast draft was rejected for WCAG AA. CI renders tiles on every starter change, static and editing.
+- **Autopilot judge (`scripts/design-judge.mjs`):** run exactly as calibrated (docs/research/trials.md). `prepare` makes first-screen ballots for every pair, both ways round, in shuffled order. The agent's own vision model answers each with LEFT or RIGHT; no outside API or key is used. `tally` counts a win only when a tile wins both ways round and treats a split as a tie. When the top tiles tie, the agent takes the one closer to the intake answers and records why in DESIGN.md. Another judge model must pass the calibration set first.
+- **Image credits (`design/credits.json`):** every image in `public/` or `src/` needs an entry giving its source (owner, openverse, stock, generated or framework) and its alt text. Openverse and stock images also need the creator, licence and link; a generated image must be marked abstract. `check-content.mjs`, and so the QA gate, fails on an image without an entry. The ledger is seeded once into existing sites by `site update` and is site-owned from then on. No section shows images yet, so there is no image-placement plan to write.
 - **First use:** the first real site (idea site, editing on), with autopilot direction from research. Its local end-to-end test and QA gate pass with editing on.
-- **Not built yet:**
-  - style tiles and the this-or-that preview (P2.5–P2.6);
-  - the pairwise autopilot judge as a script;
-  - image plans.
+- **Not built yet:** the this-or-that preview (P2.5), and the vision-model critique rounds after the gates (section 8).
 
 Rules:
 

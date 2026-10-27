@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Checks every page in src/content/ against the section library's schema (src/sections/schema.js): known
 // section types, required fields, repeater sizes, select options, link and anchor formats, and form IDs that
-// exist in site.config.json. The QA gate runs it; it also runs on its own: node scripts/check-content.mjs
-import { readdirSync, readFileSync } from "node:fs";
+// exist in site.config.json. It also checks the image credits ledger (design/credits.json): every image in public/
+// or src/ has an entry with its source, and stock images name their creator, licence and link.
+// The QA gate runs it; it also runs on its own: node scripts/check-content.mjs
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SECTIONS } from "../src/sections/schema.js";
 
@@ -59,8 +61,24 @@ for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))
     }
   }
 }
+// Image credits (docs/SPEC.md section 12: owner photos first, open-licensed second, generated only for abstraction).
+const IMAGE = /\.(png|jpe?g|webp|avif|gif|svg|ico)$/i;
+const walk = (d) => (existsSync(d) ? readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)])) : []);
+const images = [...walk("public"), ...walk("src")].filter((f) => IMAGE.test(f)).map((f) => f.replace(/\\/g, "/"));
+const ledger = existsSync("design/credits.json") ? JSON.parse(readFileSync("design/credits.json", "utf8")).images || [] : [];
+const SOURCES = ["owner", "openverse", "stock", "generated", "framework"];
+for (const file of images) if (!ledger.some((c) => c.file === file)) errors.push(`${file} has no entry in design/credits.json (source, licence, alt text)`);
+for (const c of ledger) {
+  const where = `design/credits.json ${c.file || "(no file)"}`;
+  if (!c.file || !existsSync(c.file)) errors.push(`${where}: the file doesn't exist`);
+  if (!SOURCES.includes(c.source)) errors.push(`${where}: source must be one of ${SOURCES.join(", ")}`);
+  if (["openverse", "stock"].includes(c.source)) for (const k of ["creator", "license", "url"]) if (!c[k]) errors.push(`${where}: a ${c.source} image needs "${k}"`);
+  if (c.source === "generated" && c.abstract !== true) errors.push(`${where}: a generated image must be abstract ("abstract": true); never people, premises or products`);
+  if (typeof c.alt !== "string") errors.push(`${where}: "alt" is required ("" for a decorative image)`);
+}
+
 if (errors.length) {
   console.error(errors.map((e) => `FAIL  ${e}`).join("\n"));
   process.exit(1);
 }
-console.log("Content matches the section schema");
+console.log(`Content matches the section schema; ${images.length} image(s) credited`);

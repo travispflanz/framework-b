@@ -34,6 +34,8 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - The hourly Cron Trigger runs EmDash's scheduled publishing and maintenance. The Free plan allows 5 Cron Triggers per account.
 
 ## Design
+- Compare looks before choosing one: `node scripts/design-tiles.mjs <draft.md> <draft.md> [<draft.md>]` renders each draft on this site's real content into `design/tiles/`. On autopilot, `node scripts/design-judge.mjs prepare`, answer each ballot LEFT or RIGHT, then `tally`.
+- Every image in `public/` or `src/` needs an entry in `design/credits.json` (source, alt text; creator, licence and link for stock). Never generate people, premises or products.
 - Change the look in `DESIGN.md`, then run `node scripts/design-tokens.mjs`. It lints the file with `@google/design.md` and checks the token contract (required colours, type levels, radii and spacing). It also checks the WCAG AA contrast pairs, then writes tokens.css. Fonts must be installed Fontsource packages (`npm i @fontsource-variable/<family>`).
 - Sections follow the page's argument, not a fixed order. The hero comes first and has the only `<h1>`. Bands alternate tones automatically.
 - A nav item with `"cta": true` in `site.config.json` becomes the header button; on phones only the site name and that button show.
