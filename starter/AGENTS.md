@@ -34,6 +34,8 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - The hourly Cron Trigger runs EmDash's scheduled publishing and maintenance. The Free plan allows 5 Cron Triggers per account.
 
 ## Design
+- Compare looks before choosing one: `node scripts/design-tiles.mjs <draft.md> <draft.md> [<draft.md>]` renders each draft on this site's real content into `design/tiles/`. It swaps DESIGN.md and tokens.css while it builds and puts them back at the end; if a run was killed, the next run restores them first. On autopilot, `node scripts/design-judge.mjs prepare`, answer each ballot LEFT or RIGHT, then `tally`.
+- Every image in `public/` or `src/` needs an entry in `design/credits.json` (source, alt text; creator, licence and link for stock). Never generate people, premises or products.
 - Change the look in `DESIGN.md`, then run `node scripts/design-tokens.mjs`. It lints the file with `@google/design.md` and checks the token contract (required colours, type levels, radii and spacing). It also checks the WCAG AA contrast pairs, then writes tokens.css. Fonts must be installed Fontsource packages (`npm i @fontsource-variable/<family>`).
 - Sections follow the page's argument, not a fixed order. The hero comes first and has the only `<h1>`. Bands alternate tones automatically.
 - A nav item with `"cta": true` in `site.config.json` becomes the header button; on phones only the site name and that button show.
@@ -41,7 +43,8 @@ This site was built with Framework B. `site.config.json` holds every brand value
   - a stale tokens.css;
   - content that doesn't match the schema;
   - reviews, ratings, customer counts or percentages without a source in `PRODUCT.md` (truth gate);
-  - generic AI words (copy lint).
+  - generic AI words (copy lint);
+  - Impeccable findings in the source or on any rendered page, including any font, colour, radius or font size outside `DESIGN.md`. For a deliberate exception, run `npx impeccable ignores add-value <rule> <value> --reason "..."`; it is recorded in `.impeccable/config.json` for review.
 
 ## Rules
 - Work on a branch and open a pull request. `main` deploys production immediately.

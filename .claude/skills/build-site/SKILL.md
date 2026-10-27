@@ -14,7 +14,9 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 2. **Create.** Dispatch the ops repo's `site create` with the brief JSON in `brief`. Read the run summary for the URL
    and repo.
 3. **Design.** In the site repo on branch `build/initial`: `PRODUCT.md` (facts with sources, inferred promises
-   flagged), `DESIGN.md`, then `node scripts/design-tokens.mjs`.
+   flagged). On autopilot, write three different drafts, render them with `node scripts/design-tiles.mjs`, judge them
+   with `node scripts/design-judge.mjs prepare` → answer each ballot LEFT/RIGHT → `tally`, and lock the pick as
+   `DESIGN.md`. Then `node scripts/design-tokens.mjs`. Credit every image in `design/credits.json`.
 4. **Content.** `site.config.json` forms and navigation, `src/content/*.json` from the section library, then
    `node scripts/check-content.mjs` (and `node scripts/editing.mjs seed` with editing on).
 5. **Local gates.** `npm run build && npm run test:e2e && npm run qa`.

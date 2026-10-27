@@ -7,3 +7,4 @@ dist/
 !.dev.vars.example
 qa-output/
 live-lead.json
+.design-tiles-restore.json

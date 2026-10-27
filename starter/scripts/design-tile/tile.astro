@@ -1,0 +1,58 @@
+---
+// A style tile: one DESIGN.md draft rendered on the site's real content. scripts/design-tiles.mjs copies this page
+// into a scratch copy of the site for each draft and screenshots it; it is never part of the site itself.
+// Shows: the real hero, the colour tokens, the type scale, the site's real form, and the first section after the hero.
+export const prerender = true;
+import { parse } from "yaml";
+// Bundled as text: editing sites prerender inside the Workers runtime, which has no filesystem.
+import design from "../../DESIGN.md?raw";
+import Base from "../layouts/Base.astro";
+import Sections from "../sections/Sections.astro";
+import Form from "../components/Form.astro";
+import config from "../../site.config.json";
+import page from "../content/home.json";
+
+const front = parse(design.match(/^---\n([\s\S]*?)\n---/)?.[1] || "") || {};
+const colors = Object.entries(front.colors || {});
+const levels = ["display", "headline", "title", "body", "small", "label"];
+const hero = page.sections.find((s) => s._type === "fb_hero");
+const next = page.sections.find((s) => s._type !== "fb_hero" && s._type !== "fb_form");
+// The site's real form: the one the page uses, or the first in site.config.json.
+const formId = page.sections.find((s) => s._type === "fb_form")?.form || Object.keys(config.forms || {})[0];
+const draft = import.meta.env.TILE_NAME || front.name || "draft";
+---
+<Base title={`Style tile: ${draft}`} noindex bleed>
+  {hero && <Sections sections={[hero]} />}
+  <section class="bg-surface px-gutter py-section">
+    <div class="mx-auto grid max-w-content gap-section">
+      <div>
+        <p class="text-label text-ink-muted">Colours</p>
+        <ul class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4" role="list">
+          {colors.map(([name, value]) => (
+            <li class="card overflow-hidden p-0">
+              <div style={`background:${value}`} class="h-16 border-b border-line"></div>
+              <p class="p-3 text-small text-ink"><strong>{name}</strong><br /><span class="text-ink-muted">{String(value)}</span></p>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <p class="text-label text-ink-muted">Type</p>
+        <div class="mt-4 grid gap-4">
+          {levels.map((level) => (
+            <p class={`text-${level} text-ink`}>
+              <span class="text-label text-ink-muted mr-3">{level}</span>{level === "display" || level === "headline" ? hero?.headline || "Headline" : hero?.subheadline || "Body copy sample for this level."}
+            </p>
+          ))}
+        </div>
+      </div>
+      {formId && (
+        <div>
+          <p class="text-label text-ink-muted">Form</p>
+          <div class="mt-4 rounded-card bg-bg p-6 sm:p-8"><Form id={formId} /></div>
+        </div>
+      )}
+    </div>
+  </section>
+  {next && <Sections sections={[next]} />}
+</Base>

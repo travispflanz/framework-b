@@ -42,6 +42,19 @@ jobs:
           node scripts/editing.mjs on
           node scripts/fill-test-placeholders.mjs
         working-directory: starter
+      - name: Style tiles and judge ballots (two drafts; a low-contrast third must be rejected)
+        run: |
+          mkdir -p "$RUNNER_TEMP/drafts"
+          cp DESIGN.md "$RUNNER_TEMP/drafts/a.md"
+          sed 's/^  accent: .*/  accent: "#7a3b16"/' DESIGN.md > "$RUNNER_TEMP/drafts/b.md"
+          sed 's/^  ink: .*/  ink: "#d0d0d0"/' DESIGN.md > "$RUNNER_TEMP/drafts/c.md"
+          node scripts/design-tiles.mjs "$RUNNER_TEMP/drafts/a.md" "$RUNNER_TEMP/drafts/b.md" "$RUNNER_TEMP/drafts/c.md" --out "$RUNNER_TEMP/tiles" || { for f in "$RUNNER_TEMP"/tiles/*/build.log; do echo "== $f"; grep -v "^\s*at " "$f" | tail -n 40; done; exit 1; }
+          jq -e '[.[] | select(.ok)] | length == 2' "$RUNNER_TEMP/tiles/tiles.json"
+          jq -e '.[] | select(.name == "c") | (.ok | not) and (.why | test("contrast"))' "$RUNNER_TEMP/tiles/tiles.json"
+          for f in a b; do test -s "$RUNNER_TEMP/tiles/$f/tile-1280.png" && test -s "$RUNNER_TEMP/tiles/$f/tile-390.png"; done
+          node scripts/design-judge.mjs prepare --tiles "$RUNNER_TEMP/tiles" --out "$RUNNER_TEMP/judge"
+          jq -e '.ballots | length == 2' "$RUNNER_TEMP/judge/ballot.json"
+        working-directory: starter
       - run: npm run build
         working-directory: starter
       - run: npm run test:e2e

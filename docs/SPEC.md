@@ -190,7 +190,11 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
   - Accessibility, Best Practices and SEO: 100
   - CLS below 0.1
   - Performance: a 90 tripwire measured on production
-- **Design checks:** `design.md lint`, Stylelint token enforcement, `impeccable detect` on source and the preview URL, a copy lint, and the truth gate (no testimonial, logo, statistic or face without an owner source). Then at most three rounds of vision-model critique, keeping a revision only if it wins a side-by-side comparison both ways round.
+- **Design checks:** `design.md lint`, `impeccable detect` on the source and on every page at 1280 and 390 px, a copy lint, and the truth gate (no testimonial, logo, statistic or face without an owner source). Then at most three rounds of vision-model critique, keeping a revision only if it wins a side-by-side comparison both ways round (not built).
+  - Impeccable 4.8.0 (Apache-2.0; its engine binary ships as an npm optional dependency, so CI needs no download) runs 62 deterministic rules ([catalog](https://impeccable.style/slop); [npm](https://www.npmjs.com/package/impeccable), checked 2026-10-26). Rendered pages are scanned with `--cdp` in the browser QA already has open, so previews behind Access work and the detector never launches its own browser.
+  - It reads `DESIGN.md`: a font outside it is a warning, and a colour, radius or font size outside it is an advisory. QA fails on all four, because they break the design contract (tested 2026-10-26 by adding an off-palette font, colour and radius to a component). This replaces the planned Stylelint check.
+  - A deliberate exception goes in the site's `.impeccable/config.json` with a reason: `npx impeccable ignores add-value <rule> <value> --reason "..."` ([config and ignores](https://www.impeccable.style/docs/config), checked 2026-10-26).
+  - `starter/scripts/test/impeccable-cdp.test.mjs` proves the rendered scan isn't vacuous: a page with known tells fails, a plain page passes.
 
 ## 9. Client editing (EmDash)
 
@@ -278,9 +282,9 @@ Full rationale, sources and tool versions: `docs/research/design-layer.md`. Summ
 | P2.7 Check | Five-word check; one refine round at most | Picks five words | Final draft |
 | P2.8 Lock | Writes `DESIGN.md` (Google format), `tokens.css` (Tailwind 4 `@theme`), image plan and credits | — | Locked contract |
 
-### What's built (2026-10-23)
+### What's built (2026-10-23, tools added 2026-10-26)
 
-The design phase's foundation is in `starter/`. The intake steps (P2.1–P2.7) are still run by the agent by hand. Nothing below is a tool for them yet.
+The design phase's foundation and its tools are in `starter/`. The intake conversation (P2.1–P2.5) is still run by the agent by hand; tiles, the judge and the credits ledger (P2.6–P2.8) are scripts.
 
 - **`DESIGN.md` → tokens:** `scripts/design-tokens.mjs` reads Google's DESIGN.md format.
   - It lints with `@google/design.md` 0.4.0 ([repo](https://github.com/google-labs-code/design.md), checked 2026-10-23); errors fail.
@@ -312,13 +316,11 @@ The design phase's foundation is in `starter/`. The intake steps (P2.1–P2.7) a
   - truth gate: no reviews, ratings, customer counts or percentages unless listed under "Approved claims" in `PRODUCT.md`;
   - copy lint for generic AI words;
   - Lighthouse "is-crawlable" only on the canonical host of an indexed site, for pages that don't opt out.
+- **Style tiles (`scripts/design-tiles.mjs`, P2.6):** each DESIGN.md draft is built as this site, into a scratch folder, after the same lint, token-contract and contrast checks as the real `design-tokens.mjs`. It builds in place because a copy can't share `node_modules` (Astro mis-resolves EmDash's own pages through a symlink, seen in CI on 2026-10-26). The site's DESIGN.md, tokens.css and adapter redirect file are restored afterwards, on Ctrl-C, and, after a hard kill, on the next run (tested). A draft that fails gets no tile, and the report says why. The tile page (`scripts/design-tile/tile.astro`, never part of the site) shows the real hero, the colour tokens, the type scale, the site's real form and its first section after the hero. Each is screenshotted at 1280 and 390 px into `design/tiles/`, with a side-by-side `index.html`. The fonts a draft names must already be installed in the site. Tested 2026-10-26 on the first real site (editing on): two drafts rendered, and a low-contrast draft was rejected for WCAG AA. CI renders tiles on every starter change, static and editing.
+- **Autopilot judge (`scripts/design-judge.mjs`):** run exactly as calibrated (docs/research/trials.md). `prepare` makes first-screen ballots for every pair, both ways round, in shuffled order. The agent's own vision model answers each with LEFT or RIGHT; no outside API or key is used. `tally` counts a win only when a tile wins both ways round and treats a split as a tie. When the top tiles tie, the agent takes the one closer to the intake answers and records why in DESIGN.md. Another judge model must pass the calibration set first.
+- **Image credits (`design/credits.json`):** every image in `public/` or `src/` needs an entry giving its source (owner, openverse, stock, generated or framework) and its alt text. Openverse and stock images also need the creator, licence and link; a generated image must be marked abstract. `check-content.mjs`, and so the QA gate, fails on an image without an entry. The ledger is seeded once into existing sites by `site update` and is site-owned from then on. No section shows images yet, so there is no image-placement plan to write.
 - **First use:** the first real site (idea site, editing on), with autopilot direction from research. Its local end-to-end test and QA gate pass with editing on.
-- **Not built yet:**
-  - style tiles and the this-or-that preview (P2.5–P2.6);
-  - the pairwise autopilot judge as a script;
-  - `impeccable detect`;
-  - Stylelint token enforcement (Tailwind utilities in `.astro` files make the palette reset the main guard);
-  - image plans.
+- **Not built yet:** the this-or-that preview (P2.5), and the vision-model critique rounds after the gates (section 8).
 
 Rules:
 

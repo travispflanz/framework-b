@@ -19,6 +19,7 @@
 //   deleted in the site            → stays deleted
 //   new in the framework           → added
 // core/ is never edited in a site, so it is always replaced; a local edit there is reported.
+// Seeded files (design/credits.json) are added once when missing and never touched again.
 // package.json is merged key by key the same way. Then (unless --no-install) it runs npm install, regenerates
 // tokens.css and, with editing on, seed/seed.json, and checks the content. A changed EmDash content model is
 // reported, because a deployed EmDash database keeps its model until it is migrated.
@@ -91,6 +92,14 @@ if (base === next) {
     const b = fw.render(base, path, editing);
     const n = fw.render(next, path, editing);
     const cur = readSite(path);
+    if (fw.isSeed(next, path, editing) || fw.isSeed(base, path, editing)) {
+      // Seeded files are added once if missing and are the site's from then on.
+      if (cur === null && n !== null && b === null) {
+        writeSite(path, n);
+        note(path, "added", "seeded; the site owns it from now on");
+      }
+      continue;
+    }
     if (b === n) {
       if (cur !== null && cur !== n && path.startsWith("core/")) note(path, "core edited in the site", "left as is; the framework didn't change it");
       continue; // the framework didn't change it

@@ -151,3 +151,22 @@ test("a file the site took from a later framework version is updated, not treate
   assert.equal(readFileSync(join(site, "scripts/a.mjs"), "utf8"), lines("// a v3", "one"));
   assert.doesNotMatch(out, /conflict \|/);
 });
+
+test("a seeded file is added once when missing, then left to the site", () => {
+  const { fw, site } = setup();
+  const seed = JSON.stringify({ images: [{ file: "public/favicon.svg", source: "framework", alt: "" }] });
+  release(fw, { "starter/design/credits.json": seed });
+  let r = update(fw, site);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(readFileSync(join(site, "design/credits.json"), "utf8"), seed, "added when the site had none");
+  assert.match(r.out, /design\/credits\.json.*added.*seeded/);
+
+  // The site edits its ledger; a later framework change to the seed must not touch it.
+  const mine = JSON.stringify({ images: [{ file: "public/logo.svg", source: "owner", alt: "Logo" }] });
+  write(site, { "design/credits.json": mine });
+  release(fw, { "starter/design/credits.json": JSON.stringify({ images: [] }) });
+  r = update(fw, site);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(readFileSync(join(site, "design/credits.json"), "utf8"), mine, "the site's ledger is untouched");
+  assert.doesNotMatch(r.out, /design\/credits\.json/);
+});

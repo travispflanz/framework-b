@@ -1,0 +1,6 @@
+{
+  "about": "Every image the site uses: where it came from, its licence and its alt text. scripts/check-content.mjs fails on an image in public/ or src/ without an entry. Sources: owner (the owner's own photo or artwork), openverse or stock (needs creator, licence and url), generated (abstract texture or pattern only: never people, premises, products or anything presented as real), framework (shipped by Framework B).",
+  "images": [
+    { "file": "public/favicon.svg", "source": "framework", "alt": "", "note": "Placeholder icon; replace with the owner's mark" }
+  ]
+}

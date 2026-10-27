@@ -12,7 +12,7 @@
 // Previews sit behind Cloudflare Access. With ACCESS_CLIENT_ID and ACCESS_CLIENT_SECRET set (an Access service
 // token with a Service Auth policy on the site's previews application), every request to the URL's own host
 // carries the token headers. Requests to any other host (the Turnstile script, for example) never do.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
@@ -101,6 +101,40 @@ check("truth gate: no reviews, ratings, customer counts or percentages without a
 const TELLS = ["delve", "tapestry", "testament", "pivotal", "underscore", "landscape", "foster", "crucial", "empower", "unlock", "transform", "seamless", "elevate", "game-changer", "revolutionize", "cutting-edge", "in today's"];
 const tellHits = TELLS.filter((w) => new RegExp(`\\b${w}`, "i").test(copy));
 check("copy lint: none of the generic AI words", tellHits.length === 0, tellHits.join(", "));
+
+// Impeccable's deterministic detector (62 rules: AI-design tells, type, colour, layout, motion, quality), on the
+// source here and on each rendered page below. It reads DESIGN.md, so fonts and colours outside the design
+// contract are findings too. A deliberate exception is recorded with a reason in .impeccable/config.json:
+// `npx impeccable ignores add-value <rule> <value> --reason "..."` (https://www.impeccable.style/docs/config,
+// checked 2026-10-26). Exit 0 = clean, 2 = findings, 1 = couldn't scan.
+const IMPECCABLE = "node_modules/.bin/impeccable";
+// Async on purpose: the CDP header injection for previews runs in this process and must keep answering.
+const impeccable = (args) => new Promise((done) => {
+  const child = spawn(IMPECCABLE, ["detect", "--json", ...args], { stdio: ["ignore", "pipe", "pipe"] });
+  let out = "";
+  let err = "";
+  child.stdout.on("data", (d) => (out += d));
+  child.stderr.on("data", (d) => (err += d));
+  child.on("error", (e) => done({ status: 1, findings: [], blocking: [], ok: false, err: e.message }));
+  child.on("close", (status) => {
+    let findings = [];
+    try {
+      findings = JSON.parse(out || "[]");
+    } catch {}
+    // Advisories never fail on their own, except the design-system ones: a colour, radius or font size outside
+    // DESIGN.md breaks the design contract (Impeccable reports those two as advisories; tested 2026-10-26).
+    const blocking = findings.filter((f) => f.severity !== "advisory" || CONTRACT_RULES.has(f.antipattern));
+    done({ status, findings, blocking, ok: status !== 1 && blocking.length === 0, err: err.trim().split("\n").slice(-2).join(" | ") });
+  });
+});
+const CONTRACT_RULES = new Set(["design-system-color", "design-system-radius", "design-system-font-size", "design-system-font"]);
+const findingsText = (r) => r.status === 1 ? `couldn't scan: ${r.err}`
+  : [...new Set(r.blocking.map((f) => `${f.antipattern}${f.snippet ? ` (${String(f.snippet).slice(0, 70)})` : ""}`))].slice(0, 6).join("; ");
+const hasImpeccable = existsSync(IMPECCABLE);
+if (hasImpeccable) {
+  const r = await impeccable(["src/"]);
+  check("impeccable (source): no design anti-patterns, nothing outside DESIGN.md", r.ok, r.ok ? "" : findingsText(r));
+}
 
 // Brand values belong in site.config.json, not in source files.
 const srcFiles = (function walk(d) {
@@ -215,6 +249,27 @@ try {
     check(`lighthouse ${path}: SEO 100`, c.seo.score === 1, failing(c.seo));
     check(`lighthouse ${path}: CLS below 0.1`, cls < 0.1, cls.toFixed(3));
     if (LAUNCH) check(`lighthouse ${path}: performance at least 90 (production tripwire)`, c.performance.score >= 0.9, String(c.performance.score));
+  }
+
+  // ---------- 7. Impeccable on the rendered pages ----------
+  // `--cdp` scans a page already open in this browser, so previews behind Access work and the detector never
+  // starts a browser of its own. Desktop and phone widths, like the research's G5 gate.
+  if (hasImpeccable) {
+    let n = 0;
+    for (const path of pages) {
+      for (const [width, height] of [[1280, 800], [390, 844]]) {
+        const marker = `impeccable-scan-${++n}`;
+        const page = await pptr.newPage();
+        await auth.puppeteer(page);
+        await page.setViewport({ width, height });
+        await page.goto(`${base}${path}#${marker}`, { waitUntil: "load" });
+        await new Promise((r) => setTimeout(r, 1500));
+        const r = await impeccable(["--cdp", String(chrome.port), "--target", marker]);
+        writeFileSync(join(OUT, `impeccable-${(path.slice(1) || "home").replace(/\//g, "_")}-${width}.json`), JSON.stringify(r.findings, null, 2));
+        check(`impeccable ${path} @${width}: no design anti-patterns, nothing outside DESIGN.md`, r.ok, r.ok ? "" : findingsText(r));
+        await page.close();
+      }
+    }
   }
   await pptr.disconnect();
   writeFileSync(join(OUT, "lighthouse.json"), JSON.stringify(scores, null, 2));
