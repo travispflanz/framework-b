@@ -19,7 +19,8 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
    `DESIGN.md`. Then `node scripts/design-tokens.mjs`. Credit every image in `design/credits.json`.
 4. **Content.** `site.config.json` forms and navigation, `src/content/*.json` from the section library, then
    `node scripts/check-content.mjs` (and `node scripts/editing.mjs seed` with editing on).
-5. **Local gates.** `npm run build && npm run test:e2e && npm run qa`.
+5. **Local gates.** In a scratch copy with Turnstile test keys (`node scripts/fill-test-placeholders.mjs --turnstile-test`):
+   `npm run build && npm run test:e2e && npm run qa`.
 6. **Preview.** Push the branch, open a pull request, dispatch the ops repo's `site preview check` with `site_id` and
    `branch`. Fix until it passes.
 7. **Approval.** Send the owner the pull request, the preview URL, the inferred items and any brief warnings. Wait

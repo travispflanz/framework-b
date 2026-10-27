@@ -32,23 +32,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Anonymous Openverse use: at most 20 results a page (more is a 401) and about one request a second
 // (make.wordpress.org/openverse, 2022-06-17, checked 2026-10-27). Thumbnails count too, so all its calls are paced.
 let lastOpenverse = 0;
-async function get(url, { json = false, waited = false } = {}) {
+async function get(url, { json = false, waited = false, timeout = json ? 90_000 : 30_000 } = {}) {
   if (new URL(url).host === "api.openverse.org") {
     const gap = Date.now() - lastOpenverse;
     if (gap < 1100) await sleep(1100 - gap);
     lastOpenverse = Date.now();
   }
-  const res = await fetch(url, { headers: { "user-agent": UA, accept: json ? "application/json" : "*/*" }, redirect: "follow" });
+  // A request that never answers would hang the script, so each one gives up: 30 s for a thumbnail, 90 s for the
+  // API (a single-image lookup took 29 s on 2026-10-27) and 120 s for an original.
+  const res = await fetch(url, { headers: { "user-agent": UA, accept: json ? "application/json" : "*/*" }, redirect: "follow", signal: AbortSignal.timeout(timeout) });
   // Openverse answers a burst over its anonymous throttle with 403; one paced retry is enough.
   if (res.status === 403 && new URL(url).host === "api.openverse.org" && !waited) {
     await sleep(5000);
-    return get(url, { json, waited: true });
+    return get(url, { json, waited: true, timeout });
   }
   if (res.status === 429 && !waited) {
     const wait = Math.min(Number(res.headers.get("retry-after")) || 60, 600);
     console.log(`  ${new URL(url).host} is rate-limiting this machine; waiting ${wait} s as it asks…`);
     await sleep(wait * 1000);
-    return get(url, { json, waited: true });
+    return get(url, { json, waited: true, timeout });
   }
   if (!res.ok) throw new Error(`${res.status} from ${new URL(url).host}${res.status === 429 ? " (still rate-limited: try again later, or pick a result from another source)" : ""}`);
   return json ? res.json() : Buffer.from(await res.arrayBuffer());
@@ -108,7 +110,7 @@ if (cmd === "search" && arg) {
   let lastErr;
   for (const u of urls) {
     try {
-      buf = await get(u);
+      buf = await get(u, { timeout: 120_000 });
       break;
     } catch (e) {
       lastErr = e;
@@ -132,7 +134,7 @@ if (cmd === "search" && arg) {
   });
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   const final = await sharp(out).metadata();
-  console.log(`${file}: ${final.width}×${final.height}, ${Math.round(out.length / 1024)} KB, ${licenseName(r)} by ${r.creator}. Use it as { "src": "${as}.jpg", "alt": "${alt}" }.`);
+  console.log(`${file}: ${final.width}×${final.height}, ${Math.round(out.length / 1024)} KB, ${licenseName(r)} by ${r.creator || "unknown"}. Use it as { "src": "${as}.jpg", "alt": "${alt}" }.`);
 } else {
   console.error('usage: images.mjs search "<query>" [--count 20] [--any-size] | add <id> --as <name> --alt "<text>" [--allow-small]');
   process.exit(2);
