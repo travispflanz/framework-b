@@ -1,0 +1,18 @@
+# Caller: connects an existing site to the Apps Script mailer (repo secrets MAILER_URL, MAILER_SECRET) and opens a
+# pull request that turns lead notifications on. Replace OWNER. New sites get the mailer from "site create".
+name: site mailer
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      check_only: { description: "yes = only send a test notification", required: false, default: "no", type: choice, options: ["no", "yes"] }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  mailer:
+    uses: OWNER/framework-b/.github/workflows/site-mailer.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      check_only: ${{ inputs.check_only }}
+    secrets: inherit

@@ -21,8 +21,8 @@ Everything here is done once per Cloudflare account, not per site. **H** = the o
 | # | Step | Who | Link | Done |
 |---|---|---|---|---|
 | 10 | Pick the Gmail account that sends idea-site email. A Gmail used only for this keeps your personal address off auto-replies | H | | |
-| 11 | In that account, create the Apps Script mailer from `ops/apps-script-mailer/`, set its secret, and deploy it as a web app. Give the web app URL to the agent | H, with step-by-step instructions in that folder | [Apps Script web apps](https://developers.google.com/apps-script/guides/web) | |
-| 12 | Store the URL and secret as Worker secrets for idea sites | A | | |
+| 11 | In that account, create the Apps Script mailer from `ops/apps-script-mailer/`, set its secret, and deploy it as a web app. Store the web app URL and the secret as the ops repo secrets `MAILER_URL` and `MAILER_SECRET` | H, with step-by-step instructions in that folder | [Apps Script web apps](https://developers.google.com/apps-script/guides/web) | 2026-10-27 (owner-attested) |
+| 12 | Every site gets them as Worker secrets: `site create` for new sites, the `site mailer` workflow for sites made before step 11, `site promote` for launch sites that keep the mailer | A | | Automatic |
 
 ## Email for launch sites
 

@@ -12,7 +12,7 @@ on:
       framework_repo: { type: string, required: true }
       framework_ref: { type: string, default: main }
       site_id: { type: string, required: true }
-      domain: { type: string, required: true, description: "apex domain, an active zone in the account" }
+      domain: { type: string, required: true, description: "an active zone in the account, or a one-level subdomain of one" }
       phase: { type: string, default: prepare, description: '"prepare" or "finish"' }
       postal_address: { type: string, default: "", description: "required for prepare (CAN-SPAM)" }
       dry_run: { type: string, default: "no", description: '"yes" only checks the preconditions' }
@@ -22,6 +22,8 @@ on:
       GH_SITES_TOKEN: { required: true }
       RESEND_ADMIN_KEY: { required: false }
       UPTIMEROBOT_API_KEY: { required: false }
+      MAILER_URL: { required: false }
+      MAILER_SECRET: { required: false }
 permissions:
   contents: read
 jobs:
@@ -55,6 +57,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           RESEND_ADMIN_KEY: ${{ secrets.RESEND_ADMIN_KEY }}
           UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
+          MAILER_URL: ${{ secrets.MAILER_URL }}
+          MAILER_SECRET: ${{ secrets.MAILER_SECRET }}
           POSTAL_ADDRESS: ${{ inputs.postal_address }}
           DOMAIN: ${{ inputs.domain }}
           PHASE: ${{ inputs.phase }}

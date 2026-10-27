@@ -14,7 +14,7 @@ Idea sites live on `workers.dev`. Cloudflare can only send email from a domain s
    - Execute as: **Me**
    - Who has access: **Anyone**
    - Click **Deploy**, approve the permissions (it asks to send email as you), and copy the **Web app URL**.
-6. Give the agent the web app URL and the secret. It stores them as Worker secrets `MAILER_URL` and `MAILER_SECRET`.
+6. In the ops repo (GitHub → Settings → Secrets and variables → Actions → New repository secret), add `MAILER_URL` (the web app URL) and `MAILER_SECRET` (the secret). From then on `site create` gives every new site the mailer. For a site made earlier, run the ops workflow **site mailer**: it sends a test notification and opens a pull request that turns notifications on.
 
 "Anyone" means anyone can reach the URL, but the script refuses any request without the secret.
 
