@@ -379,16 +379,23 @@ async function finish() {
   const files = await copyUploads(prodUuid);
   done("catch-up copy", `${copied.leads} lead(s), ${copied.subs} subscriber(s) and ${files.copied} file(s) that arrived before the launch deploy`);
 
+  // The launch deploy is the one whose pages name the domain as canonical (the idea build names its workers.dev
+  // address). Indexing then follows the site's choice: launch sites are indexed unless site.indexing is false.
+  const indexed = config.site.indexing !== false;
   let ok = false;
   for (let i = 0; i < 30 && !ok; i++) {
     try {
       const r = await fetch(`https://${domain}/api/health`);
-      ok = r.ok && (await r.json()).ok === true && !(await fetch(`https://${domain}/`)).headers.get("x-robots-tag")?.includes("noindex");
+      const home = await fetch(`https://${domain}/`);
+      const html = await home.text();
+      const canonical = /<link\b[^>]*rel="canonical"[^>]*>/.exec(html)?.[0] || "";
+      const noindex = !!home.headers.get("x-robots-tag")?.includes("noindex");
+      ok = r.ok && (await r.json()).ok === true && canonical.includes(`href="https://${domain}/`) && noindex === !indexed;
     } catch {}
     if (!ok) await new Promise((r) => setTimeout(r, 10_000));
   }
-  if (!ok) throw new Error(`https://${domain} isn't serving the launch deploy yet (health, or noindex still on). Check the Workers Builds run, then rerun finish.`);
-  done("domain", `https://${domain}/api/health ok and indexable`);
+  if (!ok) throw new Error(`https://${domain} isn't serving the launch deploy yet (health, the canonical address, or ${indexed ? "noindex still on" : "noindex missing"}). Check the Workers Builds run, then rerun finish.`);
+  done("domain", `https://${domain}/api/health ok; the launch deploy is live and ${indexed ? "indexable" : "noindex, as the site chose"}`);
   const z = await zone();
   if (z.name === domain) {
     const www = await fetch(`https://www.${domain}/pricing?x=1`, { redirect: "manual" });
