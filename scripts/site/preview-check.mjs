@@ -74,11 +74,13 @@ try {
     await new Promise((res) => setTimeout(res, 3000));
   }
   report.push(`- Access accepted the check's service token after ${Math.round((Date.now() - t0) / 1000)} s`);
-  // Probe each page once before the browser checks, so a slow or stuck page is named with its timing.
+  // Probe each page once before the browser checks, so a slow or stuck page is named with its timing. The first
+  // request to a fresh editing-site preview can take over 25 s (EmDash's first-request setup on a new content
+  // database, self-test 2026-10-26), so this also warms the page before QA's 30 s page loads.
   for (const path of ["/api/health", "/"]) {
     const t0 = Date.now();
     try {
-      const r = await fetch(url + path, { headers: auth, redirect: "manual", signal: AbortSignal.timeout(25_000) });
+      const r = await fetch(url + path, { headers: auth, redirect: "manual", signal: AbortSignal.timeout(120_000) });
       await r.arrayBuffer();
       report.push(`- \`${path}\`: HTTP ${r.status} in ${Date.now() - t0} ms${r.headers.get("location") ? ` → ${r.headers.get("location").split("?")[0]}` : ""}`);
     } catch (e) {
