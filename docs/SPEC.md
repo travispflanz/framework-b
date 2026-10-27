@@ -25,7 +25,7 @@ How an AI agent builds, launches and hands off a website with this framework. Wr
 | R2 uploads | Shared `ideas-uploads`, prefix `<site>/` | Own bucket |
 | Owner notification | Apps Script mailer (owner's Gmail) | Cloudflare `send_email` from `notify@<domain>` |
 | Lead auto-reply | Optional, Apps Script mailer | Resend on `mail.<domain>` |
-| Newsletter / drips | Not available | Optional modules; Resend on `updates.<domain>` |
+| Newsletter / drips | Test sends only | Optional modules; Resend on `mail.<domain>` |
 | Indexing | Owner's choice, default `noindex` | Indexed; Search Console + Bing; the `workers.dev` twin is `noindex` |
 | EmDash | Optional; its own D1, R2 bucket, KV namespace and Cron Trigger | Optional |
 | Access | `/admin` and previews | `/admin` and previews |
@@ -246,13 +246,17 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
   - Sandboxed plugins (Workers Paid only) and Cloudflare email sign-in (sending to arbitrary recipients needs Workers Paid).
 - **Agents editing content:** EmDash has a CLI (`emdash login --url … -H …`), a REST API and an MCP server at `/_emdash/api/mcp`. Behind Access, an agent would need an Access service token. Untested.
 
-## 10. Modules (designed, not built)
+## 10. Modules
 
 - **CRM mirror:**
   - Each new lead goes on a Cloudflare Queue, and a consumer upserts it into HubSpot, Attio, Zoho or Google Sheets.
   - The lead id is the idempotency key, so a lead never appears twice.
   - Failures retry, and a dead-letter queue keeps leads that keep failing. D1 is never blocked by a mirror.
-- **Newsletter:** syncs `subscribers` to Resend Contacts and sends broadcasts from `updates.<domain>`, with one-click unsubscribe. Launch mode only.
+- **Newsletter** (built 2026-10-27, untested end to end until the first real issue): `scripts/site/newsletter.mjs`, run by the ops repo's `site newsletter` workflow.
+  - An issue is a Markdown file in the site's repo (`newsletter/<date>-<slug>.md`, front matter `subject` and optional `preview`), written on a branch and merged by the owner like any other change.
+  - `test` sends it to one inbox. Before the site has a domain it goes from Resend's test sender, which only delivers to the Resend account's own address.
+  - `send` (launch mode only) mirrors the site's subscribers from D1 into its Resend segment `<id> newsletter`, records in D1 anyone who used a newsletter's unsubscribe link, and sends one Resend Broadcast from `news@mail.<domain>`. Resend adds the one-click `List-Unsubscribe` headers and fills the unsubscribe link per recipient. Someone who unsubscribes on the site is removed from the segment; the contact's global unsubscribe flag is never set by us, because other sites in the same Resend account share it. An issue already sent is refused unless forced.
+  - It sends from `mail.<domain>`, the same Resend domain as auto-replies, because Resend Free allows 3 verified domains per account; a separate `updates.<domain>` would halve the number of launch sites. Resend Free covers marketing email to 1,000 contacts a month ([quotas](https://resend.com/docs/knowledge-base/account-quotas-and-limits), checked 2026-10-27).
 - **Drips:** a Cloudflare Workflow per lead that sends, waits, then sends again, checking the unsubscribe flag before every send. Launch mode only.
 
 ## 11. Rules learned from the first live build
