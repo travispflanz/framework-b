@@ -66,6 +66,9 @@ async function diagnose() {
   const get = await fetch(u, { redirect: "follow" });
   const body = (await get.text()).slice(0, 2000);
   out.push(`- GET answered ${get.status}${/framework-b-mailer/.test(body) ? " with the mailer's own reply, so the deployment is reachable" : /accounts\.google\.com|ServiceLogin|Sign in/i.test(body) ? " with a Google sign-in page: the web app's access isn't \"Anyone\"" : ""}.`);
+  const title = /<title>([^<]{0,120})<\/title>/i.exec(body)?.[1]?.trim();
+  const said = body.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 240);
+  if (get.status >= 400) out.push(`- Google's page: ${title ? `"${title}" ` : ""}${said ? `— ${said}` : ""}`);
   if (first.status === 403 || get.status === 403) out.push('- 403 from Google means the web app refuses anonymous callers: Deploy → Manage deployments → edit (pencil) → Who has access: "Anyone" → Version: New version → Deploy. The /exec URL stays the same.');
   return out.join("\n");
 }
