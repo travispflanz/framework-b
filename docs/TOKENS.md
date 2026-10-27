@@ -17,7 +17,8 @@ Used by the builder agent for everything except Workers Builds. Scope it to the 
 | Workers R2 Storage: Edit | Upload and backup buckets, CORS | Verified |
 | Turnstile Sites: Edit | Create the widget and add hostnames | Verified |
 | Email Routing Addresses: Edit | Destination addresses (verification click is still human) | Verified |
-| Access: Apps and Policies: Edit | `/admin` login and preview protection | Verified |
+| Access: Apps and Policies: Edit | `/admin` login and preview protection; the reusable `framework-b agent` Service Auth policy on each site's previews application | Verified |
+| Access: Service Tokens: Edit | Create and yearly refresh of the one `framework-b agent` service token, which lets QA open Access-protected previews ([service tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/), checked 2026-10-23: creating, refreshing and deleting need `Access: Service Tokens Write`) | Required for preview checks. Without it the create call returned `auth.forbidden` (2026-10-23) |
 | Access: Organizations, Identity Providers, and Groups: Edit | Read or create the one-time PIN login method | Verified |
 | Account Analytics: Edit | Create Web Analytics sites | Verified |
 | Workers KV Storage: Edit | EmDash session storage (only for sites with client editing); `create` makes the namespaces | Required for client editing. Checked by the ops repo's `verify secrets` workflow |

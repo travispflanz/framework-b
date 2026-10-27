@@ -32,6 +32,10 @@ jobs:
         working-directory: starter
       - run: npx playwright install --with-deps chromium
         working-directory: starter
+      - name: Script tests (Access headers reach only the checked host)
+        if: matrix.editing == 'off'
+        run: node --test scripts/test/*.test.mjs
+        working-directory: starter
       - name: Switch client editing on
         if: matrix.editing == 'on'
         run: |

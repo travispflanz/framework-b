@@ -1,0 +1,18 @@
+# Caller: P6 preview check for one site branch (QA on the deployed preview, result posted on its pull request).
+# Replace OWNER.
+name: site preview check
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      branch: { description: "site branch whose preview to check (not main)", required: true }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  check:
+    uses: OWNER/framework-b/.github/workflows/site-preview-check.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      branch: ${{ inputs.branch }}
+    secrets: inherit

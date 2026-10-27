@@ -18,6 +18,7 @@ export const SITE_OWNED = [
   /^public\//,
   /^\.githooks\//,
   /^framework\.lock\.json$/,
+  /^brief\.json$/,
 ];
 export const GENERATED = [/^src\/styles\/tokens\.css$/, /^seed\//, /^package-lock\.json$/];
 const IGNORED = [/(^|\/)(node_modules|dist|\.astro|\.wrangler|qa-output)\//, /^core\//, /^\.dev\.vars$/];

@@ -4,6 +4,8 @@
 // ops repo (never in framework-b, whose Actions logs are public).
 //
 // Inputs (environment):
+//   BRIEF            optional: a kickoff brief as JSON (scripts/site/lib/brief.mjs). When set, it supplies SITE_ID,
+//                    SITE_NAME, SITE_TAGLINE, OWNER_EMAIL, EDITING and INDEXING, and is kept in the site as brief.json
 //   SITE_ID          lowercase letters, digits, dashes; becomes the Worker name and repo "site-<id>"
 //   SITE_NAME        display name
 //   SITE_TAGLINE     one line (optional)
@@ -26,18 +28,26 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, createHash } from "node:crypto";
 import { cf, gh, env, log, ApiError } from "./lib/api.mjs";
 import { connectBuilds } from "./lib/builds.mjs";
+import { AGENT_POLICY, attachAgentPolicy, ensureAgentPolicy } from "./lib/access-agent.mjs";
+import { createInputs, decisionRows, normalizeBrief } from "./lib/brief.mjs";
 import { addMonitors, uptimeEnabled } from "./lib/uptime.mjs";
 
 const FRAMEWORK = resolve(process.env.FRAMEWORK_DIR || join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const ACCOUNT = env("CLOUDFLARE_ACCOUNT_ID");
 const A = `/accounts/${ACCOUNT}`;
-const id = env("SITE_ID").trim().toLowerCase();
-const name = env("SITE_NAME").trim();
-const tagline = (process.env.SITE_TAGLINE || "").trim() || `${name}.`;
-const owner = env("OWNER_EMAIL").trim().toLowerCase();
+// A kickoff brief (BRIEF: its JSON) supplies the inputs below and is kept in the site as brief.json.
+const kickoff = process.env.BRIEF?.trim() ? normalizeBrief(JSON.parse(process.env.BRIEF)) : null;
+if (kickoff?.errors.length) throw new Error(`The brief has errors:\n- ${kickoff.errors.join("\n- ")}`);
+for (const w of kickoff?.warnings || []) console.log(`! brief: ${w}`);
+const input = kickoff ? createInputs(kickoff.brief) : null;
+const from = (key, opts) => (input ? input[key] : env(key, opts));
+const id = from("SITE_ID").trim().toLowerCase();
+const name = from("SITE_NAME").trim();
+const tagline = (from("SITE_TAGLINE", { required: false }) || "").trim() || `${name}.`;
+const owner = from("OWNER_EMAIL").trim().toLowerCase();
 const turnstileMode = (process.env.TURNSTILE_MODE || "real").trim();
-const editing = (process.env.EDITING || "off").trim() === "on";
-const indexing = (process.env.INDEXING || "off").trim() === "on";
+const editing = (input?.EDITING ?? process.env.EDITING ?? "off").trim() === "on";
+const indexing = (input?.INDEXING ?? process.env.INDEXING ?? "off").trim() === "on";
 const repoName = `site-${id}`;
 const SHARED = { db: "fb-ideas", previewDb: "fb-previews", uploads: "fb-ideas-uploads", previewUploads: "fb-previews" };
 const TEST_SITEKEY = "1x00000000000000000000AA";
@@ -242,12 +252,17 @@ writeFileSync(join(dir, ".githooks/pre-push"), [
 chmodSync(join(dir, ".githooks/pre-push"), 0o755);
 
 const today = new Date().toISOString().slice(0, 10);
+if (kickoff) writeFileSync(join(dir, "brief.json"), JSON.stringify(kickoff.brief, null, 2) + "\n");
 appendFileSync(join(dir, "DECISIONS.md"), [
   `| ${today} | Created in idea mode at https://${host} | Kickoff | owner |`,
-  `| ${today} | Search engines: noindex (idea default) | Idea default | inferred |`,
+  ...(kickoff
+    ? decisionRows(kickoff.brief, kickoff.sources, today)
+    : [
+        `| ${today} | Search engines: ${indexing ? "indexed at the workers.dev address" : "noindex (idea default)"} | ${indexing ? "Kickoff" : "Idea default"} | ${indexing ? "owner" : "inferred"} |`,
+        `| ${today} | Client editing (EmDash): ${editing ? "on; editors sign in through Cloudflare Access at /_emdash/admin" : "off"} | Kickoff | owner |`,
+      ]),
   `| ${today} | Email: ${mailer ? "Apps Script mailer to the owner's inbox" : "none yet; leads are in /admin"} | Mailer ${mailer ? "configured" : "not set up"} | inferred |`,
   `| ${today} | Framework B core ${coreVersion} | Current release | inferred |`,
-  `| ${today} | Client editing (EmDash): ${editing ? "on; editors sign in through Cloudflare Access at /_emdash/admin" : "off"} | Kickoff | owner |`,
   "",
 ].join("\n"));
 writeFileSync(join(dir, "HANDOFF.md"), readFileSync(join(dir, "HANDOFF.md"), "utf8")
@@ -309,6 +324,13 @@ if (tag) {
     },
   });
   done("access previews", "application created");
+  // Lets the P6 preview check open previews with a short-lived service token (scripts/site/lib/access-agent.mjs).
+  try {
+    await attachAgentPolicy(A, previewApp.id, await ensureAgentPolicy(A));
+    done("access previews", `"${AGENT_POLICY}" Service Auth policy added for preview checks`);
+  } catch (e) {
+    warn(`Preview checks can't open previews yet: ${e.message}`);
+  }
   if (editing) {
     // On a preview URL, the Access JWT comes from the previews application, so EmDash must expect its audience.
     try {

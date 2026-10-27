@@ -1,0 +1,89 @@
+# Reusable: P6 preview check. Waits for the Workers Builds preview of a site branch, runs the site's QA gate on
+# the deployed preview through Cloudflare Access (a 30-minute service token, deleted afterwards), and posts the
+# result on the branch's pull request. Called only from the owner's private ops repo: logs name the site.
+name: site preview check
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      branch: { type: string, required: true, description: "site branch whose preview to check (not main)" }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      CF_BUILDS_TOKEN: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency: preview-${{ inputs.site_id }}-${{ inputs.branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          path: framework
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site branch
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          echo "OWNER=$owner" >> "$GITHUB_ENV"
+          git clone -q --depth 1 --branch "$BRANCH" "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
+          echo "COMMIT=$(git -C site rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Build the site (QA's content checks read the build)
+        working-directory: site
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium > /dev/null
+          npm run build
+      - name: Check the preview
+        id: check
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          set +e
+          node framework/scripts/site/preview-check.mjs --site site --site-id "$SITE_ID" --branch "$BRANCH" --commit "$COMMIT" --report preview-report.md
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat preview-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the screenshots and QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-qa-${{ inputs.site_id }}
+          path: site/qa-output/
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Post the result on the pull request
+        if: always()
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -f preview-report.md ] || echo "Preview check did not run to the end." > preview-report.md
+          printf '\n[Run log and screenshots](%s)\n' "$RUN_URL" >> preview-report.md
+          api="https://api.github.com/repos/${OWNER}/site-${SITE_ID}"
+          pr=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" "$api/pulls?state=open&head=${OWNER}:${BRANCH}" | jq -r '.[0].number // empty')
+          if [ -z "$pr" ]; then echo "No open pull request for $BRANCH; the result is in this run's summary."; exit 0; fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $GH_SITES_TOKEN" -H "Accept: application/vnd.github+json" \
+            "$api/issues/$pr/comments" -d "$(jq -Rs '{body: .}' < preview-report.md)")
+          echo "Comment on pull request #$pr: HTTP $code"
+          [ "$code" = 201 ]
+      - name: Fail if the preview check failed
+        if: steps.check.outputs.code != '0'
+        run: exit 1
