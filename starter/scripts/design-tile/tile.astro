@@ -1,6 +1,6 @@
 ---
-// A style tile: one DESIGN.md draft rendered on the site's real content. scripts/design-tiles.mjs copies this page
-// into a scratch copy of the site for each draft and screenshots it; it is never part of the site itself.
+// A style tile: one DESIGN.md draft rendered on the site's real content. scripts/design-tiles.mjs adds this page to
+// the site only while it builds each draft (into a scratch folder) and removes it afterwards; it never ships.
 // Shows: the real hero, the colour tokens, the type scale, the site's real form, and the first section after the hero.
 export const prerender = true;
 import { parse } from "yaml";
