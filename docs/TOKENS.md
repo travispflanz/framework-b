@@ -60,9 +60,9 @@ It's stored once as the `D1_BACKUP_TOKEN` repository secret in `framework-b`. Th
 
 The deploy token (section 1) also deploys this Worker and its Workflow, and creates the `framework-backups` bucket and its expiry rule. Whether Workers Scripts: Edit and Workers R2 Storage: Edit cover the Workflow and the lifecycle rule is unverified until the first deploy.
 
-## Resend setup key (only during promote)
+## Resend admin key (ops repo only)
 
-A temporary **full-access** Resend API key, stored as the ops repo secret `RESEND_SETUP_KEY` for one promote run. Promote uses it to add `mail.<domain>` and create a sending-only key restricted to that domain, which becomes the Worker secret `RESEND_API_KEY`. Delete the full-access key in Resend (https://resend.com/api-keys) and the ops secret afterwards. Status: untested.
+One **full-access** Resend API key, stored only as the ops repo secret `RESEND_ADMIN_KEY`. Resend keys are either full access or sending only ([API keys](https://resend.com/docs/api-reference/api-keys/create-api-key), checked 2026-10-27), and adding a domain, managing contacts and sending broadcasts all need full access. Promote uses it to add `mail.<domain>` and create a sending-only key restricted to that domain, which becomes the Worker secret `RESEND_API_KEY`; the newsletter module uses it for contacts and broadcasts. Workers never get it. Rotate it in Resend (https://resend.com/api-keys) and update the secret. Status: untested.
 
 ## 4. Registrar token (only when buying a domain)
 

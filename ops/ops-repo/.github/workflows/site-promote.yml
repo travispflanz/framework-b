@@ -1,7 +1,6 @@
 # Caller: moves an idea site to launch mode on its own domain. Replace OWNER.
 # Run "prepare" first (it opens a pull request in the site's repo), merge it, then run "finish".
-# Optional secret RESEND_SETUP_KEY: a temporary full-access Resend key for lead auto-replies; delete it in Resend
-# (and here) once prepare has finished.
+# Optional secret RESEND_ADMIN_KEY: the owner's full-access Resend key, for lead auto-replies (docs/TOKENS.md).
 name: site promote
 on:
   workflow_dispatch:

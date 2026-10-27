@@ -15,7 +15,7 @@
 //      copied from the shared idea database (INSERT OR IGNORE, so a rerun only adds what is new); its own R2
 //      bucket (<id>-uploads) with every uploaded file the leads point at. The shared rows are left in place:
 //      deleting them needs the owner's approval.
-//   4. Mail: with RESEND_SETUP_KEY (a temporary full-access key from the owner), Resend on mail.<domain>: the
+//   4. Mail: with RESEND_ADMIN_KEY (the owner's full-access Resend key, an ops secret), Resend on mail.<domain>: the
 //      domain, its DNS records, verification, and a sending-only key restricted to it, stored as the Worker
 //      secret RESEND_API_KEY. Without it, lead auto-replies stay off.
 //   5. Access and Turnstile: /admin (and /_emdash with editing on) behind the same Access applications on the
@@ -29,7 +29,7 @@
 //   checks the domain, the www redirect, /admin and the noindex twin.
 //
 // Inputs (environment): CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, POSTAL_ADDRESS (required for prepare,
-// CAN-SPAM), RESEND_SETUP_KEY (optional), UPTIMEROBOT_API_KEY (optional, finish).
+// CAN-SPAM), RESEND_ADMIN_KEY (optional), UPTIMEROBOT_API_KEY (optional, finish).
 // Status: untested end to end until the first promote on a real domain (docs/ROADMAP.md step 9).
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -175,7 +175,7 @@ async function addAccessDestination(appName, uri) {
 async function resend(path, { method = "GET", body } = {}) {
   const res = await fetch(`https://api.resend.com${path}`, {
     method,
-    headers: { authorization: `Bearer ${process.env.RESEND_SETUP_KEY}`, ...(body ? { "content-type": "application/json" } : {}) },
+    headers: { authorization: `Bearer ${process.env.RESEND_ADMIN_KEY}`, ...(body ? { "content-type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await res.json().catch(() => null);
@@ -205,9 +205,9 @@ async function prepare() {
   const sharedUuid = await d1(SHARED_DB);
   const [{ n: leadCount }] = await query(sharedUuid, "SELECT count(*) AS n FROM leads WHERE site = ?", [id]);
   done("checks", `${domain} is an active zone; owner inbox verified; D1 ${dbs.length}/10 in use (+${missing}); ${leadCount} lead(s) to copy`);
-  const withResend = !!process.env.RESEND_SETUP_KEY;
+  const withResend = !!process.env.RESEND_ADMIN_KEY;
   if (DRY) {
-    done("dry run", `would set up ${domain} for ${id}${withResend ? " with Resend on " + mail.resendDomain : " without lead auto-replies (no RESEND_SETUP_KEY)"}`);
+    done("dry run", `would set up ${domain} for ${id}${withResend ? " with Resend on " + mail.resendDomain : " without lead auto-replies (no RESEND_ADMIN_KEY)"}`);
     return;
   }
 
@@ -270,12 +270,12 @@ async function prepare() {
       const key = await resend("/api-keys", { method: "POST", body: { name: `${id} sending`, permission: "sending_access", domain_id: dom.id } });
       runWrangler(["secret", "put", "RESEND_API_KEY", "--name", id], { input: key.token });
       resendOn = true;
-      done("resend", `${mail.resendDomain} ${status}; sending-only key stored as the Worker secret RESEND_API_KEY. Delete the temporary full-access key now: https://resend.com/api-keys`);
+      done("resend", `${mail.resendDomain} ${status}; sending-only key stored as the Worker secret RESEND_API_KEY.`);
     } catch (e) {
       warn(`Resend not set up (${e.message}); lead auto-replies stay off`);
     }
   } else {
-    warn("No RESEND_SETUP_KEY: lead auto-replies stay off. Owner notifications still go out through Cloudflare.");
+    warn("No RESEND_ADMIN_KEY: lead auto-replies stay off. Owner notifications still go out through Cloudflare.");
   }
 
   // Access and Turnstile.
