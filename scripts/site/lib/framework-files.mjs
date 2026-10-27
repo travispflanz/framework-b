@@ -6,8 +6,9 @@
 //   generated    rebuilt after an update from site-owned inputs: tokens.css, fonts.js, seed/, package-lock.json
 //   package.json merged key by key (dependencies, devDependencies, scripts, emdash)
 //   framework    everything else from starter/, plus core/: updated with a three-way merge
-// With client editing on, a few framework files come from starter/editing/ instead, and the other pages get the
-// `export const prerender = true;` line, exactly as scripts/editing.mjs installs them.
+// With client editing on, a few framework files come from starter/editing/ instead, their static versions live in
+// editing/static/ (for `editing.mjs off`), and the other pages get the `export const prerender = true;` line,
+// exactly as scripts/editing.mjs installs them.
 import { execFileSync } from "node:child_process";
 
 export const SITE_OWNED = [
@@ -75,6 +76,13 @@ export function framework(dir) {
       for (const target of OVERLAY) {
         const src = `starter/editing/${target}`;
         if (show(commit, src) !== null) out.set(target, { from: src });
+      }
+      // From the commit that added `editing.mjs off`: the static versions `on` keeps in editing/static/, so a site
+      // switched on before then gets them from its next update.
+      if (show(commit, "starter/scripts/lib/editing-off.mjs") !== null) {
+        for (const target of OVERLAY) {
+          if (show(commit, `starter/editing/${target}`) !== null && show(commit, `starter/${target}`) !== null) out.set(`editing/static/${target}`, { from: `starter/${target}` });
+        }
       }
     }
     for (const p of list(commit, "packages/core/")) {

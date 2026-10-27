@@ -1,8 +1,12 @@
 #!/usr/bin/env node
-// Switches client editing (EmDash) on for this site: `node scripts/editing.mjs on`.
-// `node scripts/editing.mjs seed` rewrites seed/seed.json only, after the section library or src/content changes.
+// Switches client editing (EmDash) on or off for this site.
+//   node scripts/editing.mjs on     switches it on
+//   node scripts/editing.mjs seed   rewrites seed/seed.json only, after the section library or src/content changes
+//   node scripts/editing.mjs off --remote | --local | --database <file.sqlite> [--media-dir <dir>]
+//                                   switches it off, bringing the editors' published home page back into files
 //
-// What it changes:
+// What `on` changes:
+// - keeps the static versions of the files it replaces in editing/static/ (for `off`);
 // - copies editing/ over the site (astro.config.mjs, src/worker.js, src/live.config.ts, src/pages/index.astro);
 // - marks every other page prerendered, so only EmDash-driven pages run on request;
 // - writes seed/seed.json (the section library as EmDash block types, plus src/content/home.json as the first content);
@@ -10,20 +14,33 @@
 // - adds the bindings EmDash needs to wrangler.jsonc (CMS_DB, MEDIA, SESSION, the hourly cron);
 // - sets "editing" in site.config.json.
 // Placeholders in <angle brackets> are filled by scripts/site/create.mjs (or by hand) before deploy.
-// Switching back off (exporting content to files) is not built yet.
+//
+// What `off` changes (the reverse, after exporting the content):
+// - reads the content database: --remote exports the deployed CMS_DB with wrangler (needs CLOUDFLARE_API_TOKEN and
+//   CLOUDFLARE_ACCOUNT_ID), --local exports wrangler dev's copy, --database reads a SQLite file you already have;
+// - writes EmDash's published home page to src/content/home.json, and copies each media-library image it uses into
+//   src/assets/images (from the MEDIA bucket, or --media-dir) with an entry in design/credits.json;
+// - puts back the files in editing/static/, removes src/live.config.ts, the prerender lines, the EmDash packages,
+//   the bindings and the cron, seed/ and "editing" in site.config.json, then checks the content.
+// Nothing in Cloudflare is deleted: the content database, media bucket, session namespace and the editor Access
+// application stay until the owner removes them (the script lists them).
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { stripJsonc } from "./lib/jsonc.mjs";
+import { creditsWith, homeFromExport, leftovers, staticPackage, staticPage, staticWrangler } from "./lib/editing-off.mjs";
 
 // Exact package versions live in editing/packages.json, so the site update script can read them too.
 export const EMDASH_PACKAGES = JSON.parse(readFileSync("editing/packages.json", "utf8")).dependencies;
 export const EMDASH_CRON = "17 * * * *";
+// The files editing/ puts over the site (everything in it except packages.json and static/).
+const OVERLAY = ["astro.config.mjs", "src/worker.js", "src/live.config.ts", "src/pages/index.astro"].filter((f) => existsSync(join("editing", f)));
 
 const [mode] = process.argv.slice(2);
-if (!["on", "seed"].includes(mode)) {
-  console.error("usage: node scripts/editing.mjs on | seed");
+if (!["on", "seed", "off"].includes(mode)) {
+  console.error("usage: node scripts/editing.mjs on | seed | off --remote | --local | --database <file.sqlite> [--media-dir <dir>]");
   process.exit(1);
 }
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
@@ -34,9 +51,24 @@ if (mode === "on" && site.editing?.enabled) {
 }
 const wrangler = JSON.parse(stripJsonc(readFileSync("wrangler.jsonc", "utf8")));
 
+if (mode === "off") {
+  try {
+    await switchOff();
+  } catch (e) {
+    console.error(`editing off: ${e.message}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
 if (mode === "on") {
-  // 1. Overlay.
-  cpSync("editing", ".", { recursive: true, filter: (src) => !src.endsWith("packages.json") });
+  // 1. Overlay, keeping the static versions of the files it replaces for `off`.
+  for (const target of OVERLAY) {
+    if (!existsSync(target)) continue;
+    mkdirSync(dirname(join("editing/static", target)), { recursive: true });
+    copyFileSync(target, join("editing/static", target));
+  }
+  cpSync("editing", ".", { recursive: true, filter: (src) => !src.endsWith("packages.json") && !/^editing[\\/]static([\\/]|$)/.test(src) });
 
   // 2. Everything except the EmDash-driven pages stays static.
   const overlayPages = new Set(readdirSync("editing/src/pages"));
@@ -130,3 +162,95 @@ writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
 console.log(`Client editing is on. Editors use /_emdash/admin behind Cloudflare Access.
 Next: fill the <placeholders> in wrangler.jsonc, set the CF_ACCESS_AUDIENCE and EMDASH_ENCRYPTION_KEY
 secrets, then build and deploy.`);
+
+// ---------- off ----------
+async function switchOff() {
+  if (!site.editing?.enabled) {
+    console.log("Client editing is already off.");
+    return;
+  }
+  const arg = (name) => {
+    const i = process.argv.indexOf(`--${name}`);
+    return i > 0 ? process.argv[i + 1] : undefined;
+  };
+  const where = process.argv.includes("--remote") ? "--remote" : process.argv.includes("--local") ? "--local" : null;
+  const given = arg("database");
+  const mediaDir = arg("media-dir");
+  if (!where && !given) throw new Error("off needs --remote (the deployed content), --local (wrangler dev's copy) or --database <file.sqlite>");
+  if (!existsSync("editing/static")) {
+    throw new Error('editing/static/ is missing: this site switched editing on before `off` existed. Run the ops repo\'s "Site update" workflow first; it adds the static files.');
+  }
+  const binding = (list, name) => (list || []).find((x) => x.binding === name);
+  const cms = binding(wrangler.d1_databases, "CMS_DB");
+  const bucket = binding(wrangler.r2_buckets, "MEDIA")?.bucket_name;
+  const { DatabaseSync } = await import("node:sqlite");
+  const tmp = mkdtempSync(join(tmpdir(), "editing-off-"));
+  try {
+    // 1. The content database as a SQLite file.
+    let file = given;
+    if (!file) {
+      const sql = join(tmp, "cms.sql");
+      execFileSync("npx", ["wrangler", "d1", "export", cms.database_name, where, "--output", sql], { stdio: ["ignore", "ignore", "inherit"] });
+      file = join(tmp, "cms.sqlite");
+      const db = new DatabaseSync(file);
+      db.exec(readFileSync(sql, "utf8"));
+      db.close();
+    }
+    const exported = JSON.parse(execFileSync("npx", ["emdash", "export-seed", "--database", file, "--with-content", "pages"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }));
+    const db = new DatabaseSync(file, { readOnly: true });
+    const media = db.prepare("select id, filename, mime_type, alt, storage_key from media").all();
+    const drafts = db.prepare("select slug from ec_pages where draft_revision_id is not null and deleted_at is null").all().map((r) => r.slug);
+    db.close();
+
+    // 2. Content and images.
+    const current = JSON.parse(readFileSync("src/content/home.json", "utf8"));
+    const taken = existsSync("src/assets/images") ? readdirSync("src/assets/images") : [];
+    const { home, images, notes, changed } = homeFromExport(exported, current, media, taken);
+    for (const slug of drafts) notes.push(`EmDash page "${slug}" has an unpublished draft; only the published version was exported`);
+    if (images.length) {
+      if (!mediaDir && !where) throw new Error(`The home page uses ${images.length} media-library image(s): add --media-dir <dir> (files named by storage key), --remote or --local`);
+      mkdirSync("src/assets/images", { recursive: true });
+      for (const img of images) {
+        const dest = join("src/assets/images", img.file);
+        if (mediaDir) copyFileSync(join(mediaDir, img.storageKey), dest);
+        else execFileSync("npx", ["wrangler", "r2", "object", "get", `${bucket}/${img.storageKey}`, "--file", dest, where], { stdio: ["ignore", "ignore", "inherit"] });
+      }
+      const credits = existsSync("design/credits.json") ? JSON.parse(readFileSync("design/credits.json", "utf8")) : undefined;
+      mkdirSync("design", { recursive: true });
+      writeFileSync("design/credits.json", JSON.stringify(creditsWith(credits, images), null, 2) + "\n");
+    }
+    writeFileSync("src/content/home.json", JSON.stringify(home, null, 2) + "\n");
+
+    // 3. Files back to the static site.
+    for (const target of OVERLAY) {
+      const saved = join("editing/static", target);
+      if (existsSync(saved)) copyFileSync(saved, target);
+      else rmSync(target, { force: true });
+    }
+    rmSync("editing/static", { recursive: true, force: true });
+    for (const name of readdirSync("src/pages")) {
+      const path = join("src/pages", name);
+      if (OVERLAY.includes(path.replaceAll("\\", "/")) || !/\.(astro|js|ts)$/.test(name)) continue;
+      const text = readFileSync(path, "utf8");
+      const next = staticPage(text, name);
+      if (next !== text) writeFileSync(path, next);
+    }
+    rmSync("seed", { recursive: true, force: true });
+
+    // 4. Packages, bindings, config.
+    const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+    writeFileSync("package.json", JSON.stringify(staticPackage(pkg, EMDASH_PACKAGES), null, 2) + "\n");
+    execFileSync("npm", ["install", "--no-audit", "--no-fund"], { stdio: "inherit" });
+    const left = leftovers(wrangler);
+    writeFileSync("wrangler.jsonc", "// Client editing switched off (scripts/editing.mjs off). Resource IDs are not secrets.\n" + JSON.stringify(staticWrangler(wrangler, EMDASH_CRON), null, 2) + "\n");
+    delete site.editing;
+    writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
+
+    console.log(`Client editing is off. ${changed ? "src/content/home.json now holds the editors' published home page" : "src/content/home.json is unchanged"}${images.length ? `, with ${images.length} image(s) in src/assets/images (credited in design/credits.json; confirm each source)` : ""}.`);
+    for (const n of notes) console.log(`! ${n}`);
+    console.log(`Kept in Cloudflare until the owner deletes them: ${[...left, "the site's editor Access application", "Worker secrets CF_ACCESS_AUDIENCE and EMDASH_ENCRYPTION_KEY"].join("; ")}.`);
+    execFileSync("node", ["scripts/check-content.mjs"], { stdio: "inherit" });
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}

@@ -1,0 +1,15 @@
+# Caller: switches client editing (EmDash) off for a site and opens a pull request in its repo with the content and
+# images as files. Replace OWNER. A site switched on before `editing off` existed needs "site update" first.
+name: site editing
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      mode: { description: "off = switch client editing off", required: false, default: "off", type: choice, options: ["off"] }
+jobs:
+  editing:
+    uses: OWNER/framework-b/.github/workflows/site-editing.yml@main
+    with:
+      site_id: ${{ inputs.site_id }}
+      mode: ${{ inputs.mode }}
+    secrets: inherit
