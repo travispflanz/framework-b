@@ -50,6 +50,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
 ## Rules
 - Work on a branch and open a pull request. `main` deploys production immediately.
 - Never commit secrets. Secrets are Worker secrets; names are listed in `SECRETS.md`.
+- Drips (launch sites with Resend only): add a `drips` block to `site.config.json` (forms, then emails with `after`, `subject`, `text`) and the Workflow binding to `wrangler.jsonc`: `"workflows": [{ "name": "<id>-drips", "binding": "DRIPS", "class_name": "DripWorkflow" }]`. The content check fails without the binding. Write each email from what the owner supplied; never invent offers or proof.
 - Never delete or rewrite rows in `leads` or `subscribers` without the owner's explicit approval.
 - Never buy a domain, upgrade a plan or create a paid resource without the owner's explicit approval.
 - Every form is a sign-up form. Keep the opt-in line under the submit button.

@@ -28,7 +28,8 @@ All other paths are static assets. Static responses never run the Worker, so ind
 - `src/forms.js`: submit and upload.
 - `src/mailers.js`: `apps-script`, `cloudflare` (`send_email`), `resend`, `none`.
 - `src/crm.js`: the CRM mirror (Google Sheet through the Apps Script mailer, signed webhook), keyed by the lead id.
-- `src/unsubscribe.js`, `src/admin.js`, `src/headers.js`.
+- `src/drips.js` and `src/drips-config.js`: drips, one Cloudflare Workflow instance per lead (launch sites, through Resend). The site's Worker exports `DripWorkflow = dripWorkflow(config)`.
+- `src/unsubscribe.js` (one-click POST works, RFC 8058), `src/admin.js`, `src/headers.js`.
 - `src/lib/`: helpers for Turnstile, Access JWT, HMAC signing and HTML/CSV.
 - `migrations/0001_init.sql`: the `leads` and `subscribers` tables, with a `site` column so idea sites can share one database.
 
@@ -45,7 +46,8 @@ All other paths are static assets. Static responses never run the Worker, so ind
 | `SIGNING_SECRET` | secret, 32+ characters | unsubscribe links, upload URLs |
 | `MAILER_URL`, `MAILER_SECRET` | secrets | `apps-script` mailer; the CRM Sheet mirror |
 | `CRM_WEBHOOK_URL`, `CRM_WEBHOOK_SECRET` | secrets | the CRM webhook mirror (the secret is optional) |
-| `RESEND_API_KEY` | secret | `resend` mailer |
+| `RESEND_API_KEY` | secret | `resend` mailer; drips |
+| `DRIPS` | Workflow (`class_name` `DripWorkflow`, name `<site id>-drips`) | drips |
 | `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` | vars | `/admin` |
 
 ## Tests
@@ -56,7 +58,7 @@ The tests do **not** cover:
 - a real deploy;
 - real Turnstile keys;
 - the real Apps Script redirect, or the Sheet the mirror writes to;
-- Resend;
+- Resend (drips are tested with Resend mocked and the Workflow's sleeps switched off);
 - `send_email`;
 - the rate limit binding on the Workers Free plan;
 - an upload larger than a few bytes.

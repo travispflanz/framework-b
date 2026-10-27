@@ -3,9 +3,10 @@
 // maintenance and scheduled publishing, hourly (wrangler.jsonc triggers.crons must match).
 import emdashHandler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
 import config from "../site.config.json";
-import { createWorker } from "../core/src/index.js";
+import { createWorker, dripWorkflow } from "../core/src/index.js";
 
 export { PluginBridge };
+export const DripWorkflow = dripWorkflow(config); // idle unless "drips" is configured and bound
 
 const EMDASH_CRON = "17 * * * *"; // module exports must be handlers, so this stays private
 

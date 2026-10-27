@@ -7,6 +7,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SECTIONS } from "../src/sections/schema.js";
+import { stripJsonc } from "./lib/jsonc.mjs";
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
 const bySlug = Object.fromEntries(SECTIONS.map((s) => [s.slug, s.versions.at(-1).fields]));
@@ -94,6 +95,13 @@ for (const c of ledger) {
   if (["openverse", "stock"].includes(c.source)) for (const k of ["creator", "license", "url"]) if (!c[k]) errors.push(`${where}: a ${c.source} image needs "${k}"`);
   if (c.source === "generated" && c.abstract !== true) errors.push(`${where}: a generated image must be abstract ("abstract": true); never people, premises or products`);
   if (typeof c.alt !== "string") errors.push(`${where}: "alt" is required ("" for a decorative image)`);
+}
+
+// Drips (core src/drips.js) need their Workflow binding; without it, leads would silently get no emails.
+if (site.drips) {
+  const wrangler = JSON.parse(stripJsonc(readFileSync("wrangler.jsonc", "utf8")));
+  const bound = (wrangler.workflows || []).some((w) => w.binding === "DRIPS" && w.class_name === "DripWorkflow");
+  if (!bound) errors.push(`site.config.json has "drips" but wrangler.jsonc has no Workflow binding: "workflows": [{ "name": "${site.site.id}-drips", "binding": "DRIPS", "class_name": "DripWorkflow" }]`);
 }
 
 if (errors.length) {
