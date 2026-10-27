@@ -63,6 +63,18 @@ try {
   const swept = await sweepCheckTokens(A);
   if (swept) log("access", `deleted ${swept} stale check token(s)`);
   token = await mintCheckToken(A, `${id} ${branch}`.replace(/[^\w .-]/g, "-"));
+  // Probe each page once before the browser checks, so a slow or stuck page is named with its timing.
+  const auth = { "CF-Access-Client-Id": token.clientId, "CF-Access-Client-Secret": token.clientSecret };
+  for (const path of ["/api/health", "/"]) {
+    const t0 = Date.now();
+    try {
+      const r = await fetch(url + path, { headers: auth, redirect: "manual", signal: AbortSignal.timeout(25_000) });
+      await r.arrayBuffer();
+      report.push(`- \`${path}\`: HTTP ${r.status} in ${Date.now() - t0} ms${r.headers.get("location") ? ` → ${r.headers.get("location").split("?")[0]}` : ""}`);
+    } catch (e) {
+      report.push(`- \`${path}\`: **no response after ${Date.now() - t0} ms** (${e.name})`);
+    }
+  }
   // The token reaches QA only through its environment; QA sends it to the preview's own host only.
   const qa = spawnSync("npm", ["run", "qa", "--", "--url", url], {
     cwd: SITE,
