@@ -40,7 +40,7 @@ const draft = import.meta.env.TILE_NAME || front.name || "draft";
         <p class="text-label text-ink-muted">Type</p>
         <div class="mt-4 grid gap-4">
           {levels.map((level) => (
-            <p class={`text-${level} text-ink`}>
+            <p class:list={[`text-${level} text-ink`, { "font-display": ["display", "headline", "title"].includes(level) }]}>
               <span class="text-label text-ink-muted mr-3">{level}</span>{level === "display" || level === "headline" ? hero?.headline || "Headline" : hero?.subheadline || "Body copy sample for this level."}
             </p>
           ))}

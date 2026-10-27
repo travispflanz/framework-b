@@ -92,8 +92,11 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 
 ## 5. Local gates
 
-`npm run build && npm run test:e2e && npm run qa`. With editing on and no real resources in a scratch copy, run
-`node scripts/fill-test-placeholders.mjs --turnstile-test` first, in the copy only. Never commit test keys.
+Run them in a scratch copy of the site (without `dist/`, `.wrangler/` and `qa-output/`): first
+`node scripts/fill-test-placeholders.mjs --turnstile-test`, then `npm run build && npm run test:e2e && npm run qa`.
+The site's real Turnstile widget only allows the account's workers.dev hostname, so on localhost it fails with
+error 110200 and every form page logs a console error (seen 2026-10-27); the copy uses Turnstile's test keys instead.
+With editing on, the same command also fills the missing resource IDs. Never commit test keys.
 
 ## 6. Preview (P6)
 
