@@ -10,7 +10,11 @@ import "../sections/sections.css";
 interface Props { title?: string; description?: string; noindex?: boolean; bleed?: boolean }
 const { title, description = config.site.tagline, noindex = false, bleed = false } = Astro.props;
 const fullTitle = title ? `${title} | ${config.site.name}` : config.site.name;
-const canonical = new URL(Astro.url.pathname, `https://${config.site.canonicalHost}`).toString();
+// With build.format "file", Astro.url.pathname is "/book.html" (and "/index.html" for the home page) at build
+// time. Workers assets redirect those to "/book" and "/", so canonical, og:url and the current nav item use the
+// extensionless path the visitor actually sees.
+const path = Astro.url.pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "") || "/";
+const canonical = new URL(path, `https://${config.site.canonicalHost}`).toString();
 const robots = !config.site.indexing || noindex ? "noindex" : "index, follow";
 const org = {
   "@context": "https://schema.org",
@@ -55,7 +59,7 @@ const hasCta = config.nav.some((item) => item.cta);
             <li class:list={[{ "hidden md:block": hasCta && !item.cta }]}>
               <a
                 href={item.href}
-                aria-current={Astro.url.pathname === item.href ? "page" : undefined}
+                aria-current={path === item.href ? "page" : undefined}
                 class:list={["whitespace-nowrap", { "button-primary inline-flex min-h-11 items-center no-underline": item.cta }]}
               >{item.label}</a>
             </li>
