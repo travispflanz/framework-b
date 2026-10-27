@@ -64,7 +64,7 @@ async function diagnose() {
   const first = await fetch(u, { method: "POST", headers: { "content-type": "application/json" }, body: "{}", redirect: "manual" });
   out.push(`- POST answered ${first.status}${first.headers.get("location") ? ` with a redirect to ${new URL(first.headers.get("location")).host}` : ""}.`);
   const get = await fetch(u, { redirect: "follow" });
-  const body = (await get.text()).slice(0, 2000);
+  const body = await get.text();
   out.push(`- GET answered ${get.status}${/framework-b-mailer/.test(body) ? " with the mailer's own reply, so the deployment is reachable" : /accounts\.google\.com|ServiceLogin|Sign in/i.test(body) ? " with a Google sign-in page: the web app's access isn't \"Anyone\"" : ""}.`);
   const title = /<title>([^<]{0,120})<\/title>/i.exec(body)?.[1]?.trim();
   const said = body.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 240);
