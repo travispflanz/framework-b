@@ -41,7 +41,8 @@ This site was built with Framework B. `site.config.json` holds every brand value
   - a stale tokens.css;
   - content that doesn't match the schema;
   - reviews, ratings, customer counts or percentages without a source in `PRODUCT.md` (truth gate);
-  - generic AI words (copy lint).
+  - generic AI words (copy lint);
+  - Impeccable findings in the source or on any rendered page, including any font, colour, radius or font size outside `DESIGN.md`. For a deliberate exception, run `npx impeccable ignores add-value <rule> <value> --reason "..."`; it is recorded in `.impeccable/config.json` for review.
 
 ## Rules
 - Work on a branch and open a pull request. `main` deploys production immediately.

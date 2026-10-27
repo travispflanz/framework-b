@@ -190,7 +190,11 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
   - Accessibility, Best Practices and SEO: 100
   - CLS below 0.1
   - Performance: a 90 tripwire measured on production
-- **Design checks:** `design.md lint`, Stylelint token enforcement, `impeccable detect` on source and the preview URL, a copy lint, and the truth gate (no testimonial, logo, statistic or face without an owner source). Then at most three rounds of vision-model critique, keeping a revision only if it wins a side-by-side comparison both ways round.
+- **Design checks:** `design.md lint`, `impeccable detect` on the source and on every page at 1280 and 390 px, a copy lint, and the truth gate (no testimonial, logo, statistic or face without an owner source). Then at most three rounds of vision-model critique, keeping a revision only if it wins a side-by-side comparison both ways round (not built).
+  - Impeccable 4.8.0 (Apache-2.0; its engine binary ships as an npm optional dependency, so CI needs no download) runs 62 deterministic rules ([catalog](https://impeccable.style/slop); [npm](https://www.npmjs.com/package/impeccable), checked 2026-10-26). Rendered pages are scanned with `--cdp` in the browser QA already has open, so previews behind Access work and the detector never launches its own browser.
+  - It reads `DESIGN.md`: a font outside it is a warning, and a colour, radius or font size outside it is an advisory. QA fails on all four, because they break the design contract (tested 2026-10-26 by adding an off-palette font, colour and radius to a component). This replaces the planned Stylelint check.
+  - A deliberate exception goes in the site's `.impeccable/config.json` with a reason: `npx impeccable ignores add-value <rule> <value> --reason "..."` ([config and ignores](https://www.impeccable.style/docs/config), checked 2026-10-26).
+  - `starter/scripts/test/impeccable-cdp.test.mjs` proves the rendered scan isn't vacuous: a page with known tells fails, a plain page passes.
 
 ## 9. Client editing (EmDash)
 
@@ -316,8 +320,6 @@ The design phase's foundation is in `starter/`. The intake steps (P2.1–P2.7) a
 - **Not built yet:**
   - style tiles and the this-or-that preview (P2.5–P2.6);
   - the pairwise autopilot judge as a script;
-  - `impeccable detect`;
-  - Stylelint token enforcement (Tailwind utilities in `.astro` files make the palette reset the main guard);
   - image plans.
 
 Rules:

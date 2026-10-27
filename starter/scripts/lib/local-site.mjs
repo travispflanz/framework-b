@@ -75,12 +75,12 @@ export async function startLocalSite({ port = 8799, name = "local" } = {}) {
 
 // Chromium for Playwright. PW_CHROMIUM points at a preinstalled browser when Playwright's own isn't downloaded.
 // Behind a TLS-inspecting proxy (some cloud sandboxes), certificate errors are ignored; never in CI.
-export function launchBrowser() {
+export function launchBrowser({ args = [] } = {}) {
   const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
   return chromium.launch({
     executablePath: process.env.PW_CHROMIUM || undefined,
     proxy: proxy ? { server: proxy, bypass: "localhost,127.0.0.1" } : undefined,
-    args: proxy ? ["--ignore-certificate-errors"] : [],
+    args: [...(proxy ? ["--ignore-certificate-errors"] : []), ...args],
   });
 }
 
