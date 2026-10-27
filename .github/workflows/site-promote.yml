@@ -1,0 +1,98 @@
+# Reusable: moves an idea site to launch mode on its own domain with scripts/site/promote.mjs. Called only from the
+# owner's private ops repo, which holds the secrets.
+#   phase "prepare": sets up the domain, data, mail, Access and Turnstile, then opens a pull request in the site's
+#                    repo with the launch-mode files. Production changes when the owner merges it.
+#   phase "finish":  after the merge deploys, copies anything that arrived in between, moves the uptime monitors,
+#                    checks the domain and runs the launch QA gate on it.
+# Status: untested end to end until the first promote on a real domain.
+name: site promote
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      domain: { type: string, required: true, description: "apex domain, an active zone in the account" }
+      phase: { type: string, default: prepare, description: '"prepare" or "finish"' }
+      postal_address: { type: string, default: "", description: "required for prepare (CAN-SPAM)" }
+      dry_run: { type: string, default: "no", description: '"yes" only checks the preconditions' }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      GH_SITES_TOKEN: { required: true }
+      RESEND_ADMIN_KEY: { required: false }
+      UPTIMEROBOT_API_KEY: { required: false }
+permissions:
+  contents: read
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency: site-${{ inputs.site_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          path: framework
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          echo "OWNER=$owner" >> "$GITHUB_ENV"
+          git clone -q "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
+          git -C site config user.name "Framework B"
+          git -C site config user.email "framework-b@users.noreply.github.com"
+          cd site && npm ci --no-audit --no-fund > /dev/null
+      - name: Promote (${{ inputs.phase }})
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RESEND_ADMIN_KEY: ${{ secrets.RESEND_ADMIN_KEY }}
+          UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
+          POSTAL_ADDRESS: ${{ inputs.postal_address }}
+          DOMAIN: ${{ inputs.domain }}
+          PHASE: ${{ inputs.phase }}
+          DRY: ${{ inputs.dry_run }}
+        run: node framework/scripts/site/promote.mjs --site site --domain "$DOMAIN" --phase "$PHASE" --report promote-report.md $([ "$DRY" = "yes" ] && echo --dry-run)
+      - name: Push the branch and open a pull request
+        if: inputs.phase == 'prepare' && inputs.dry_run != 'yes'
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+          DOMAIN: ${{ inputs.domain }}
+        run: |
+          branch="promote/${DOMAIN}"
+          git -C site checkout -q -b "$branch"
+          git -C site add -A
+          git -C site commit -q -m "Promote to launch mode on ${DOMAIN}"
+          git -C site push -q origin "$branch"
+          body=$(jq -Rs . < promote-report.md)
+          code=$(curl -s -o pr.json -w '%{http_code}' -X POST -H "Authorization: Bearer $GH_SITES_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${OWNER}/site-${SITE_ID}/pulls" -d "{\"title\":$(jq -Rn --arg t "Launch on ${DOMAIN}" '$t'),\"head\":\"$branch\",\"base\":\"main\",\"body\":$body}")
+          if [ "$code" = "201" ]; then echo "Pull request: $(jq -r .html_url pr.json)" | tee -a "$GITHUB_STEP_SUMMARY";
+          else echo "Branch pushed, but the pull request wasn't opened (HTTP $code). Open one from $branch by hand." | tee -a "$GITHUB_STEP_SUMMARY"; fi
+          [ "$code" = "201" ]
+      - name: Launch QA gate on the domain
+        if: inputs.phase == 'finish'
+        env:
+          DOMAIN: ${{ inputs.domain }}
+        run: |
+          cd site
+          npx playwright install --with-deps chromium > /dev/null
+          npm run build > /dev/null
+          npm run qa -- --url "https://${DOMAIN}" --launch | tee ../qa.log
+          tail -n 1 ../qa.log >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: promote-${{ inputs.site_id }}-${{ inputs.phase }}
+          path: |
+            promote-report.md
+            site/qa-output/
+          if-no-files-found: ignore

@@ -33,13 +33,17 @@ How an AI agent builds, launches and hands off a website with this framework. Wr
 
 Why ideas share resources: the Workers Free plan allows 10 D1 databases and 5 Cron Triggers per account ([D1 limits](https://developers.cloudflare.com/d1/platform/limits/), checked 2026-10-21).
 
-`promote` moves an idea to launch mode:
+`promote` moves an idea to launch mode (`scripts/site/promote.mjs`, run by the ops repo's `site promote` workflow; untested end to end until the first real domain). It takes an apex domain that is already an active zone in the account, and a postal address (CAN-SPAM).
 
-1. Attach the domain.
-2. Create the site's own D1 and copy its leads over.
-3. Create its own bucket and copy its uploads.
-4. Set up Resend on `mail.<domain>` and switch the mailer.
-5. Apply the indexing choice and post the owner checklist.
+- **prepare**, before a pull request in the site's repo:
+  1. Checks: the site is in idea mode; the zone is active; the owner's inbox is a verified Email Routing destination; the D1 budget has room for two more databases (Free plan: 10 per account, so each launch site uses 2 of them).
+  2. Zone: Always Use HTTPS, TLS 1.2 minimum, Email Routing on, a proxied `www` record and a `www` → apex Single Redirect (301, path and query kept).
+  3. Data: `<id>-prod` and `<id>-staging` databases with migrations; the site's leads and subscribers copied from `fb-ideas` with `INSERT OR IGNORE`; an `<id>-uploads` bucket with every stored upload the leads point at. The idea-mode rows stay in `fb-ideas` until the owner approves deleting them.
+  4. Mail: owner notifications go out through the `send_email` binding from `notify@<domain>` to the verified inbox, which is free on Workers Free ([Email Service](https://developers.cloudflare.com/email-service/), checked 2026-10-27). With the owner's full-access Resend key (the ops secret `RESEND_ADMIN_KEY`), it also sets up `mail.<domain>` in Resend (domain, DNS records, verification) and stores a sending-only key restricted to that domain as the Worker secret `RESEND_API_KEY`; lead auto-replies then come from `hello@mail.<domain>`. Without the key, auto-replies stay off.
+  5. Access and Turnstile: the domain's `/admin` (and `/_emdash` with editing on) join the existing Access applications, which keeps their audience tags; the domain joins the site's Turnstile widget.
+  6. The domain becomes a Custom Domain of the Worker through the API ([Workers domains](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/update/), checked 2026-10-27). The deploy token needs Workers Routes for the zone; later Workers Builds deploys keep the same route, which needs no zone permission ([Workers authorization](https://developers.cloudflare.com/workers/authorization/workers/), checked 2026-10-27).
+  7. Files: `site.config.json` (launch mode, canonical host, postal address, indexing on, mailers) and `wrangler.jsonc` (Custom Domain route, own databases and bucket, `send_email` bound to the owner's inbox), plus `DECISIONS.md` and `HANDOFF.md` with the owner checklist.
+- **finish**, after the owner merges and Workers Builds deploys: copies anything that reached `fb-ideas` in between, checks the domain (health, indexable, `www` redirect, `/admin` locked, noindex on the `workers.dev` twin), moves the uptime monitors to the domain and runs the launch QA gate. Then the owner sends one real lead to prove the notification.
 
 `teardown` first exports an idea's leads and uploads to the backup bucket. Then it deletes the idea's Worker, rows, objects and Access app.
 

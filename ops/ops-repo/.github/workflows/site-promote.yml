@@ -1,0 +1,25 @@
+# Caller: moves an idea site to launch mode on its own domain. Replace OWNER.
+# Run "prepare" first (it opens a pull request in the site's repo), merge it, then run "finish".
+# Optional secret RESEND_ADMIN_KEY: the owner's full-access Resend key, for lead auto-replies (docs/TOKENS.md).
+name: site promote
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      domain: { description: "apex domain (an active zone in the Cloudflare account)", required: true }
+      phase: { description: "prepare or finish", required: true, default: prepare, type: choice, options: [prepare, finish] }
+      postal_address: { description: "postal address for marketing email (prepare only)", required: false, default: "" }
+      dry_run: { description: "yes = only check the preconditions", required: false, default: "no", type: choice, options: ["no", "yes"] }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  promote:
+    uses: OWNER/framework-b/.github/workflows/site-promote.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      domain: ${{ inputs.domain }}
+      phase: ${{ inputs.phase }}
+      postal_address: ${{ inputs.postal_address }}
+      dry_run: ${{ inputs.dry_run }}
+    secrets: inherit
