@@ -11,6 +11,7 @@ on:
       issue: { type: string, required: true, description: "path in the site repo, e.g. newsletter/2026-11-01-dates.md" }
       mode: { type: string, default: test, description: '"test" or "send"' }
       to: { type: string, default: "", description: "test only: the inbox to send to (default: the site owner)" }
+      site_ref: { type: string, default: main, description: "site branch to read the issue from; a draft issue on a pull request branch can be tested before it is merged. Sending needs main." }
       force: { type: string, default: "no", description: '"yes" sends an issue again' }
     secrets:
       RESEND_ADMIN_KEY: { required: true }
@@ -37,9 +38,12 @@ jobs:
         env:
           GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
           SITE_ID: ${{ inputs.site_id }}
+          SITE_REF: ${{ inputs.site_ref }}
+          MODE: ${{ inputs.mode }}
         run: |
           owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
-          git clone -q --depth 1 "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
+          if [ "$MODE" = "send" ] && [ "$SITE_REF" != "main" ]; then echo "Sending reads the issue from main: merge its pull request first." >&2; exit 1; fi
+          git clone -q --depth 1 --branch "$SITE_REF" "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" site
       - name: Newsletter (${{ inputs.mode }})
         env:
           RESEND_ADMIN_KEY: ${{ secrets.RESEND_ADMIN_KEY }}

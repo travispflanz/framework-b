@@ -9,6 +9,7 @@ on:
       mode: { description: "test or send", required: true, default: test, type: choice, options: [test, send] }
       to: { description: "test only: inbox to send to (blank = the site owner)", required: false, default: "" }
       force: { description: "yes = send an issue that was already sent", required: false, default: "no", type: choice, options: ["no", "yes"] }
+      site_ref: { description: "site branch with the issue (test a draft before merging; send needs main)", required: false, default: main }
       framework_ref: { description: "framework-b branch or tag", required: false, default: main }
 jobs:
   newsletter:
@@ -21,4 +22,5 @@ jobs:
       mode: ${{ inputs.mode }}
       to: ${{ inputs.to }}
       force: ${{ inputs.force }}
+      site_ref: ${{ inputs.site_ref }}
     secrets: inherit
