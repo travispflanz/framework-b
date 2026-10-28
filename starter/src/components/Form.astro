@@ -94,7 +94,7 @@ const groups = (options) => options.reduce((out, o) => {
               </select>
             ) : (
               <input id={fieldId(f.name)} name={f.name} type={f.type} required={f.required} maxlength={f.maxLength}
-                autocomplete={f.autocomplete} placeholder={f.placeholder}
+                autocomplete={f.autocomplete} placeholder={f.placeholder} inputmode={f.inputmode}
                 aria-describedby={[f.hint && `${fieldId(f.name)}-hint`, `${fieldId(f.name)}-err`].filter(Boolean).join(" ")}
                 class="rounded-[var(--radius-control)] border border-[var(--color-field)] bg-[var(--color-bg)] p-3" />
             )}

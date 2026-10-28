@@ -318,7 +318,7 @@ Checked when the Worker starts (`packages/core/src/config.js`); a bad combinatio
 | `drips` | `{ "forms": [...], "from": "news", "emails": [{ "after": "1 day", "subject": "...", "text": "..." }] }`. Launch mode with Resend only; up to 10 emails |
 | `editing` | `{ "enabled": true, ... }`, written by `node scripts/editing.mjs on` |
 
-A form field is `{ "name", "type", "label", "required", "autocomplete", "hint", "placeholder", "options", "step", "maxLength" }`
+A form field is `{ "name", "type", "label", "required", "autocomplete", "hint", "placeholder", "inputmode", "options", "step", "maxLength" }`
 (a form may also have a `note`, one line under the submit button; hints, the note and the consent label take inline
 formatting and links):
 
