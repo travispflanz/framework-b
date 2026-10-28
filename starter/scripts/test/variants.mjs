@@ -33,7 +33,7 @@ try {
   run("node", ["scripts/design-tokens.mjs"]);
 
   // Test images: plain gradients, given the design's treatment, credited as generated. Two are marked photorealistic
-  // so the "Generated image" label is checked in a positioned slot (full-bleed hero) and an ordinary one (split).
+  // to check that no generated image carries a label on the page (full-bleed hero and split).
   mkdirSync("src/assets/images", { recursive: true });
   const tints = [["#24425c", "#7aa0b8"], ["#5c3d24", "#c9a37a"], ["#2f4d3a", "#97c2a4"], ["#3d2f4d", "#b3a2c9"]];
   const imagery = readImagery();
@@ -118,7 +118,7 @@ try {
   run("npm", ["run", "build"]);
   run("node", ["scripts/qa.mjs"]);
   const hero = readFileSync("dist/variants-a.html", "utf8");
-  if (!hero.includes("Generated image")) throw new Error("the photorealistic generated image has no visible label");
+  if (hero.includes("Generated image")) throw new Error("a generated image carries a label on the page; they are listed on /credits only");
   const b = readFileSync("dist/variants-b.html", "utf8");
   for (const want of ["<strong>bold</strong>", "<em>italic</em>", 'href="/variants-a" class="underline', 'rel="noopener"', "What we never do", "Second Person"]) if (!b.includes(want)) throw new Error(`variants-b is missing ${want}`);
   const c = readFileSync("dist/variants-c.html", "utf8");

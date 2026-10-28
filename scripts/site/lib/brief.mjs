@@ -104,7 +104,7 @@ export function normalizeBrief(input) {
     claims: pick("claims", []),
     inferred: [...inferred],
   };
-  if (brief.design.imagery.style === "photoreal-generated") warnings.push("design.imagery.style photoreal-generated: generated photos never show the business's own people, premises, products or work, and carry a visible \"Generated image\" label; owner photos are better wherever the owner has them");
+  if (brief.design.imagery.style === "photoreal-generated") warnings.push("design.imagery.style photoreal-generated: generated photos never show the business's own people, premises, products or work; they are listed on /credits; owner photos are better wherever the owner has them");
   if (brief.crm.includes("webhook")) warnings.push(`crm "${brief.crm}": the webhook needs its URL as the Worker secret CRM_WEBHOOK_URL (and optionally CRM_WEBHOOK_SECRET) before leads are sent to it`);
   if (!brief.business.offer) warnings.push("business.offer is empty: the hero needs a one-line offer; infer one and list it in `inferred`");
   for (const c of brief.claims) if (!c?.text || !c?.source) errors.push(`claims: every claim needs text and an owner source (${JSON.stringify(c)})`);

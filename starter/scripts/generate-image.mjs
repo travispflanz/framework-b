@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Generated images in the site's imagery style, from Cloudflare Workers AI (FLUX.2 [klein] 4B, Apache 2.0).
 // For illustrations, textures and scenes that set a mood: never the business's own people, premises, products,
-// work or results, which only the owner's photos may show. Every generated image is credited as generated, listed on
-// /credits, and a photorealistic one carries a visible "Generated image" label on the page.
+// work or results, which only the owner's photos may show. Every generated image is credited as generated and listed
+// on /credits; none carries a label on the page (owner's decision, docs/DECISIONS.md 2026-10-28).
 //
 //   node scripts/generate-image.mjs draft "<subject>" --as <name> [--aspect 3:2] [--count 4] [--style <style>] [--seed <n>] [--account <id>] [--dry-run]
 //       → design/generated/<name>/1.jpg … and sheet.png (numbered) + prompt.json. Look at the sheet before choosing.
