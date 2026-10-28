@@ -260,6 +260,30 @@ try {
     await context.close();
   }
 
+  // ---------- 5c. Phones: "Generated image" labels on the first screen stay visible ----------
+  // The fixed action bar sits at the bottom of the screen, so a label near the bottom of the first screen (a
+  // full-bleed hero's) can end up under it. Checked on three common phone sizes.
+  {
+    const covered = [];
+    for (const [width, height] of [[360, 740], [390, 844], [412, 915]]) {
+      const context = await browser.newContext({ viewport: { width, height }, reducedMotion: "reduce", isMobile: true, hasTouch: true });
+      await auth.playwright(context);
+      const page = await context.newPage();
+      for (const path of pages) {
+        await page.goto(base + path, { waitUntil: "load" });
+        const n = await page.evaluate(() => [...document.querySelectorAll("[data-generated-label]")].filter((el) => {
+          const r = el.getBoundingClientRect();
+          if (!r.width || r.top >= innerHeight || r.bottom <= 0) return false;
+          const hit = document.elementFromPoint(r.left + r.width / 2, Math.min(r.top + r.height / 2, innerHeight - 1));
+          return !el.contains(hit);
+        }).length);
+        if (n) covered.push(`${path} at ${width}x${height}`);
+      }
+      await context.close();
+    }
+    check('phone: no "Generated image" label on the first screen is covered', !covered.length, covered.join(", "));
+  }
+
   // ---------- 5c. Motion: nothing moves for people who ask for reduced motion ----------
   if (composition.motion !== "none") {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: "reduce" });

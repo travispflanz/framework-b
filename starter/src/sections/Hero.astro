@@ -25,7 +25,7 @@ const onDark = variant === "full-bleed";
   <section id={value.anchor_id || undefined} class="hero-bleed relative isolate overflow-hidden bg-ink px-gutter py-section">
     <Picture image={value.image} sizes="100vw" class="parallax absolute inset-0 -z-20 size-full object-cover" eager label={false} />
     <div class="hero-scrim absolute inset-0 -z-10" aria-hidden="true"></div>
-    {isLabelled(value.image) && <span class="absolute bottom-2 right-2 rounded-control bg-ink px-2 py-1 text-label text-bg">Generated image</span>}
+    {isLabelled(value.image) && <span data-generated-label class="absolute right-2 bottom-2 rounded-control bg-ink px-2 py-1 text-label text-bg max-sm:top-2 max-sm:bottom-auto">Generated image</span>}
     <div class:list={["mx-auto grid w-full max-w-content gap-6 py-16", { "justify-items-center text-center": center }]}>
       {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}
       <h1 class="max-w-[22ch] font-display text-display text-balance text-bg">{value.headline}</h1>

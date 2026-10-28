@@ -21,7 +21,7 @@ const widths = asset ? [480, 800, 1200, 1600].filter((w) => w <= asset.width) : 
 {asset && labelled ? (
   <span class:list={["block overflow-hidden", { relative: !positioned }, className]}>
     <Image src={asset} alt={image.alt || ""} widths={widths} sizes={sizes} class="block size-full object-cover" loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : undefined} />
-    <span class="absolute bottom-2 right-2 rounded-control bg-ink px-2 py-1 text-label text-bg">Generated image</span>
+    <span data-generated-label class="absolute bottom-2 right-2 rounded-control bg-ink px-2 py-1 text-label text-bg">Generated image</span>
   </span>
 ) : asset ? (
   <Image src={asset} alt={image.alt || ""} widths={widths} sizes={sizes} class={className} loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : undefined} />

@@ -48,7 +48,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - Images in a generated style: `node scripts/generate-image.mjs draft "<subject>" --as <name>`, look at `design/generated/<name>/sheet.png`, then `use <name> <n> --alt "..."`. Needs the Workers AI token (a network secret on the agent's environment, or `WORKERS_AI_TOKEN`) and `CLOUDFLARE_ACCOUNT_ID`; otherwise the ops repo's **site images** workflow runs it with the token kept there. Stock and generated images get the design's treatment automatically; `node scripts/images.mjs treat <file>` applies it to an owner photo. Photorealistic generated images get a visible "Generated image" label; every generated image is listed on `/credits`.
 - The QA gate fails on:
   - a stale tokens.css or design.json;
-  - a home page longer than the phone budget at 390×844, a first phone screen without the `<h1>`, or a missing phone action bar;
+  - a home page longer than the phone budget at 390×844, a first phone screen without the `<h1>`, a missing phone action bar, or a "Generated image" label the action bar covers on a first phone screen;
   - anything animating when the visitor asks for reduced motion;
   - content that doesn't match the schema;
   - reviews, ratings, customer counts or percentages without a source in `PRODUCT.md` (truth gate);
