@@ -2,7 +2,7 @@
 
 Idea sites live on `workers.dev`. Cloudflare can only send email from a domain set up for Email Routing in the account, so these sites send through this small script in a Google account instead. It is free and runs in Google's cloud: nothing runs on your computer.
 
-**Status:** written, not yet tested end to end. The framework's self-test must prove it before v1.0.0.
+**Status:** in use since 2026-10-27. Owner notifications from idea sites and from launch sites on a domain whose mail is elsewhere, lead auto-replies on idea sites, and the CRM Google Sheet all went through it live.
 
 ## Set up (once, about 10 minutes)
 

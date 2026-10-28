@@ -1,0 +1,19 @@
+# Checks that the docs match the repo (scripts/docs-check.mjs): every path, script and ops workflow a doc names
+# exists, and every ops caller in ops/ops-repo matches the reusable workflow it calls. No secrets, no network.
+name: docs check
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/docs-check.mjs

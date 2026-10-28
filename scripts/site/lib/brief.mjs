@@ -50,7 +50,7 @@ export function normalizeBrief(input) {
   if (!/^[a-z][a-z0-9-]{1,40}[a-z0-9]$/.test(id)) errors.push(`site id "${id}" must be 3-42 lowercase letters, digits or dashes, starting with a letter; set business.id`);
 
   const mode = pick("mode", "idea", (v) => ["idea", "launch"].includes(v));
-  if (mode === "launch") errors.push("launch mode isn't built yet (roadmap step 9); start as an idea and promote it later");
+  if (mode === "launch") errors.push("site create makes idea sites only: build it as an idea, then run site promote to put it on its domain (docs/SPEC.md section 2)");
   const region = String(pick("audienceRegion", "us", (v) => typeof v === "string")).toLowerCase();
   if (GDPR_CASL.has(region)) warnings.push(`audienceRegion "${region}": every form opts visitors in automatically, which GDPR and CASL generally don't allow; ask the owner before building (SPEC section 5)`);
 
@@ -107,6 +107,7 @@ export const createInputs = (b) => ({
   EDITING: b.editing ? "on" : "off",
   INDEXING: b.indexing ? "on" : "off",
   CRM: b.crm,
+  AUTO_REPLY: b.autoReply ? "on" : "off",
 });
 
 // DECISIONS.md rows for the kickoff answers ("owner" for stated, "inferred" for inferred or default).

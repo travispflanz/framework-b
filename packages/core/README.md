@@ -1,12 +1,16 @@
 # @framework-b/core
 
-The runtime every Framework B site's Worker is built from. Version `0.1.0` (untested on a live deploy).
+The runtime every Framework B site's Worker is built from. Version `0.4.0` (`CORE_VERSION` in `src/index.js`), running on live idea and launch sites since 2026-10-27.
 
-A site vendors a tagged copy of this folder and wires it up in three lines:
+Versions: 0.1.0 forms, uploads, mailers, unsubscribe and admin; 0.2.0 the EmDash fallback (`createWorker(config, { fallback })`); 0.2.1 a fix found on the first real site; 0.3.0 the CRM mirror; 0.4.0 drips.
+
+A site vendors a copy of this folder into `core/` (`scripts/vendor-core.mjs` at `site create`; `site update` replaces it with a newer copy) and wires it up in a few lines:
 
 ```js
 import config from "../site.config.json";
-import { createWorker } from "../core/src/index.js";
+import { createWorker, dripWorkflow } from "../core/src/index.js";
+
+export const DripWorkflow = dripWorkflow(config); // idle unless site.config.json has "drips"
 export default createWorker(config);
 ```
 
@@ -17,7 +21,7 @@ export default createWorker(config);
 | `POST /api/submit/:form` | Origin check, 64 KB cap, per-IP rate limit, honeypot, Turnstile, schema validation. Saves the lead and auto-subscribes the visitor in one D1 batch, then sends mail in the background. Returns JSON, or a 303 to the thank-you page for a plain HTML form post. |
 | `PUT /api/upload/:lead` | Takes the file for a lead, using the signed single-use URL the submit response returned. The body must match the signed size and type. It is streamed to R2 at `<site>/<lead>/<name>`. |
 | `GET /api/health` | Checks the Worker and D1. |
-| `GET` / `POST /u` | Unsubscribe. GET shows a button; only POST changes anything, because mail scanners prefetch links. |
+| `GET` / `POST /u` | Unsubscribe. GET shows a button; only POST changes anything, because mail scanners prefetch links. Accepts the one-click POST from `List-Unsubscribe-Post` (RFC 8058). |
 | `GET /admin/*` | Lead list, lead detail, file download, `leads.csv`, `subscribers.csv`. Needs a valid Cloudflare Access JWT. Fails closed. |
 
 All other paths are static assets. Static responses never run the Worker, so indexing headers come from the `_headers` file that `buildHeadersFile(config)` writes at build time.
@@ -54,13 +58,8 @@ All other paths are static assets. Static responses never run the Worker, so ind
 
 `npm test` runs the suite inside workerd (`@cloudflare/vitest-plugin`) with a local D1, R2 and rate limiter. Outbound calls (Turnstile, Apps Script, Access keys) are mocked. GitHub Actions runs it on every pull request (`.github/workflows/core-test.yml`).
 
-The tests do **not** cover:
-- a real deploy;
-- real Turnstile keys;
-- the real Apps Script redirect, or the Sheet the mirror writes to;
-- Resend (drips are tested with Resend mocked and the Workflow's sleeps switched off);
-- `send_email`;
-- the rate limit binding on the Workers Free plan;
-- an upload larger than a few bytes.
-
-All of these are untested until the template self-test (roadmap step 7) and the second test build.
+The tests do **not** cover the following; each is covered live instead, as noted:
+- a real deploy, real Turnstile keys, the Apps Script redirect and Sheet, Resend, `send_email` and an upload of a real file: the weekly live self-test (ops repo `site selftest`) and the launch tests on 2026-10-27 (docs/SPEC.md sections 2 and 10);
+- drips with real sleeps: tested in workerd with the sleeps switched off, and live once with a 20-minute first wait;
+- the rate limit binding: it deploys on the Workers Free plan (every site has one), but whether it limits there is **untested**;
+- uploads larger than a few megabytes: **untested**.
