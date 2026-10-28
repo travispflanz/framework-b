@@ -39,6 +39,12 @@ export async function verify(secret, message, signature) {
   return safeEqual(await sign(secret, message), signature);
 }
 
+// The same base64url HMAC-SHA256 with any secret length, for links signed by an older system (LEGACY_UNSUB_SECRET).
+export async function verifyLegacy(secret, message, signature) {
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return safeEqual(b64url(await crypto.subtle.sign("HMAC", key, enc.encode(message))), signature);
+}
+
 // Hex HMAC-SHA256, for signing webhook bodies (CRM mirror). The receiver recomputes it with the shared secret.
 export async function hmacHex(secret, message) {
   const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);

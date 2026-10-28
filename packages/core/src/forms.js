@@ -118,6 +118,10 @@ export async function handleSubmit(request, env, ctx, config, formId) {
   if (!ts.ok) return json({ ok: false, error: ts.reason }, 403);
 
   const { values, errors } = validateFields(form, body);
+  // Checkbox opt-in: the box is the only thing that subscribes. A required box must be ticked to send at all.
+  const checkboxMode = config.optIn.mode === "checkbox";
+  const ticked = ["on", "yes", "true", "1"].includes(String(body.consent ?? "").toLowerCase()) || body.consent === true;
+  if (checkboxMode && form.consent === "required" && !ticked) errors.consent = "required";
   const fileReq = fileRequest(form, body);
   if (fileReq.error) errors.file = fileReq.error;
   if (Object.keys(errors).length) return json({ ok: false, error: "invalid", fields: errors }, 422);
@@ -128,9 +132,11 @@ export async function handleSubmit(request, env, ctx, config, formId) {
   const page = clip(body.page || request.headers.get("referer") || "", 500).split("?")[0];
   const attr = attribution(body);
   const file = fileReq.file;
-  const consentText = config.optIn.text;
+  const consents = !checkboxMode || ticked;
+  // The wording the visitor agreed to, kept on the lead row; empty when a checkbox form was sent without the box.
+  const consentText = checkboxMode ? (ticked ? config.optIn.label : "") : config.optIn.text;
 
-  await env.DB.batch([
+  const statements = [
     env.DB.prepare(
       `INSERT INTO leads (id, site, form, email, name, phone, message, fields_json, consent_text, page, attribution_json,
          upload_name, upload_type, upload_size, upload_status, country, created_at)
@@ -154,16 +160,19 @@ export async function handleSubmit(request, env, ctx, config, formId) {
       request.cf?.country || null,
       now,
     ),
-    // Every form is a sign-up form. Submitting one subscribes the visitor, and re-subscribes someone who
-    // unsubscribed earlier: filling in a form that says "you'll get emails" is a new opt-in.
-    // The lead row keeps the wording shown each time, so every opt-in stays on record.
+  ];
+  // Auto opt-in: every form is a sign-up form, and submitting one subscribes the visitor (re-subscribing someone who
+  // unsubscribed earlier: filling in a form that says "you'll get emails" is a new opt-in). Checkbox mode: only a
+  // ticked box does that. The lead row keeps the wording agreed to each time, so every opt-in stays on record.
+  if (consents) statements.push(
     env.DB.prepare(
       `INSERT INTO subscribers (site, email, status, source_form, consent_text, created_at, updated_at)
        VALUES (?, ?, 'subscribed', ?, ?, ?, ?)
        ON CONFLICT (site, email) DO UPDATE SET status = 'subscribed', source_form = excluded.source_form,
          consent_text = excluded.consent_text, updated_at = excluded.updated_at, unsubscribed_at = NULL`,
     ).bind(config.site.id, email, formId, consentText, now, now),
-  ]);
+  );
+  await env.DB.batch(statements);
 
   const lead = { id, email, fields: values, page, upload: file };
   ctx.waitUntil(deliver(env, config, formId, lead, url.origin).catch((e) => console.error("deliver", e)));
@@ -171,7 +180,7 @@ export async function handleSubmit(request, env, ctx, config, formId) {
     const row = crmRow(config, { id, form: formId, email, createdAt: now, page, country: request.cf?.country, fields: values, attribution: attr });
     ctx.waitUntil(mirror(env, config, row).catch((e) => console.error("crm mirror", e)));
   }
-  if (config.drips) ctx.waitUntil(startDrip(env, config, formId, lead).catch((e) => console.error("drip", e)));
+  if (config.drips && consents) ctx.waitUntil(startDrip(env, config, formId, lead).catch((e) => console.error("drip", e)));
 
   const res = { ok: true, id, redirect: form.thanks };
   if (file) {

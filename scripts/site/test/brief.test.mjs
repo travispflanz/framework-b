@@ -31,7 +31,7 @@ test("answers present are stated unless listed as inferred", () => {
   assert.equal(sources.shape, "inferred");
   assert.equal(sources["business.offer"], "inferred");
   assert.equal(sources["design.words"], "stated");
-  assert.deepEqual(createInputs(brief), { SITE_ID: "example-co", SITE_NAME: "Example Co", SITE_TAGLINE: "Clean bins at the curb.", OWNER_EMAIL: "owner@example.com", EDITING: "off", INDEXING: "on", CRM: "none", AUTO_REPLY: "off" });
+  assert.deepEqual(createInputs(brief), { SITE_ID: "example-co", SITE_NAME: "Example Co", SITE_TAGLINE: "Clean bins at the curb.", OWNER_EMAIL: "owner@example.com", EDITING: "off", INDEXING: "on", CRM: "none", AUTO_REPLY: "off", CONSENT: "auto" });
 });
 
 test("required answers and bad values are errors", () => {
@@ -48,12 +48,17 @@ test("required answers and bad values are errors", () => {
 test("EU, newsletter-on-idea and CRM produce warnings, not errors", () => {
   const { errors, warnings } = normalizeBrief({ business: { name: "Example Co", offer: "x" }, owner: { email: "o@example.com" }, audienceRegion: "EU", newsletter: true, crm: "webhook" });
   assert.deepEqual(errors, []);
-  assert.ok(warnings.some((w) => w.includes("GDPR")));
+  assert.ok(!warnings.some((w) => w.includes("GDPR"))); // an EU audience now defaults to the consent box
   assert.ok(warnings.some((w) => w.includes("subscriber collection only")));
   assert.ok(warnings.some((w) => w.includes("CRM_WEBHOOK_URL")));
   assert.ok(normalizeBrief({ business: { name: "Example Co" }, owner: { email: "o@example.com" }, crm: "hubspot" }).errors.some((e) => e.startsWith("crm")));
   assert.equal(createInputs(normalizeBrief({ business: { name: "Example Co" }, owner: { email: "o@example.com" }, crm: "sheet" }).brief).CRM, "sheet");
   assert.equal(createInputs(normalizeBrief({ business: { name: "Example Co" }, owner: { email: "o@example.com" }, autoReply: true }).brief).AUTO_REPLY, "on");
+  // An EU audience defaults to the consent box; choosing auto there is a warning.
+  const eu = normalizeBrief({ business: { name: "Example Co" }, owner: { email: "o@example.com" }, audienceRegion: "eu" });
+  assert.equal(eu.brief.consent, "checkbox");
+  assert.ok(!eu.warnings.some((w) => w.includes("GDPR")));
+  assert.ok(normalizeBrief({ business: { name: "Example Co" }, owner: { email: "o@example.com" }, audienceRegion: "eu", consent: "auto" }).warnings.some((w) => w.includes("GDPR")));
 });
 
 test("decision rows record who decided each answer, and indexing as chosen", () => {

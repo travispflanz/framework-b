@@ -1,5 +1,6 @@
 ---
-// Renders a form from its schema in site.config.json. Every form is a sign-up form (auto opt-in).
+// Renders a form from its schema in site.config.json. Every form is a sign-up form: auto opt-in (one line under the
+// button) or, with optIn.mode "checkbox", a consent box before the button.
 // Fields may carry "step": n to split the form into steps; validation runs per step.
 import raw from "../../site.config.json";
 import { loadConfig } from "../../core/src/config.js";
@@ -80,12 +81,19 @@ const fieldId = (name) => `${id}-${name}`;
         </div>
       ) : (
         <div class="grid gap-4">
+          {config.optIn.mode === "checkbox" && (
+            <div class="flex items-start gap-3">
+              <input type="checkbox" id={fieldId("consent")} name="consent" required={form.consent === "required"} aria-describedby={`${fieldId("consent")}-err`} class="mt-1 size-5" />
+              <label for={fieldId("consent")} class="text-sm">{config.optIn.label}</label>
+              <p id={`${fieldId("consent")}-err`} class="text-sm text-[var(--color-error)]" data-fb-error="consent"></p>
+            </div>
+          )}
           <div class="cf-turnstile max-w-full" data-sitekey={config.turnstile?.siteKey} data-action={id} data-size="flexible"></div>
           <div class="flex gap-3">
             {steps.length > 1 && <button type="button" data-fb-back class="rounded-[var(--radius-control)] border border-[var(--color-field)] px-5 py-3">Back</button>}
             <button type="submit" class="rounded-[var(--radius-control)] bg-[var(--color-accent)] px-5 py-3 font-semibold text-[var(--color-accent-ink)]">{form.submitLabel || "Send"}</button>
           </div>
-          <p class="text-sm text-[var(--color-ink-muted)]">{config.optIn.text}</p>
+          {config.optIn.mode !== "checkbox" && <p class="text-sm text-[var(--color-ink-muted)]">{config.optIn.text}</p>}
         </div>
       )}
     </fieldset>

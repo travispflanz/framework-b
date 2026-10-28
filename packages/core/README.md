@@ -1,8 +1,8 @@
 # @framework-b/core
 
-The runtime every Framework B site's Worker is built from. Version `0.4.0` (`CORE_VERSION` in `src/index.js`), running on live idea and launch sites since 2026-10-27.
+The runtime every Framework B site's Worker is built from. Version `0.5.0` (`CORE_VERSION` in `src/index.js`). Live on idea and launch sites since 2026-10-27; 0.5.0's additions are tested in workerd only (*untested* live).
 
-Versions: 0.1.0 forms, uploads, mailers, unsubscribe and admin; 0.2.0 the EmDash fallback (`createWorker(config, { fallback })`); 0.2.1 a fix found on the first real site; 0.3.0 the CRM mirror; 0.4.0 drips.
+Versions: 0.1.0 forms, uploads, mailers, unsubscribe and admin; 0.2.0 the EmDash fallback (`createWorker(config, { fallback })`); 0.2.1 a fix found on the first real site; 0.3.0 the CRM mirror; 0.4.0 drips; 0.5.0 the checkbox consent mode, `/go` and older unsubscribe links (for adopting an existing site).
 
 A site vendors a copy of this folder into `core/` (`scripts/vendor-core.mjs` at `site create`; `site update` replaces it with a newer copy) and wires it up in a few lines:
 
@@ -21,6 +21,7 @@ export default createWorker(config);
 | `POST /api/submit/:form` | Origin check, 64 KB cap, per-IP rate limit, honeypot, Turnstile, schema validation. Saves the lead and auto-subscribes the visitor in one D1 batch, then sends mail in the background. Returns JSON, or a 303 to the thank-you page for a plain HTML form post. |
 | `PUT /api/upload/:lead` | Takes the file for a lead, using the signed single-use URL the submit response returned. The body must match the signed size and type. It is streamed to R2 at `<site>/<lead>/<name>`. |
 | `GET /api/health` | Checks the Worker and D1. |
+| `GET /go` | 302 to `go.to` (default `/`), keeping the query string, so a printed QR code or campaign link records its `src` and `utm_*` on the landing page. Needs `/go` in the site's `run_worker_first`. |
 | `GET` / `POST /u` | Unsubscribe. GET shows a button; only POST changes anything, because mail scanners prefetch links. Accepts the one-click POST from `List-Unsubscribe-Post` (RFC 8058). |
 | `GET /admin/*` | Lead list, lead detail, file download, `leads.csv`, `subscribers.csv`. Needs a valid Cloudflare Access JWT. Fails closed. |
 
@@ -48,6 +49,7 @@ All other paths are static assets. Static responses never run the Worker, so ind
 | `EMAIL` | send_email | `cloudflare` mailer |
 | `TURNSTILE_SECRET` | secret | always |
 | `SIGNING_SECRET` | secret, 32+ characters | unsubscribe links, upload URLs |
+| `LEGACY_UNSUB_SECRET` | secret | optional: an adopted site's older unsubscribe links, signed `unsub:<email>` |
 | `MAILER_URL`, `MAILER_SECRET` | secrets | `apps-script` mailer; the CRM Sheet mirror |
 | `CRM_WEBHOOK_URL`, `CRM_WEBHOOK_SECRET` | secrets | the CRM webhook mirror (the secret is optional) |
 | `RESEND_API_KEY` | secret | `resend` mailer; drips |

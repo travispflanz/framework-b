@@ -50,6 +50,7 @@ const editing = (input?.EDITING ?? process.env.EDITING ?? "off").trim() === "on"
 const indexing = (input?.INDEXING ?? process.env.INDEXING ?? "off").trim() === "on";
 const crm = (input?.CRM ?? process.env.CRM ?? "none").trim();
 const autoReply = (input?.AUTO_REPLY ?? process.env.AUTO_REPLY ?? "off").trim() === "on";
+const consentMode = (input?.CONSENT ?? process.env.CONSENT ?? "auto").trim();
 const repoName = `site-${id}`;
 const SHARED = { db: "fb-ideas", previewDb: "fb-previews", uploads: "fb-ideas-uploads", previewUploads: "fb-previews" };
 const TEST_SITEKEY = "1x00000000000000000000AA";
@@ -198,6 +199,7 @@ if (indexing) done("indexing", `search engines may index https://${host}; previe
 config.turnstile = { siteKey };
 const mailer = process.env.MAILER_URL && process.env.MAILER_SECRET;
 // Lead auto-replies on an idea site come from the mailer's Gmail (brief `autoReply`); without the mailer they stay off.
+if (consentMode === "checkbox") config.optIn = { ...(config.optIn || {}), mode: "checkbox" };
 config.email = { notify: mailer ? "apps-script" : "none", confirm: mailer && autoReply ? "apps-script" : "none" };
 if (autoReply && !mailer) warn("lead auto-reply asked for, but no Apps Script mailer is configured: auto-replies stay off");
 if (!mailer) warn("No mailer configured: leads are saved in D1 and visible in /admin, but no email is sent yet");
@@ -215,7 +217,7 @@ const wrangler = {
   compatibility_date: "2026-10-01",
   workers_dev: true,
   preview_urls: true,
-  assets: { directory: "./dist", binding: "ASSETS", not_found_handling: "404-page", html_handling: "drop-trailing-slash", run_worker_first: ["/api/*", "/admin", "/admin/*", "/u"] },
+  assets: { directory: "./dist", binding: "ASSETS", not_found_handling: "404-page", html_handling: "drop-trailing-slash", run_worker_first: ["/api/*", "/admin", "/admin/*", "/u", "/go", "/go/"] },
   d1_databases: [{ binding: "DB", database_name: SHARED.db, database_id: db.uuid, migrations_dir: "core/migrations" }],
   r2_buckets: [{ binding: "UPLOADS", bucket_name: SHARED.uploads }],
   ratelimits: [{ name: "SUBMIT_LIMITER", namespace_id: rateNamespace, simple: { limit: 5, period: 60 } }],

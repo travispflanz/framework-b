@@ -16,7 +16,7 @@ import { handleAdmin } from "./admin.js";
 import { dripWorkflowClass } from "./drips.js";
 import { json } from "./lib/util.js";
 
-export const CORE_VERSION = "0.4.0";
+export const CORE_VERSION = "0.5.0";
 
 // The drips Workflow class for this site: `export const DripWorkflow = dripWorkflow(config);` in the site's Worker.
 // It does nothing until site.config.json has a "drips" block and wrangler.jsonc binds it as DRIPS.
@@ -48,6 +48,13 @@ export function createWorker(rawConfig, { fallback } = {}) {
         if (upload) {
           if (request.method !== "PUT") return json({ ok: false, error: "method" }, 405, { allow: "PUT" });
           return await handleUpload(request, env, config, upload[1]);
+        }
+
+        // QR codes and campaign links: redirect, keeping the query string (attribution is read on the landing page).
+        if (path === "/go" || path === "/go/") {
+          const to = new URL(config.go.to, url);
+          to.search = url.search;
+          return new Response(null, { status: 302, headers: { location: to.pathname + to.search, "cache-control": "no-store" } });
         }
 
         if (path === "/u") {

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "./fixture/worker.js";
 import config from "./fixture/site.config.json";
 import { loadConfig } from "../src/config.js";
+import { createWorker } from "../src/index.js";
 import { buildHeadersFile } from "../src/headers.js";
 import { sign } from "../src/lib/crypto.js";
 import { csv } from "../src/lib/util.js";
@@ -311,5 +312,80 @@ describe("client editing (EmDash) fallback", () => {
     const health = await w.fetch(new Request("https://example-idea.example.workers.dev/api/health"), env, createExecutionContext());
     expect((await health.json()).ok).toBe(true);
     expect(seen).toEqual(["/_emdash/admin"]);
+  });
+});
+
+describe("checkbox opt-in (optIn.mode checkbox)", () => {
+  const cfg = structuredClone(config);
+  cfg.optIn = { mode: "checkbox", label: "Email me news." };
+  cfg.forms.contact.consent = "required";
+  cfg.forms.note = { title: "Note", fields: [{ name: "email", type: "email", label: "Email", required: true }], thanks: "/thanks" };
+  const boxWorker = createWorker(cfg);
+  async function post(form, body) {
+    const ctx = createExecutionContext();
+    const res = await boxWorker.fetch(new Request(`${BASE}/api/submit/${form}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...ORIGIN, "cf-connecting-ip": `203.0.113.${Math.floor(Math.random() * 250)}` },
+      body: JSON.stringify({ "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX", ...body }),
+    }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    return res;
+  }
+  const status = (email) => env.DB.prepare("SELECT status FROM subscribers WHERE email = ?").bind(email).first();
+
+  it("refuses a required-consent form without the box, and subscribes when it is ticked", async () => {
+    const no = await post("contact", { name: "A", email: "box-a@example.com" });
+    expect(no.status).toBe(422);
+    expect((await no.json()).fields.consent).toBe("required");
+    const yes = await post("contact", { name: "A", email: "box-a@example.com", consent: "on" });
+    expect(yes.status).toBe(200);
+    expect(await status("box-a@example.com")).toEqual({ status: "subscribed" });
+    const lead = await env.DB.prepare("SELECT consent_text FROM leads WHERE email = 'box-a@example.com'").first();
+    expect(lead.consent_text).toBe("Email me news.");
+  });
+
+  it("stores an optional-consent lead without subscribing, and never re-subscribes without the box", async () => {
+    expect((await post("note", { email: "box-b@example.com" })).status).toBe(200);
+    expect(await status("box-b@example.com")).toBeNull();
+    await env.DB.prepare("INSERT INTO subscribers (site, email, status, created_at, updated_at, unsubscribed_at) VALUES ('example-idea', 'box-c@example.com', 'unsubscribed', 'x', 'x', 'x')").run();
+    expect((await post("note", { email: "box-c@example.com" })).status).toBe(200);
+    expect(await status("box-c@example.com")).toEqual({ status: "unsubscribed" });
+    expect((await post("note", { email: "box-c@example.com", consent: "on" })).status).toBe(200);
+    expect(await status("box-c@example.com")).toEqual({ status: "subscribed" });
+  });
+
+  it("rejects a form field named consent and an unknown mode", () => {
+    const bad = structuredClone(cfg);
+    bad.forms.note.fields.push({ name: "consent", type: "checkbox", label: "x" });
+    expect(() => loadConfig(bad)).toThrow(/reserved for the opt-in box/);
+    expect(() => loadConfig({ ...cfg, optIn: { mode: "maybe" } })).toThrow(/optIn.mode/);
+  });
+});
+
+describe("/go", () => {
+  it("redirects to the landing page and keeps the query string", async () => {
+    const res = await call("/go?src=flyer&utm_campaign=fall");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/?src=flyer&utm_campaign=fall");
+    const other = createWorker({ ...structuredClone(config), go: { to: "/backers" } });
+    const ctx = createExecutionContext();
+    const r2 = await other.fetch(new Request(`${BASE}/go/?src=card`), env, ctx);
+    expect(r2.headers.get("location")).toBe("/backers?src=card");
+    expect(() => loadConfig({ ...structuredClone(config), go: { to: "https://evil.example" } })).toThrow(/go.to/);
+  });
+});
+
+describe("legacy unsubscribe links", () => {
+  it("accepts links signed by the older system only when LEGACY_UNSUB_SECRET is set", async () => {
+    const legacy = "short-old-secret";
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(legacy), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode("unsub:old@example.com")));
+    const t = btoa(String.fromCharCode(...sig)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    expect((await call(`/u?e=old%40example.com&t=${t}`)).status).toBe(400);
+    const ctx = createExecutionContext();
+    const res = await worker.fetch(new Request(`${BASE}/u?e=old%40example.com&t=${t}`), { ...env, LEGACY_UNSUB_SECRET: legacy }, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("<button");
   });
 });

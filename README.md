@@ -89,7 +89,8 @@ A site has two modes:
 - Every lead is stored in Cloudflare D1, with where the visitor came from (UTM tags, referrer, landing page).
 - `/admin` behind a Cloudflare Access email login: a lead list, lead details, file downloads, and CSV exports of
   leads and subscribers.
-- Every form subscribes the visitor (one line under the button says so). Every email carries an unsubscribe link,
+- Every form subscribes the visitor (one line under the button says so), or, in checkbox mode, only a visitor who ticks the consent box.
+- `/go` for printed QR codes and campaign links: it redirects and keeps the `src` and `utm_*` tags as attribution. Every email carries an unsubscribe link,
   and newsletters and drips also support one-click unsubscribe in the mail app.
 
 **Email**
@@ -255,7 +256,8 @@ recorded as stated by you, inferred by the agent, or a framework default.
 | `business.offer`, `audience`, `location`, `serviceArea`, `phone`, `postalAddress` | text | empty (the agent infers the offer) |
 | `business.id` | site id, 3–42 lowercase letters, digits or dashes | made from the name |
 | `mode` | `idea` | `idea` (launch comes later through **site promote**) |
-| `audienceRegion` | `us`, `eu`, `uk`, `ca`, … | `us`; EU, UK and Canada get a consent warning |
+| `audienceRegion` | `us`, `eu`, `uk`, `ca`, … | `us` |
+| `consent` | `auto` (every form subscribes) or `checkbox` (a consent box) | `checkbox` for EU, UK and Canada; otherwise `auto` |
 | `shape` | `landing`, `full`, `hybrid` | `landing` |
 | `forms` | list of `{ id, purpose }` | one `contact` form |
 | `autoReply` | `true` / `false` | `false` |
@@ -283,8 +285,11 @@ Checked when the Worker starts (`packages/core/src/config.js`); a bad combinatio
 | `email.notify` | `apps-script`, `cloudflare` (needs `notifyFrom`) or `none` |
 | `email.confirm` | `apps-script`, `resend` (needs `confirmFrom`) or `none`: the auto-reply |
 | `nav` | Menu items `{ label, href }`; one item with `"cta": true` becomes the header button |
-| `forms.<id>` | `title`, `submitLabel`, `fields`, `file`, `thanks` (see below) |
-| `optIn.text` | The line under every submit button |
+| `forms.<id>` | `title`, `submitLabel`, `fields`, `file`, `thanks`, `consent` (`required` or `optional`, checkbox mode) (see below) |
+| `optIn.mode` | `auto` or `checkbox` |
+| `optIn.text` | The line under every submit button (auto mode) |
+| `optIn.label` | The consent box's label (checkbox mode) |
+| `go.to` | Where `/go` sends visitors (default `/`) |
 | `crm` | `{ "sheet": true/false, "webhook": true/false }` |
 | `drips` | `{ "forms": [...], "from": "news", "emails": [{ "after": "1 day", "subject": "...", "text": "..." }] }`. Launch mode with Resend only; up to 10 emails |
 | `editing` | `{ "enabled": true, ... }`, written by `node scripts/editing.mjs on` |
@@ -312,8 +317,8 @@ These are enforced by the scripts and the QA gate, not left to the agent's judgm
 - **No purchases or plan upgrades** without your explicit approval.
 - **Leads are never deleted or rewritten** without your approval. Teardown exports them first.
 - **No secret values in any repo.** The repos list secret names only.
-- **US-style opt-in.** Every form subscribes the visitor, which US anti-spam law (CAN-SPAM) allows. For sites aimed
-  at the EU, UK or Canada, where consent rules are stricter, the agent warns you first.
+- **Opt-in that fits the audience.** By default every form subscribes the visitor, which US anti-spam law (CAN-SPAM)
+  allows. Sites aimed at the EU, UK or Canada, where consent rules are stricter, get a consent box instead.
 
 ## Troubleshooting
 

@@ -11,7 +11,7 @@
     "binding": "ASSETS",
     "not_found_handling": "404-page",
     "html_handling": "drop-trailing-slash",
-    "run_worker_first": ["/api/*", "/admin", "/admin/*", "/u"]
+    "run_worker_first": ["/api/*", "/admin", "/admin/*", "/u", "/go", "/go/"]
   },
   "d1_databases": [
     { "binding": "DB", "database_name": "<d1-name>", "database_id": "<d1-id>", "migrations_dir": "core/migrations" }
