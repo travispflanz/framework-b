@@ -267,21 +267,22 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     - the content model is applied to the site's own database;
     - the hourly Cron Trigger is set.
     Teardown exported both content databases to `framework-backups`, then removed every editing resource: databases, buckets, KV namespaces and the Access app.
+- **Tested live 2026-10-27:**
+  - An editor signed in through Access (email code), changed the home page's hero headline in the live admin and published. The live page showed the new headline on the next request (cache invalidated on publish), on core 0.4.0.
+  - A framework update's preview of the same editing site passed the preview check through Access (119 checks).
 - **Not tested yet:**
-  - An editor signing in through Access and publishing in the live admin.
-  - Previews of an editing site.
   - Sandboxed plugins (Workers Paid only) and Cloudflare email sign-in (sending to arbitrary recipients needs Workers Paid).
 - **Agents editing content:** EmDash has a CLI (`emdash login --url … -H …`), a REST API and an MCP server at `/_emdash/api/mcp`. Behind Access, an agent would need an Access service token. Untested.
 
 ## 10. Modules
 
-- **CRM mirror** (built 2026-10-27; core 0.3.0; Google Sheet proven live 2026-10-27: a new lead was copied as it arrived, and `site crm sync` added the 5 older ones; the webhook is untested): `site.config.json` `"crm": { "sheet": true, "webhook": false }`.
+- **CRM mirror** (built 2026-10-27; core 0.3.0; Google Sheet proven live 2026-10-27: a new lead was copied as it arrived, and `site crm sync` added the 5 older ones; webhook proven live 2026-10-27 against `ops/webhook-check`: `site crm sync` delivered 7 leads and a new booking arrived 0.2 s after it was saved, all with valid signatures and the lead id as the Idempotency-Key): `site.config.json` `"crm": { "sheet": true, "webhook": false }`.
   - After a lead is saved, the Worker copies one flat row (lead id, time, form, email, the form's fields, page, country, attribution) in `waitUntil`, so D1 is never blocked by a mirror.
   - `sheet`: a Google Sheet in the owner's Drive, through the account's Apps Script mailer: the spreadsheet "Framework B leads", one tab per site, created on first use. New fields add columns; values that would start a formula are stored as text.
   - `webhook`: a POST to the Worker secret `CRM_WEBHOOK_URL` (Zapier, Make, n8n or a CRM's own webhook), with `Idempotency-Key: <lead id>` and, with `CRM_WEBHOOK_SECRET`, an `X-Framework-B-Signature: sha256=<hmac of the body>` header.
   - The lead id is the idempotency key, so the ops `site crm sync` workflow can resend every lead: it brings in older leads when the mirror is switched on and retries a copy that failed.
   - Why not a Cloudflare Queue, as first designed: Queues are on the Free plan (10,000 operations a day, 24-hour retention; [changelog](https://developers.cloudflare.com/changelog/post/2026-02-04-queues-free-plan/), checked 2026-10-27), but a Worker consumer is registered by `wrangler deploy`, and the token Workers Builds creates has no Queues permission ([Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#api-token), checked 2026-10-27). D1 already holds every lead durably, and both targets dedupe by id, so a resend replaces the queue's retry.
-- **Newsletter** (built 2026-10-27; a test send of a draft issue from its branch arrived 2026-10-27 with sender, postal address and unsubscribe link correct; a real `send` to subscribers is untested): `scripts/site/newsletter.mjs`, run by the ops repo's `site newsletter` workflow.
+- **Newsletter** (built 2026-10-27; a test send of a draft issue from its branch arrived 2026-10-27 with sender, postal address and unsubscribe link correct; a real `send` (a Resend Broadcast to the site's segment) reached both subscribers' main inboxes the same day): `scripts/site/newsletter.mjs`, run by the ops repo's `site newsletter` workflow.
   - An issue is a Markdown file in the site's repo (`newsletter/<date>-<slug>.md`, front matter `subject` and optional `preview`), written on a branch and merged by the owner like any other change.
   - `test` sends it to one inbox, from `main` or from the issue's pull request branch, so the owner can read a draft before approving it. Before the site has a domain it goes from Resend's test sender, which only delivers to the Resend account's own address.
   - `send` (launch mode only) mirrors the site's subscribers from D1 into its Resend segment `<id> newsletter`, records in D1 anyone who used a newsletter's unsubscribe link, and sends one Resend Broadcast from `news@mail.<domain>`. Resend adds the one-click `List-Unsubscribe` headers and fills the unsubscribe link per recipient. Someone who unsubscribes on the site is removed from the segment; the contact's global unsubscribe flag is never set by us, because other sites in the same Resend account share it. An issue already sent is refused unless forced.
