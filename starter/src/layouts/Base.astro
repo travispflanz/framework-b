@@ -28,13 +28,17 @@ const org = {
 const year = new Date().getFullYear();
 // The footer links to /credits when an image from another creator needs attribution or an image was generated.
 const needsCredits = (credits.images || []).some((c) => c.source === "openverse" || c.source === "stock" || (c.source === "generated" && !c.test));
-const cta = config.nav.find((item) => item.cta);
+// Up to two nav items may carry "cta": true (a site with two front doors, for example buyers and sellers): the
+// first is the solid button, the second an outlined one, and both go in the phone action bar.
+const ctas = config.nav.filter((item) => item.cta).slice(0, 2);
+const cta = ctas[0];
 // Phones get an app-like frame: the pages as a visible row under the header (up to 6; NN/g found hidden menus
 // are used far less), and the main action in a bar at the bottom of the screen, within thumb reach, on every
 // page except the one it leads to. site.phone adds a call button beside it.
 const pageLinks = config.nav.filter((item) => !item.cta);
 const showPageRow = pageLinks.length > 0 && pageLinks.length <= 6;
-const actionBar = !!cta && path !== cta.href;
+const barCtas = ctas.filter((c) => path !== c.href);
+const actionBar = barCtas.length > 0;
 const phone = config.site.phone ? String(config.site.phone) : "";
 // The logo (scripts/brand-kit.mjs writes it and sets site.logo); otherwise the name in the display font.
 const logo = config.site.logo || "";
@@ -86,7 +90,10 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
               <a
                 href={item.href}
                 aria-current={path === item.href ? "page" : undefined}
-                class:list={["whitespace-nowrap", { "button-primary inline-flex min-h-11 items-center no-underline": item.cta }]}
+                class:list={["whitespace-nowrap", {
+                  "button-primary inline-flex min-h-11 items-center no-underline": item.cta && item === cta,
+                  "inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--color-accent)] px-4 text-label text-[var(--color-accent)] no-underline": item.cta && item !== cta,
+                }]}
               >{item.label}</a>
             </li>
           ))}
@@ -129,7 +136,9 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
     {actionBar && (
       <div class="fixed inset-x-0 bottom-0 z-40 flex gap-3 border-t border-[var(--color-line)] bg-[var(--color-bg)] px-[var(--spacing-gutter)] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
         {phone && <a href={`tel:${phone.replace(/[^+\d]/g, "")}`} class="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-control)] border border-[var(--color-field)] px-4 font-semibold no-underline">Call</a>}
-        <a href={cta.href} class="button-primary inline-flex min-h-12 flex-1 items-center justify-center no-underline">{cta.label}</a>
+        {barCtas.map((c, i) => (
+          <a href={c.href} class:list={["inline-flex min-h-12 flex-1 items-center justify-center text-center no-underline", c === cta || barCtas.length === 1 ? "button-primary" : "rounded-[var(--radius-control)] border border-[var(--color-accent)] px-3 text-label text-[var(--color-accent)]"]}>{c.label}</a>
+        ))}
       </div>
     )}
   </body>

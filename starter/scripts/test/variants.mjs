@@ -61,6 +61,8 @@ try {
         { value: "money", label: "Money", group: "Money" }, { value: "room", label: "A room", group: "Places" }, { value: "van", label: "A van", group: "Things" }, { value: "camera", label: "A camera", group: "Things" }] },
     ],
   };
+  if (!site.nav.some((n) => n.cta)) site.nav.push({ label: "Get in touch", href: "/contact", cta: true });
+  site.nav.push({ label: "Try the survey", href: "/variants-c", cta: true }); // a second front door
   site.footer = { note: "One line about the business, with a [link](/variants-b).", columns: [{ title: "Company", links: [{ label: "Layouts A", href: "/variants-a" }] }, { title: "Start", links: [{ label: "Layouts C", href: "/variants-c" }] }], legal: "A legal line, **in bold** where it matters." };
   writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
 
@@ -120,6 +122,7 @@ try {
   const b = readFileSync("dist/variants-b.html", "utf8");
   for (const want of ["<strong>bold</strong>", "<em>italic</em>", 'href="/variants-a" class="underline', 'rel="noopener"', "What we never do", "Second Person"]) if (!b.includes(want)) throw new Error(`variants-b is missing ${want}`);
   const c = readFileSync("dist/variants-c.html", "utf8");
+  if (!readFileSync("dist/variants-a.html", "utf8").includes(">Try the survey</a>")) throw new Error("the second call to action is missing");
   for (const want of ['type="radio"', 'name="offer" value="camera"', "What you could offer", ">Things<"]) if (!c.includes(want)) throw new Error(`variants-c is missing ${want}`);
   if (!readFileSync("dist/variants-thanks.html", "utf8").includes('content="noindex')) throw new Error("the noindex page has no robots noindex");
   if (!readFileSync("dist/404.html", "utf8").includes("in the owner")) throw new Error("not-found.json didn't replace the 404 page");
