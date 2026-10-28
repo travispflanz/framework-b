@@ -10,7 +10,7 @@ import sharp from "sharp";
 import { applyTreatment, readImagery, readPalette } from "../lib/treatment.mjs";
 
 const BACKUP = ["DESIGN.md", "src/styles/tokens.css", "src/styles/fonts.js", "src/styles/design.json", "design/credits.json", "site.config.json"];
-const PAGES = ["variants-a", "variants-b", "variants-c", "variants-thanks"];
+const PAGES = ["variants-a", "variants-b", "variants-c", "variants-thanks", "not-found", "privacy"];
 const IMAGES = ["variant-1.jpg", "variant-2.jpg", "variant-3.jpg", "variant-4.jpg"];
 const saved = new Map(BACKUP.map((f) => [f, existsSync(f) ? readFileSync(f) : null]));
 const imageDirExisted = existsSync("src/assets/images");
@@ -98,6 +98,14 @@ try {
     ],
     "variants-thanks": [
       { _type: "fb_hero", _key: "hero", variant: "statement", headline: "Thanks, that's arrived", subheadline: "A thanks page kept out of search results." },
+      { _type: "fb_form", _key: "again", form: "survey" },
+    ],
+    "not-found": [
+      { _type: "fb_hero", _key: "hero", variant: "statement", eyebrow: "404", headline: "That page isn't here, in the owner's words.", primary_cta_label: "Go home", primary_cta_url: "/" },
+    ],
+    "privacy": [
+      { _type: "fb_hero", _key: "hero", variant: "statement", headline: "Privacy, in the owner's words." },
+      { _type: "fb_text", _key: "who", headline: "Who we are", body: "A paragraph with a [contact link](/variants-c)." },
     ],
   };
   for (const [slug, sections] of Object.entries(pages)) {
@@ -114,6 +122,9 @@ try {
   const c = readFileSync("dist/variants-c.html", "utf8");
   for (const want of ['type="radio"', 'name="offer" value="camera"', "What you could offer", ">Things<"]) if (!c.includes(want)) throw new Error(`variants-c is missing ${want}`);
   if (!readFileSync("dist/variants-thanks.html", "utf8").includes('content="noindex')) throw new Error("the noindex page has no robots noindex");
+  if (!readFileSync("dist/404.html", "utf8").includes("in the owner")) throw new Error("not-found.json didn't replace the 404 page");
+  if (!readFileSync("dist/privacy.html", "utf8").includes("Privacy, in the owner")) throw new Error("privacy.json didn't replace the privacy page");
+  if (existsSync("dist/not-found.html")) throw new Error("not-found.json was also built as /not-found");
   console.log("\nEvery layout variant passed the QA gate with the second composition");
 } finally {
   restore();

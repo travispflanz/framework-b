@@ -175,7 +175,7 @@ export const SECTIONS = [
   ]),
   block("fb_form", "Form", "One of the site's forms (defined in site.config.json), with an introduction", [
     { slug: "eyebrow", label: "Small label above the headline", type: "string" },
-    { slug: "headline", label: "Headline", type: "string", required: true },
+    { slug: "headline", label: "Headline (optional when the page's hero already introduces the form)", type: "string" },
     { slug: "subheadline", label: "Supporting text", type: "text" },
     { slug: "form", label: "Form ID from site.config.json, for example contact", type: "string", required: true },
   ]),

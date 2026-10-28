@@ -9,9 +9,10 @@ import { loadConfig } from "../../core/src/config.js";
 import { inline } from "../sections/text.js";
 
 // showTitle: false when the page already heads the form (the form section has its own headline).
-interface Props { id: string; showTitle?: boolean }
+// stepHeading: the level of the step titles (h2 when nothing above the form is an h2).
+interface Props { id: string; showTitle?: boolean; stepHeading?: "h2" | "h3" }
 const config = loadConfig(raw);
-const { id, showTitle = true } = Astro.props;
+const { id, showTitle = true, stepHeading: StepHeading = "h3" } = Astro.props;
 const form = config.forms[id];
 if (!form) throw new Error(`Form "${id}" is not in site.config.json`);
 
@@ -44,7 +45,7 @@ const groups = (options) => options.reduce((out, o) => {
       <legend class="sr-only">Step {step} of {steps.length}</legend>
       {form.steps?.[steps.indexOf(step)]?.title && (
         <div class="grid gap-2">
-          <h3 class="font-display text-title text-ink">{form.steps[steps.indexOf(step)].title}</h3>
+          <StepHeading class="font-display text-title text-ink">{form.steps[steps.indexOf(step)].title}</StepHeading>
           {form.steps[steps.indexOf(step)].intro && <p class="text-sm text-[var(--color-ink-muted)]">{form.steps[steps.indexOf(step)].intro}</p>}
         </div>
       )}

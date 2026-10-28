@@ -1,7 +1,16 @@
 ---
+// The 404 page. src/content/not-found.json, when present, replaces the default with the owner's own words.
 import Base from "../layouts/Base.astro";
+import Sections from "../sections/Sections.astro";
+const custom = Object.values(import.meta.glob<{ default: any }>("../content/not-found.json", { eager: true }))[0]?.default;
 ---
+{custom ? (
+<Base title={custom.title || "Page not found"} description={custom.description} noindex bleed>
+  <Sections sections={custom.sections} />
+</Base>
+) : (
 <Base title="Page not found" noindex>
   <h1 class="mb-4 text-3xl font-bold">Page not found</h1>
   <p><a href="/">Go to the home page</a></p>
 </Base>
+)}

@@ -336,7 +336,8 @@ formatting and links):
 Each page is a list of sections. The section fields are defined once in `starter/src/sections/schema.js`, and
 `node scripts/check-content.mjs` checks every page against them. `home.json` is the home page; any other file is
 `/<file name>` and needs a `title`; `"noindex": true` keeps it out of search results and the sitemap (thanks
-pages). Every page starts with a hero. Any section can set `variant` (its layout) and
+pages). `privacy.json` and `not-found.json` replace the generated privacy page and the 404 page with your own words.
+Every page starts with a hero. Any section can set `variant` (its layout) and
 `phone` (`auto`, `stack`, `swipe`, `collapse`, `hide`).
 
 ## Built-in rules
