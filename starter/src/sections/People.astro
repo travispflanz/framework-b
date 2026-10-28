@@ -15,8 +15,8 @@ const count = value.people.length;
 ---
 <Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phoneOf("fb_people", value)}>
   <SectionIntro eyebrow={value.eyebrow} headline={value.headline} id={headingId} />
-  {value.body && <div class="reveal mb-10 grid max-w-prose gap-4 text-body text-ink">{paragraphs(value.body).map((p) => <p set:html={inline(p)} />)}</div>}
-  <ul class:list={["grid gap-8", row ? "max-w-prose" : { "sm:grid-cols-2": count > 1, "lg:grid-cols-3": count > 2 }]} data-reveal>
+  {value.body && <div class="reveal mb-10 grid max-w-(--container-prose) gap-4 text-body text-ink">{paragraphs(value.body).map((p) => <p set:html={inline(p)} />)}</div>}
+  <ul class:list={["grid gap-8", row ? "max-w-(--container-prose)" : { "sm:grid-cols-2": count > 1, "lg:grid-cols-3": count > 2 }]} data-reveal>
     {value.people.map((person) => (
       <li class:list={[row ? "grid items-start gap-5 sm:grid-cols-[10rem_1fr]" : "grid content-start gap-4"]}>
         {person.image?.src && <Picture image={person.image} sizes={row ? "10rem" : "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"} class="media aspect-[4/3] w-full object-cover" />}
@@ -28,5 +28,5 @@ const count = value.people.length;
       </li>
     ))}
   </ul>
-  {value.note && <div class="mt-10 grid max-w-prose gap-4 text-body text-ink">{paragraphs(value.note).map((p) => <p set:html={inline(p)} />)}</div>}
+  {value.note && <div class="mt-10 grid max-w-(--container-prose) gap-4 text-body text-ink">{paragraphs(value.note).map((p) => <p set:html={inline(p)} />)}</div>}
 </Section>

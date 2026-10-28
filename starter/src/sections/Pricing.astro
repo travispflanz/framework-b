@@ -34,5 +34,5 @@ const phone = phoneOf("fb_pricing", value) === "collapse" ? "stack" : phoneOf("f
       </li>
     ))}
   </ul>
-  {value.note && paragraphs(value.note).map((p) => <p class="mt-6 max-w-prose text-small text-ink-muted" set:html={inline(p)} />)}
+  {value.note && paragraphs(value.note).map((p) => <p class="mt-6 max-w-(--container-prose) text-small text-ink-muted" set:html={inline(p)} />)}
 </Section>

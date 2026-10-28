@@ -30,7 +30,7 @@ const generated = all.filter((c) => c.source === "generated" && !c.test);
   {generated.length > 0 && (
     <section aria-labelledby="generated" class="mt-12">
       <h2 id="generated" class="font-display text-title text-ink">Generated images</h2>
-      <p class="mt-3 max-w-prose text-body text-ink-muted">These images were made with an image generator to illustrate the site. They don't show our own people, premises, products or work.</p>
+      <p class="mt-3 max-w-(--container-prose) text-body text-ink-muted">These images were made with an image generator to illustrate the site. They don't show our own people, premises, products or work.</p>
       <ul class="mt-6 grid gap-4 text-body text-ink" role="list">
         {generated.map((c) => (
           <li>{c.alt || c.file.split("/").pop()}{c.model ? `: generated with ${c.model}` : ": generated"}{c.created ? `, ${c.created}` : ""}.</li>
