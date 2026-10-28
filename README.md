@@ -69,17 +69,28 @@ A site has two modes:
 - One-prompt build: the agent writes a kickoff brief, creates the site, designs it, writes the content, runs the
   gates and sends you a preview (`docs/BUILD.md`).
 - Landing page, full site or hybrid. Every page is a JSON file of sections: hero, steps, features, pricing, service
-  area, FAQ, call to action, form, text, text-and-image, and gallery.
+  area, FAQ, call to action, form, text, text-and-image, and gallery. Each section has several layouts (the hero
+  alone has five: split, full-bleed, statement, editorial and bento) and its own phone behaviour (stack, swipe
+  sideways, fold into an accordion, or hide).
 - Design phase:
   - the design is written as one `DESIGN.md` file (Google's format) and turned into the site's colour, type and
-    spacing tokens, with automatic contrast checks (WCAG AA);
+    spacing tokens, with automatic contrast checks (WCAG AA). It also sets the layout feel (alignment, density, card
+    style, image shape, motion) and the imagery style, so two sites differ in shape, not just colour;
   - on autopilot, the agent writes three different designs, renders each on the real content, and picks one by
     comparing them in pairs both ways round;
   - with you involved, it shows you this-or-that image pairs first, then the three designs to pick from;
   - after the gates pass, up to three critique rounds, each change kept only if it wins a side-by-side comparison
     both ways.
-- Photos: yours first; otherwise open-licensed photos from Openverse, with the credit written for you and a
-  `/credits` page.
+- A logo: six layouts drawn from the design's own font (with your initials or an icon); the one you pick becomes the
+  logo, favicon, app icons and share image.
+- Images: yours first; otherwise open-licensed photos from Openverse or generated images in the style you chose
+  (photo, line art, watercolour, flat illustration and more) through Cloudflare Workers AI, all given one colour
+  treatment so they match. Credits are written for you and listed on `/credits`; generated photos are labelled as
+  generated and never show your people, premises or products.
+- Phones: a fixed action bar with your main button (and Call when you have a phone number), and long sections that
+  swipe or fold, so the home page stays within a set number of screens.
+- Motion that respects visitors who turn it off: reveal on scroll, smooth page transitions and button feedback, in
+  CSS only.
 
 **Forms and leads**
 - Any number of forms, defined in `site.config.json`: text, email, phone, URL, long text, choice, checkbox and hidden
@@ -114,6 +125,7 @@ A site has two modes:
 - Lighthouse scores: accessibility, best practices and SEO must be 100; on a launched site, performance must be at
   least 90 (a borderline score is rechecked as the median of 5 runs);
 - layout at four screen widths, and console errors;
+- the home page's length on a phone, the action bar, and no motion for visitors who ask for less;
 - fonts, colours or sizes outside `DESIGN.md`;
 - generic AI wording;
 - reviews, ratings or statistics without a source.
@@ -125,6 +137,7 @@ A site has two modes:
 - **Uptime monitors:** two per site.
 - **Weekly self-test:** builds a throwaway site, tests it live and removes it.
 - **Snapshot and park:** takes any site off its domain and puts it back exactly.
+- **Adopt:** moves a site that wasn't built with Framework B onto it, keeping its Worker and copying its leads.
 - **Teardown:** exports a site's data, then removes it.
 
 ## What it costs: free-tier limits
@@ -180,7 +193,9 @@ Any coding agent that can do the following:
 - clone, push branches and open pull requests on your GitHub repos, and **run workflows in your ops repo** (the `gh`
   CLI signed in, or a GitHub token with Actions write access on the ops repo);
 - **look at images** (the design judge, the style tiles and the critique rounds are screenshots it has to judge);
-- search the web (research for the brief).
+- search the web (research for the brief);
+- nothing extra for generated images: the ops repo's **site images** workflow holds the Workers AI token
+  (`docs/TOKENS.md` section 5).
 
 It has been proven with Claude (Claude Code, and Claude in a cloud session with the Claude GitHub app). The agent
 reads `AGENTS.md` and follows `docs/BUILD.md`, so Codex, Gemini CLI, Cursor, Hermes or another agent with the
@@ -234,6 +249,7 @@ pull request first. The inputs for each workflow are in `ops/ops-repo/README.md`
 | You want to | Ask for | Notes |
 |---|---|---|
 | Put the site on your domain | "promote it to `<domain>`" (**site promote**: prepare, you merge, finish) | The domain must already be in your Cloudflare account. It needs your postal address (US anti-spam law) and your inbox verified for Email Routing |
+| Bring an older site onto Framework B | "adopt `<site>`" (**site adopt**: prepare, preview, you merge, cutover) | Keeps the site's Worker, domains and logins; copies its leads into new databases and never changes the old one. `rollback` switches back |
 | Send a newsletter | "write a newsletter about …" (**site newsletter**: test, you merge, send) | Launch sites only; you get the test copy first |
 | Follow up automatically | "add a drip: day 1 …, day 7 …" | Launch sites with Resend; written only from what you supply |
 | Copy leads to a Sheet or CRM | "turn on the CRM copy" (**site crm sync** for older leads) | The webhook URL is set as a secret, never in the repo |
@@ -266,6 +282,7 @@ recorded as stated by you, inferred by the agent, or a framework default.
 | `newsletter` | `true` / `false` | `false` (on an idea site: collect subscribers only) |
 | `crm` | `none`, `sheet`, `webhook`, `sheet+webhook` | `none` |
 | `design` | `autopilot`, `words`, `references`, `avoid` | autopilot |
+| `design.imagery` | `style` (`owner-photo`, `documentary-stock`, `photoreal-generated`, `line-art`, `flat-illustration`, `watercolor`, `3d`, `isometric`, `collage`, `cartoon`, `abstract`, `icon-led`), `secondary`, `treatment` (`none`, `duotone`, `tint`, `warm`, `cool`, `mono`) | `owner-photo`, no treatment |
 | `facts`, `claims` | research facts; owner-supplied proof with its source | empty |
 | `inferred` | the fields the agent decided | |
 
@@ -284,12 +301,15 @@ Checked when the Worker starts (`packages/core/src/config.js`); a bad combinatio
 | `turnstile.siteKey` | The spam-check widget |
 | `email.notify` | `apps-script`, `cloudflare` (needs `notifyFrom`) or `none` |
 | `email.confirm` | `apps-script`, `resend` (needs `confirmFrom`) or `none`: the auto-reply |
-| `nav` | Menu items `{ label, href }`; one item with `"cta": true` becomes the header button |
+| `site.logo` | The logo file (`/logo.svg`), set by the brand kit |
+| `site.phone` | Adds a Call button to the phone action bar |
+| `nav` | Menu items `{ label, href }`; one item with `"cta": true` becomes the header button and the phone action bar |
 | `forms.<id>` | `title`, `submitLabel`, `fields`, `file`, `thanks`, `consent` (`required` or `optional`, checkbox mode) (see below) |
 | `optIn.mode` | `auto` or `checkbox` |
 | `optIn.text` | The line under every submit button (auto mode) |
 | `optIn.label` | The consent box's label (checkbox mode) |
 | `go.to` | Where `/go` sends visitors (default `/`) |
+| `legacyUnsubSecret` | For an adopted site: the Worker secret that signed its older unsubscribe links (default `LEGACY_UNSUB_SECRET`) |
 | `crm` | `{ "sheet": true/false, "webhook": true/false }` |
 | `drips` | `{ "forms": [...], "from": "news", "emails": [{ "after": "1 day", "subject": "...", "text": "..." }] }`. Launch mode with Resend only; up to 10 emails |
 | `editing` | `{ "enabled": true, ... }`, written by `node scripts/editing.mjs on` |
@@ -306,7 +326,8 @@ A form field is `{ "name", "type", "label", "required", "autocomplete", "hint", 
 
 Each page is a list of sections. The section fields are defined once in `starter/src/sections/schema.js`, and
 `node scripts/check-content.mjs` checks every page against them. `home.json` is the home page; any other file is
-`/<file name>` and needs a `title`. Every page starts with a hero.
+`/<file name>` and needs a `title`. Every page starts with a hero. Any section can set `variant` (its layout) and
+`phone` (`auto`, `stack`, `swipe`, `collapse`, `hide`).
 
 ## Built-in rules
 

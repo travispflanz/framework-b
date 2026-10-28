@@ -4,14 +4,16 @@ import Icon from "./Icon.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { lines, paragraphs } from "./text.js";
+import { phoneOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "pricing"}`;
+const phone = phoneOf("fb_pricing", value) === "collapse" ? "stack" : phoneOf("fb_pricing", value);
 ---
-<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+<Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
   <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
-  <ul class="grid gap-6 md:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
+  <ul class="phone-list grid gap-6 md:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]" data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
     {value.plans.map((plan) => (
       <li class:list={["card relative grid content-start gap-4 p-6", { "outline-3 outline-accent": plan.highlighted }]}>
         {plan.badge && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{plan.badge}</p>}

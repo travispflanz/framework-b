@@ -1,0 +1,15 @@
+---
+// The hero's main button and second link (fb_hero). `onDark` sets the second link on a photo.
+interface Props { value: Record<string, any>; onDark?: boolean; center?: boolean }
+const { value, onDark = false, center = false } = Astro.props;
+---
+{(value.primary_cta_label || value.secondary_cta_label) && (
+  <div class:list={["flex flex-wrap items-center gap-4", { "justify-center": center }]}>
+    {value.primary_cta_label && value.primary_cta_url && (
+      <a href={value.primary_cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.primary_cta_label}</a>
+    )}
+    {value.secondary_cta_label && value.secondary_cta_url && (
+      <a href={value.secondary_cta_url} class:list={["inline-flex min-h-12 items-center text-label", { "text-bg": onDark }]}>{value.secondary_cta_label}</a>
+    )}
+  </div>
+)}

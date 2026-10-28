@@ -1,0 +1,17 @@
+{
+  "composition": {
+    "align": "left",
+    "density": "airy",
+    "separation": "bands",
+    "cards": "filled",
+    "imageShape": "rounded",
+    "motion": "none",
+    "phoneBudget": 6
+  },
+  "imagery": {
+    "style": "owner-photo",
+    "treatment": "none",
+    "grain": false,
+    "prompt": ""
+  }
+}

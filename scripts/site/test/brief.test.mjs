@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createInputs, decisionRows, normalizeBrief, slug } from "../lib/brief.mjs";
+import { readFileSync } from "node:fs";
+import { IMAGERY_STYLES, TREATMENTS, createInputs, decisionRows, normalizeBrief, slug } from "../lib/brief.mjs";
 
 test("a minimal brief gets every default, marked as default", () => {
   const { brief, sources, errors } = normalizeBrief({ business: { name: "Example Co" }, owner: { email: "Owner@Example.com" } });
@@ -71,4 +72,20 @@ test("decision rows record who decided each answer, and indexing as chosen", () 
 test("slug makes a valid site id from a business name", () => {
   assert.equal(slug("Café & Bakery, Ltd."), "cafe-and-bakery-ltd");
   assert.equal(slug("  Example   Co  "), "example-co");
+});
+
+test("imagery: defaults to owner photos, checks styles, warns on generated photos, matches the starter's lists", async () => {
+  const base = { business: { name: "Example Co", offer: "x" }, owner: { email: "o@example.com" } };
+  const plain = normalizeBrief(base);
+  assert.deepEqual(plain.brief.design.imagery, { style: "owner-photo", secondary: "", treatment: "none" });
+  assert.ok(decisionRows(plain.brief, plain.sources, "2026-10-28").includes("| 2026-10-28 | Imagery: owner-photo | Framework default | inferred |"));
+  const chosen = normalizeBrief({ ...base, design: { imagery: { style: "photoreal-generated", secondary: "line-art", treatment: "duotone" } } });
+  assert.deepEqual(chosen.errors, []);
+  assert.ok(chosen.warnings.some((w) => w.includes("Generated image")));
+  assert.ok(decisionRows(chosen.brief, chosen.sources, "2026-10-28").includes("| 2026-10-28 | Imagery: photoreal-generated with line-art, duotone treatment | Kickoff | owner |"));
+  assert.ok(normalizeBrief({ ...base, design: { imagery: { style: "oil-painting" } } }).errors.some((e) => e.startsWith("design.imagery.style")));
+  const tokens = readFileSync(new URL("../../../starter/scripts/design-tokens.mjs", import.meta.url), "utf8");
+  for (const [name, list] of [["IMAGERY_STYLES", IMAGERY_STYLES], ["TREATMENTS", TREATMENTS]]) {
+    assert.ok(tokens.includes(`const ${name} = ${JSON.stringify(list).replace(/,/g, ", ")};`), `${name} differs from starter/scripts/design-tokens.mjs`);
+  }
 });

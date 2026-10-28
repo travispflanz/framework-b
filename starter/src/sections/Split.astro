@@ -3,15 +3,18 @@
 import Picture from "./Picture.astro";
 import Section from "./Section.astro";
 import { paragraphs } from "./text.js";
+import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "split"}`;
 const imageLeft = value.image_side === "left";
+// "overlap": the text sits in a card that overlaps the image on wide screens.
+const overlap = variantOf("fb_split", value) === "overlap";
 ---
-<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
-  <div class="grid items-center gap-10 md:grid-cols-2">
-    <div class:list={["grid content-start gap-4", { "md:order-2": imageLeft }]}>
+<Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phoneOf("fb_split", value)}>
+  <div class:list={["grid items-center", overlap ? "md:grid-cols-12" : "gap-10 md:grid-cols-2"]}>
+    <div class:list={["reveal grid content-start gap-4", overlap ? ["card relative z-10 p-8 md:row-start-1", imageLeft ? "md:col-start-7 md:col-end-13" : "md:col-start-1 md:col-end-7"] : { "md:order-2": imageLeft }]}>
       {value.eyebrow && <p class="text-label text-accent">{value.eyebrow}</p>}
       <h2 id={headingId} class="font-display text-headline text-ink">{value.headline}</h2>
       {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-ink-muted">{p}</p>)}
@@ -19,6 +22,8 @@ const imageLeft = value.image_side === "left";
         <p><a href={value.cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.cta_label}</a></p>
       )}
     </div>
-    <Picture image={value.image} sizes="(min-width: 768px) 50vw, 100vw" class="aspect-[4/3] w-full rounded-card object-cover" />
+    <div class:list={overlap ? ["md:row-start-1", imageLeft ? "md:col-start-1 md:col-end-9" : "md:col-start-5 md:col-end-13", "max-md:mt-6"] : []}>
+      <Picture image={value.image} sizes="(min-width: 768px) 60vw, 100vw" class="media aspect-[4/3] w-full object-cover" />
+    </div>
   </div>
 </Section>

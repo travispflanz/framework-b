@@ -16,10 +16,11 @@ export async function handleUnsubscribe(request, env, config) {
   email = email.toLowerCase().slice(0, 254);
   const name = escapeHtml(config.site.name);
 
-  // LEGACY_UNSUB_SECRET: for a site adopted from an older system whose emails carry links signed as "unsub:<email>".
-  // Links already in people's inboxes must keep working, so both forms are accepted.
+  // The legacy secret (config.legacyUnsubSecret names it, default LEGACY_UNSUB_SECRET): for a site adopted from an
+  // older system whose emails carry links signed as "unsub:<email>". Links already in inboxes must keep working.
+  const legacy = env[config.legacyUnsubSecret || "LEGACY_UNSUB_SECRET"];
   const valid = email && token && ((await verify(env.SIGNING_SECRET, `unsub:${config.site.id}:${email}`, token)) ||
-    (env.LEGACY_UNSUB_SECRET && (await verifyLegacy(env.LEGACY_UNSUB_SECRET, `unsub:${email}`, token))));
+    (legacy && (await verifyLegacy(legacy, `unsub:${email}`, token))));
   if (!valid) return page("Link not valid", `<h1>This link isn't valid</h1><p>Reply to any email from ${name} and we'll remove you.</p>`, 400);
 
   if (request.method === "POST") {

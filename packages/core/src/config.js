@@ -57,6 +57,11 @@ export function loadConfig(raw) {
   cfg.go = { to: "/", ...(cfg.go || {}) };
   if (!/^\/(?!\/)/.test(cfg.go.to)) errors.push('go.to must be a path on this site, starting with "/"');
 
+  // An adopted site's older unsubscribe links (src/unsubscribe.js): the name of the Worker secret that signed them.
+  // Default LEGACY_UNSUB_SECRET; an adopted Worker keeps its own secret, whose value can't be read back or renamed.
+  cfg.legacyUnsubSecret = cfg.legacyUnsubSecret ?? "LEGACY_UNSUB_SECRET";
+  if (!/^[A-Z][A-Z0-9_]*$/.test(cfg.legacyUnsubSecret)) errors.push("legacyUnsubSecret must be a Worker secret name (A-Z, 0-9, _)");
+
   // CRM mirror (src/crm.js): copy each lead to the owner's Google Sheet and/or a webhook. Off unless set.
   cfg.crm = { sheet: false, webhook: false, ...(cfg.crm || {}) };
   for (const k of ["sheet", "webhook"]) if (typeof cfg.crm[k] !== "boolean") errors.push(`crm.${k} must be true or false`);

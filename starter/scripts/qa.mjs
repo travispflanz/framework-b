@@ -35,6 +35,8 @@ const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
 const designDoc = existsSync("DESIGN.md") ? readFileSync("DESIGN.md", "utf8").toLowerCase() : "";
+// Composition from DESIGN.md (scripts/design-tokens.mjs writes it): the phone budget and the motion level.
+const composition = existsSync("src/styles/design.json") ? JSON.parse(readFileSync("src/styles/design.json", "utf8")).composition : { phoneBudget: 6, motion: "none" };
 const { check, results, failed } = checker();
 mkdirSync(OUT, { recursive: true });
 
@@ -162,7 +164,9 @@ try {
 
   for (const path of pages) {
     for (const width of WIDTHS) {
-      const context = await browser.newContext({ viewport: { width, height: 900 } });
+      // Reduced motion: checks and screenshots see every element in its final state, whatever the scroll position
+      // (scroll-driven reveals start transparent below the fold). Motion itself is checked separately below.
+      const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
       await auth.playwright(context);
       const page = await context.newPage();
       const errors = [];
@@ -186,6 +190,13 @@ try {
         .map((el) => getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim().toLowerCase()))]);
       const banned = fonts.filter((f) => BANNED_FONTS.includes(f) && !designDoc.includes(f));
       check(`page ${tag}: no banned fonts without a DESIGN.md reason`, banned.length === 0, banned.join(", "));
+      // Lazy images below the fold load only when scrolled to; load them all so the full-page screenshot (used by the
+      // critique rounds and by people reviewing) shows every image.
+      await page.evaluate(async () => {
+        const imgs = [...document.querySelectorAll('img[loading="lazy"]')];
+        imgs.forEach((img) => { img.loading = "eager"; });
+        await Promise.all(imgs.map((img) => (img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; setTimeout(r, 5000); }))));
+      });
       await page.screenshot({ path: join(OUT, `${(path.slice(1) || "home").replace(/\//g, "_")}-${width}.png`), fullPage: true });
 
       if (width === 360 || width === 1280) {
@@ -215,6 +226,46 @@ try {
       }
       await context.close();
     }
+  }
+
+  // ---------- 5b. Phones: length budget and section heights ----------
+  // The home page on a 390 x 844 phone may be at most composition.phoneBudget screens long (DESIGN.md); long
+  // sections are listed so the agent can swipe, fold or hide them (each section's `phone` field).
+  {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", isMobile: true, hasTouch: true });
+    await auth.playwright(context);
+    const page = await context.newPage();
+    await page.goto(base + "/", { waitUntil: "load" });
+    await page.waitForTimeout(800);
+    const m = await page.evaluate(() => ({
+      height: document.documentElement.scrollHeight,
+      sections: [...document.querySelectorAll("main section")].filter((el) => !el.parentElement.closest("section")).map((el) => ({
+        name: el.querySelector("h1, h2")?.textContent.trim().slice(0, 40) || el.id || "section",
+        height: Math.round(el.getBoundingClientRect().height),
+      })),
+      actionBar: !!document.querySelector("body > div.fixed.bottom-0 a"),
+      h1Visible: (() => { const h = document.querySelector("h1"); return !!h && h.getBoundingClientRect().top < 844; })(),
+    }));
+    const screens = m.height / 844;
+    check(`phone: the home page is at most ${composition.phoneBudget} screens long`, screens <= composition.phoneBudget,
+      `${screens.toFixed(1)} screens; longest sections: ${m.sections.sort((a, b) => b.height - a.height).slice(0, 3).map((x) => `${x.name} ${(x.height / 844).toFixed(1)}`).join(", ")}`);
+    check("phone: the headline is on the first screen", m.h1Visible);
+    if (site.nav.some((item) => item.cta)) check("phone: the main action is in the bar at the bottom of the screen", m.actionBar);
+    for (const x of m.sections) if (x.height > 844 * 1.5) console.log(`  note  phone: "${x.name}" is ${(x.height / 844).toFixed(1)} screens; consider its phone setting (swipe, collapse or hide)`);
+    await context.close();
+  }
+
+  // ---------- 5c. Motion: nothing moves for people who ask for reduced motion ----------
+  if (composition.motion !== "none") {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: "reduce" });
+    await auth.playwright(context);
+    const page = await context.newPage();
+    await page.goto(base + "/", { waitUntil: "load" });
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 2));
+    await page.waitForTimeout(300);
+    const running = await page.evaluate(() => document.getAnimations().filter((a) => !String(a.animationName || "").startsWith("turnstile")).length);
+    check("motion: no animations run with reduced motion", running === 0, `${running} running`);
+    await context.close();
   }
 
   // ---------- 6. Lighthouse (mobile) ----------

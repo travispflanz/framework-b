@@ -14,6 +14,9 @@ export const CRM = ["none", "sheet", "webhook", "sheet+webhook"];
 export const SHAPES = ["landing", "full", "hybrid"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GDPR_CASL = new Set(["eu", "uk", "ca", "eea"]);
+// The same lists as starter/scripts/design-tokens.mjs (a test checks they match).
+export const IMAGERY_STYLES = ["owner-photo", "documentary-stock", "photoreal-generated", "line-art", "flat-illustration", "watercolor", "3d", "isometric", "collage", "cartoon", "abstract", "icon-led"];
+export const TREATMENTS = ["none", "duotone", "tint", "warm", "cool", "mono"];
 
 export const slug = (name) =>
   String(name).toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/&/g, " and ")
@@ -87,6 +90,12 @@ export function normalizeBrief(input) {
     crm: pick("crm", "none", (v) => CRM.includes(v)),
     design: {
       autopilot: pick("design.autopilot", true, isBool),
+      // What kind of pictures the site uses (DESIGN.md `imagery`): ask the owner, or infer from the industry.
+      imagery: {
+        style: pick("design.imagery.style", "owner-photo", (v) => IMAGERY_STYLES.includes(v)),
+        secondary: pick("design.imagery.secondary", "", (v) => v === "" || IMAGERY_STYLES.includes(v)),
+        treatment: pick("design.imagery.treatment", "none", (v) => TREATMENTS.includes(v)),
+      },
       words: pick("design.words", []),
       references: pick("design.references", []),
       avoid: pick("design.avoid", []),
@@ -95,6 +104,7 @@ export function normalizeBrief(input) {
     claims: pick("claims", []),
     inferred: [...inferred],
   };
+  if (brief.design.imagery.style === "photoreal-generated") warnings.push("design.imagery.style photoreal-generated: generated photos never show the business's own people, premises, products or work, and carry a visible \"Generated image\" label; owner photos are better wherever the owner has them");
   if (brief.crm.includes("webhook")) warnings.push(`crm "${brief.crm}": the webhook needs its URL as the Worker secret CRM_WEBHOOK_URL (and optionally CRM_WEBHOOK_SECRET) before leads are sent to it`);
   if (!brief.business.offer) warnings.push("business.offer is empty: the hero needs a one-line offer; infer one and list it in `inferred`");
   for (const c of brief.claims) if (!c?.text || !c?.source) errors.push(`claims: every claim needs text and an owner source (${JSON.stringify(c)})`);
@@ -132,5 +142,6 @@ export function decisionRows(b, sources, date) {
     row(`CRM copy of each lead: ${b.crm === "none" ? "off (leads are in /admin)" : b.crm.replace("+", " and ")}`, "crm"),
     row(`Newsletter: ${b.newsletter ? (b.mode === "idea" ? "collect subscribers now, send after launch" : "on") : "off"}`, "newsletter"),
     row(`Design: ${b.design.autopilot ? "autopilot" : "intake with the owner"}${b.design.words.length ? `, "${b.design.words.join(", ")}"` : ""}`, "design.autopilot", "design.words"),
+    row(`Imagery: ${b.design.imagery.style}${b.design.imagery.secondary ? ` with ${b.design.imagery.secondary}` : ""}${b.design.imagery.treatment !== "none" ? `, ${b.design.imagery.treatment} treatment` : ""}`, "design.imagery.style", "design.imagery.secondary", "design.imagery.treatment"),
   ];
 }

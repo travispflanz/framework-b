@@ -1,0 +1,95 @@
+# Reusable: generated images for a site (starter scripts/generate-image.mjs), with the Workers AI token kept in the
+# owner's private ops repo. Called only from the ops repo.
+#   action "draft": makes numbered candidates and a contact sheet from the site's branch and uploads them as the
+#                   run's artifact. Nothing is committed. Look at sheet.png before choosing.
+#   action "use":   takes candidate `number` from the draft run `draft_run`, applies the design's treatment, writes
+#                   the image and its credit, and commits both on `branch`.
+# Status: untested against the live API until the owner adds WORKERS_AI_TOKEN.
+name: site images
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      repo: { type: string, default: "", description: "the site's repo (default site-<site_id>)" }
+      branch: { type: string, required: true, description: "the site branch to read (and, for use, commit to)" }
+      action: { type: string, default: draft, description: '"draft" or "use"' }
+      subject: { type: string, default: "", description: "draft: what the image shows" }
+      name: { type: string, required: true, description: "file name without extension (lowercase, digits, dashes)" }
+      aspect: { type: string, default: "3:2" }
+      count: { type: string, default: "4" }
+      style: { type: string, default: "", description: "draft: override DESIGN.md imagery style" }
+      draft_run: { type: string, default: "", description: "use: the run id of the draft" }
+      number: { type: string, default: "", description: "use: which candidate" }
+      alt: { type: string, default: "", description: "use: what the image shows (alt text)" }
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      WORKERS_AI_TOKEN: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+  actions: read
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency: site-images-${{ inputs.site_id }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+          REPO: ${{ inputs.repo }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          git clone -q --branch "$BRANCH" "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/${REPO:-site-${SITE_ID}}.git" site
+          git -C site config user.name "Framework B"
+          git -C site config user.email "framework-b@users.noreply.github.com"
+          cd site && npm ci --no-audit --no-fund > /dev/null
+          test -f scripts/generate-image.mjs || { echo "This site has no scripts/generate-image.mjs yet: run site update first." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+      - name: Draft
+        if: inputs.action == 'draft'
+        working-directory: site
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKERS_AI_TOKEN: ${{ secrets.WORKERS_AI_TOKEN }}
+          SUBJECT: ${{ inputs.subject }}
+          NAME: ${{ inputs.name }}
+          ASPECT: ${{ inputs.aspect }}
+          COUNT: ${{ inputs.count }}
+          STYLE: ${{ inputs.style }}
+        run: |
+          node scripts/generate-image.mjs draft "$SUBJECT" --as "$NAME" --aspect "$ASPECT" --count "$COUNT" $([ -n "$STYLE" ] && echo --style "$STYLE") | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Use one: action \`use\`, draft_run \`${GITHUB_RUN_ID}\`, the number from sheet.png" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: inputs.action == 'draft'
+        with:
+          name: images-${{ inputs.name }}
+          path: site/design/generated/${{ inputs.name }}/
+      - uses: actions/download-artifact@v4
+        if: inputs.action == 'use'
+        with:
+          name: images-${{ inputs.name }}
+          path: site/design/generated/${{ inputs.name }}
+          run-id: ${{ inputs.draft_run }}
+          github-token: ${{ github.token }}
+      - name: Use the chosen image and commit it
+        if: inputs.action == 'use'
+        working-directory: site
+        env:
+          NAME: ${{ inputs.name }}
+          NUMBER: ${{ inputs.number }}
+          ALT: ${{ inputs.alt }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          node scripts/generate-image.mjs use "$NAME" "$NUMBER" --alt "$ALT" | tee -a "$GITHUB_STEP_SUMMARY"
+          node scripts/check-content.mjs
+          git add "src/assets/images/${NAME}.jpg" design/credits.json
+          git commit -q -m "Generated image ${NAME} (candidate ${NUMBER})"
+          git push -q origin "HEAD:${BRANCH}"
+          echo "Committed src/assets/images/${NAME}.jpg on ${BRANCH}" >> "$GITHUB_STEP_SUMMARY"

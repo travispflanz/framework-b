@@ -1,14 +1,19 @@
 ---
-// fb_form: one of the site's forms, with an introduction.
+// fb_form: one of the site's forms, with an introduction. Layouts: "stacked" (the introduction above the form) or
+// "split" (the introduction beside the form on wide screens).
 import Form from "../components/Form.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
+import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "form"}`;
+const split = variantOf("fb_form", value) === "split";
 ---
-<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
-  <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
-  <Form id={value.form} showTitle={false} />
+<Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phoneOf("fb_form", value)}>
+  <div class:list={{ "grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]": split }}>
+    <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} center={split ? false : undefined} />
+    <div class:list={{ "card p-6 sm:p-8": split }}><Form id={value.form} showTitle={false} /></div>
+  </div>
 </Section>

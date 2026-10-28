@@ -5,6 +5,7 @@ import credits from "../../design/credits.json";
 import "../styles/tokens.css";
 import fonts from "../styles/fonts.js";
 import "../sections/sections.css";
+import { composition } from "../sections/design.js";
 
 // bleed: the page is made of full-width sections (src/sections), so <main> adds no column or padding.
 interface Props { title?: string; description?: string; noindex?: boolean; bleed?: boolean }
@@ -24,12 +25,27 @@ const org = {
   ...(config.site.postalAddress ? { address: config.site.postalAddress } : {}),
 };
 const year = new Date().getFullYear();
-// The footer links to /credits when an image from another creator needs attribution.
-const needsCredits = (credits.images || []).some((c) => c.source === "openverse" || c.source === "stock");
-const hasCta = config.nav.some((item) => item.cta);
+// The footer links to /credits when an image from another creator needs attribution or an image was generated.
+const needsCredits = (credits.images || []).some((c) => c.source === "openverse" || c.source === "stock" || (c.source === "generated" && !c.test));
+const cta = config.nav.find((item) => item.cta);
+// Phones get an app-like frame: the pages as a visible row under the header (up to 6; NN/g found hidden menus
+// are used far less), and the main action in a bar at the bottom of the screen, within thumb reach, on every
+// page except the one it leads to. site.phone adds a call button beside it.
+const pageLinks = config.nav.filter((item) => !item.cta);
+const showPageRow = pageLinks.length > 0 && pageLinks.length <= 6;
+const actionBar = !!cta && path !== cta.href;
+const phone = config.site.phone ? String(config.site.phone) : "";
+// The logo (scripts/brand-kit.mjs writes it and sets site.logo); otherwise the name in the display font.
+const logo = config.site.logo || "";
 ---
 <!doctype html>
-<html lang={config.site.locale?.split("-")[0] || "en"}>
+<html
+  lang={config.site.locale?.split("-")[0] || "en"}
+  data-cards={composition.cards}
+  data-image-shape={composition.imageShape}
+  data-density={composition.density}
+  data-motion={composition.motion}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -42,21 +58,27 @@ const hasCta = config.nav.some((item) => item.cta);
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content="website" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {logo && <link rel="apple-touch-icon" href="/apple-touch-icon.png" />}
+    {logo && <link rel="manifest" href="/manifest.webmanifest" />}
+    {logo && <meta property="og:image" content={new URL("/og.png", `https://${config.site.canonicalHost}`).toString()} />}
+    {composition.motion !== "none" && <style is:inline set:html={"@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }"} />}
     {fonts.map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
     <link rel="preconnect" href="https://challenges.cloudflare.com" />
     <script type="application/ld+json" set:html={JSON.stringify(org)} />
     <script src="../scripts/attribution.js"></script>
   </head>
-  <body>
+  <body class:list={{ "max-sm:pb-24": actionBar }}>
     <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:bg-[var(--color-bg)] focus:p-2">Skip to content</a>
     <header class="border-b border-[var(--color-line)] px-[var(--spacing-gutter)]">
       <nav aria-label="Main" class="mx-auto flex min-h-16 w-full max-w-[var(--container-content)] items-center justify-between gap-4 py-3">
-        <a href="/" class="font-display text-lg font-bold text-[var(--color-ink)] no-underline">{config.site.name}</a>
+        <a href="/" class="font-display text-lg font-bold text-[var(--color-ink)] no-underline">
+          {logo ? <img src={logo} alt={config.site.name} class="h-9 w-auto" width="160" height="36" /> : config.site.name}
+        </a>
         <ul class="flex items-center gap-6">
-          {/* A nav item with "cta": true is the header button. When there is one, the other links hide on small
-              screens, so a phone shows the name and one clear action. */}
+          {/* On wide screens every link shows; on phones the pages move to the row below and the main action to the
+              bar at the bottom, so the header keeps just the name. */}
           {config.nav.map((item) => (
-            <li class:list={[{ "hidden md:block": hasCta && !item.cta }]}>
+            <li class:list={[{ "hidden md:block": !item.cta, "max-sm:hidden": item.cta && actionBar }]}>
               <a
                 href={item.href}
                 aria-current={path === item.href ? "page" : undefined}
@@ -66,6 +88,15 @@ const hasCta = config.nav.some((item) => item.cta);
           ))}
         </ul>
       </nav>
+      {showPageRow && (
+        <nav aria-label="Pages" class="-mx-[var(--spacing-gutter)] overflow-x-auto border-t border-[var(--color-line)] md:hidden">
+          <ul class="flex gap-6 px-[var(--spacing-gutter)] py-2 text-sm whitespace-nowrap">
+            {pageLinks.map((item) => (
+              <li><a href={item.href} aria-current={path === item.href ? "page" : undefined} class="inline-flex min-h-11 items-center">{item.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </header>
     <main id="main" class:list={["flex-1", bleed ? "w-full" : "mx-auto w-full max-w-[var(--container-content)] px-[var(--spacing-gutter)] py-10"]}>
       <slot />
@@ -76,5 +107,11 @@ const hasCta = config.nav.some((item) => item.cta);
         <p class="flex gap-4">{needsCredits && <a href="/credits">Image credits</a>}<a href="/privacy">Privacy</a></p>
       </div>
     </footer>
+    {actionBar && (
+      <div class="fixed inset-x-0 bottom-0 z-40 flex gap-3 border-t border-[var(--color-line)] bg-[var(--color-bg)] px-[var(--spacing-gutter)] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
+        {phone && <a href={`tel:${phone.replace(/[^+\d]/g, "")}`} class="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-control)] border border-[var(--color-field)] px-4 font-semibold no-underline">Call</a>}
+        <a href={cta.href} class="button-primary inline-flex min-h-12 flex-1 items-center justify-center no-underline">{cta.label}</a>
+      </div>
+    )}
   </body>
 </html>

@@ -7,6 +7,11 @@
 //       → design/image-candidates/<query>.json and a contact sheet <query>.png (numbered thumbnails) to look at
 //   node scripts/images.mjs add <openverse id> --as <file name> --alt "<what it shows>" [--allow-small]
 //       → src/assets/images/<file name>.jpg (at most 2000 px wide, metadata stripped) + its design/credits.json entry
+//   node scripts/images.mjs treat <file in src/assets/images>
+//       → applies the DESIGN.md imagery treatment to an owner photo (once; the credit records it)
+//
+// `add` applies the imagery treatment from DESIGN.md (imagery.treatment and imagery.grain; see scripts/lib/treatment.mjs)
+// so stock photos match each other and the generated images. Run design-tokens.mjs first after changing DESIGN.md.
 //
 // Only licences that allow commercial use and resizing: CC0, Public Domain Mark, CC BY, CC BY-SA. CC BY and BY-SA
 // need attribution: the site's /credits page lists every credited image and the footer links to it.
@@ -16,6 +21,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import { launchBrowser } from "./lib/local-site.mjs";
+import { applyTreatment, readImagery, readPalette } from "./lib/treatment.mjs";
 
 for (const ev of ["uncaughtException", "unhandledRejection"]) process.on(ev, (e) => (console.error(`error: ${e?.message || e}`), process.exit(1)));
 const API = "https://api.openverse.org/v1/images";
@@ -122,7 +128,9 @@ if (cmd === "search" && arg) {
   mkdirSync("src/assets/images", { recursive: true });
   const file = `src/assets/images/${as}.jpg`;
   if (existsSync(file)) throw new Error(`${file} already exists`);
-  const out = await sharp(buf).rotate().resize({ width: 2000, withoutEnlargement: true }).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  const resized = await sharp(buf).rotate().resize({ width: 2000, withoutEnlargement: true }).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  const imagery = readImagery();
+  const { buffer: out, changes } = await applyTreatment(resized, { ...imagery, palette: imagery.treatment === "none" ? undefined : readPalette() });
   writeFileSync(file, out);
   const ledgerPath = "design/credits.json";
   const ledger = existsSync(ledgerPath) ? JSON.parse(readFileSync(ledgerPath, "utf8")) : { images: [] };
@@ -130,12 +138,29 @@ if (cmd === "search" && arg) {
   ledger.images.push({
     file, source: "openverse", title: r.title || "", creator: r.creator || "unknown", creator_url: r.creator_url || "",
     license: licenseName(r), license_url: r.license_url || "", url: r.foreign_landing_url, openverse_id: r.id,
-    alt, changes: "Resized and compressed.",
+    alt, changes: ["Resized and compressed.", changes].filter(Boolean).join(" "),
   });
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   const final = await sharp(out).metadata();
   console.log(`${file}: ${final.width}×${final.height}, ${Math.round(out.length / 1024)} KB, ${licenseName(r)} by ${r.creator || "unknown"}. Use it as { "src": "${as}.jpg", "alt": "${alt}" }.`);
+} else if (cmd === "treat" && arg) {
+  const file = arg.startsWith("src/") ? arg : `src/assets/images/${arg}`;
+  if (!existsSync(file)) throw new Error(`${file} doesn't exist`);
+  if (!/\.jpe?g$/i.test(file)) throw new Error("treat works on JPEG files; convert the photo to .jpg first");
+  const ledgerPath = "design/credits.json";
+  const ledger = existsSync(ledgerPath) ? JSON.parse(readFileSync(ledgerPath, "utf8")) : { images: [] };
+  const entry = (ledger.images || []).find((c) => c.file === file);
+  if (!entry) throw new Error(`${file} has no entry in ${ledgerPath}; credit it first`);
+  if (entry.treated) throw new Error(`${file} was already treated (${entry.treated}); start again from the original`);
+  const imagery = readImagery();
+  if (imagery.treatment === "none" && !imagery.grain) throw new Error("DESIGN.md sets no imagery treatment");
+  const { buffer, changes } = await applyTreatment(readFileSync(file), { ...imagery, palette: readPalette() });
+  writeFileSync(file, buffer);
+  entry.treated = changes;
+  entry.changes = [entry.changes, changes].filter(Boolean).join(" ");
+  writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
+  console.log(`${file}: ${changes}`);
 } else {
-  console.error('usage: images.mjs search "<query>" [--count 20] [--any-size] | add <id> --as <name> --alt "<text>" [--allow-small]');
+  console.error('usage: images.mjs search "<query>" [--count 20] [--any-size] | add <id> --as <name> --alt "<text>" [--allow-small] | treat <file>');
   process.exit(2);
 }

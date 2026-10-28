@@ -1,0 +1,107 @@
+# Reusable: moves an existing site that wasn't built with Framework B onto it, with scripts/site/adopt.mjs. Called
+# only from the owner's private ops repo, which holds the secrets. The site keeps its Worker (domains, secrets,
+# Access); its leads are copied into new databases and the old database is only read.
+#   phase "prepare":  new databases with the copied leads, SIGNING_SECRET, the current Builds triggers recorded;
+#                     commits wrangler.jsonc and adopt.json on `branch` of the site repo.
+#   phase "preview":  uploads `branch` as a preview version of the Worker and runs the QA gate on its URL.
+#                     Production keeps running the old code.
+#   phase "cutover":  after the owner merges the new site into main: Workers Builds switches to the site repo,
+#                     main deploys, anything new in the old database is copied, the live site is checked.
+#   phase "rollback": Workers Builds goes back to the old repo (adopt.json legacyRepo) and its main deploys.
+# Status: untested end to end until the first adoption.
+name: site adopt
+on:
+  workflow_call:
+    inputs:
+      framework_repo: { type: string, required: true }
+      framework_ref: { type: string, default: main }
+      site_id: { type: string, required: true }
+      repo: { type: string, default: "", description: "the new site's repo (default site-<site_id>)" }
+      phase: { type: string, default: prepare, description: '"prepare", "preview", "cutover" or "rollback"' }
+      branch: { type: string, default: build/initial, description: "the site branch prepare commits to and preview uploads" }
+      dry_run: { type: string, default: "no", description: '"yes" only checks (prepare: also maps every row without writing)' }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: true }
+      CLOUDFLARE_ACCOUNT_ID: { required: true }
+      CF_BUILDS_TOKEN: { required: true }
+      GH_SITES_TOKEN: { required: true }
+permissions:
+  contents: read
+jobs:
+  adopt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency: site-${{ inputs.site_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          path: framework
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Clone the site
+        env:
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          SITE_ID: ${{ inputs.site_id }}
+          REPO: ${{ inputs.repo }}
+          PHASE: ${{ inputs.phase }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
+          repo="${REPO:-site-${SITE_ID}}"
+          echo "OWNER=$owner" >> "$GITHUB_ENV"
+          echo "SITE_REPO=$repo" >> "$GITHUB_ENV"
+          ref=main
+          if [ "$PHASE" = prepare ] || [ "$PHASE" = preview ]; then ref="$BRANCH"; fi
+          git clone -q --branch "$ref" "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/${repo}.git" site
+          git -C site config user.name "Framework B"
+          git -C site config user.email "framework-b@users.noreply.github.com"
+          cd site && npm ci --no-audit --no-fund > /dev/null
+      - name: Adopt (${{ inputs.phase }})
+        id: adopt
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}
+          GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
+          PHASE: ${{ inputs.phase }}
+          DRY: ${{ inputs.dry_run }}
+        run: node framework/scripts/site/adopt.mjs --site site --phase "$PHASE" --repo "$SITE_REPO" --report adopt-report.md $([ "$DRY" = "yes" ] && echo --dry-run)
+      - name: Commit the database ids and the recorded triggers on the branch
+        if: inputs.phase == 'prepare' && inputs.dry_run != 'yes'
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          git -C site add wrangler.jsonc adopt.json
+          if git -C site diff --cached --quiet; then echo "Nothing to commit" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          git -C site commit -q -m "Adopt: new databases and the recorded Workers Builds triggers"
+          git -C site push -q origin "HEAD:${BRANCH}"
+          echo "Committed wrangler.jsonc and adopt.json on ${BRANCH}" >> "$GITHUB_STEP_SUMMARY"
+      - name: QA gate on the preview
+        if: inputs.phase == 'preview' && steps.adopt.outputs.url != ''
+        env:
+          URL: ${{ steps.adopt.outputs.url }}
+        run: |
+          cd site
+          npx playwright install --with-deps chromium > /dev/null
+          npm run qa -- --url "$URL" | tee ../qa.log
+          tail -n 1 ../qa.log >> "$GITHUB_STEP_SUMMARY"
+      - name: Launch QA gate on the live site
+        if: inputs.phase == 'cutover' && inputs.dry_run != 'yes'
+        run: |
+          cd site
+          host=$(jq -r .site.canonicalHost site.config.json)
+          npx playwright install --with-deps chromium > /dev/null
+          npm run build > /dev/null
+          npm run qa -- --url "https://${host}" --launch | tee ../qa.log
+          tail -n 1 ../qa.log >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: adopt-${{ inputs.site_id }}-${{ inputs.phase }}
+          path: |
+            adopt-report.md
+            site/qa-output/
+          if-no-files-found: ignore

@@ -98,6 +98,30 @@ A copied starter never gets later fixes on its own, so `site update` brings an e
 
 Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. First live run (2026-10-23, an editing site created before the lock existed): 4 files updated or added, no conflicts; build, e2e and QA passed on the copy; the branch was pushed, but opening the pull request needed `GH_SITES_TOKEN` to have "Pull requests: write" (docs/TOKENS.md). The step now fails when the pull request can't be opened. After the permission was added, a second run (lock-only change) opened its own pull request, with 14 e2e and 80 QA checks passing. A static site was updated live on 2026-10-27 (27 files, opened and merged as a pull request, no conflicts). A live run with a conflict is untested; conflicts are covered by the fixture tests.
 
+### Adopting an existing site
+
+For a site that runs on its own Worker but wasn't built with Framework B (`scripts/site/adopt.mjs`, ops workflow
+`site adopt`; built 2026-10-28, untested end to end until the first adoption). The new site is a normal Framework B
+site in its own repo, in launch mode on the old site's domain. It takes over the old Worker by name, so the Worker's
+custom domains, secrets, Access applications and Turnstile widget stay as they are.
+
+- `adopt.json` in the site repo names the Worker, the old D1 database and the mapping queries: one read-only `SELECT`
+  each for leads and subscribers that returns rows in core's schema (format in `scripts/site/lib/adopt.mjs`). Each
+  query is checked to be a single statement with no writing keyword before it is sent, and every mapped row is
+  checked before any is written.
+- `prepare` creates `<id>-prod` and `<id>-staging` with core's migrations, copies the mapped rows (`INSERT OR
+  IGNORE`), keeps or copies the uploads bucket, adds `SIGNING_SECRET` to the Worker, records the Worker's Workers
+  Builds triggers in `adopt.json` and writes the new database ids into `wrangler.jsonc`.
+- `preview` uploads the branch as a preview version of the Worker (`wrangler preview`) and runs the QA gate on it,
+  while production still runs the old code.
+- `cutover`, after the owner merges: copies new arrivals, deletes the Worker's Builds triggers and connects the new
+  repo (the API documents deleting and creating triggers; whether `PATCH` can change a trigger's repo isn't
+  documented, checked 2026-10-28), builds main, copies anything that reached the old database during the switch,
+  and checks `/`, `/go`, `/api/health` and `/admin` before the launch QA gate.
+- `rollback` connects the old repo again with its recorded triggers and builds its main.
+- The old database is never written to. Deleting it, and anything else the old site used, needs the owner's approval.
+- Older unsubscribe links keep working through core's `legacyUnsubSecret` (the Worker's own secret, by name).
+
 ### Checking a preview (P6)
 
 `site preview check` (ops repo; inputs: site id, branch) calls the reusable `site-preview-check.yml`, which runs `scripts/site/preview-check.mjs`:
@@ -366,14 +390,65 @@ The design phase's foundation and its tools are in `starter/`. The intake conver
 - **Autopilot judge (`scripts/design-judge.mjs`):** run exactly as calibrated (docs/research/trials.md). `prepare` makes first-screen ballots for every pair, both ways round, in shuffled order. The agent's own vision model answers each with LEFT or RIGHT; no outside API or key is used. `tally` counts a win only when a tile wins both ways round and treats a split as a tie. When the top tiles tie, the agent takes the one closer to the intake answers and records why in DESIGN.md. Another judge model must pass the calibration set first.
 - **Images:** image fields use EmDash's media shape (`{ src, alt, ... }`). On a static site `src` is a file in `src/assets/images/`, served through Astro's `<Image>` as WebP at 480–1600 px with `sizes` (sharp 0.35.5). Alt text is required. `editing.mjs` leaves local images out of the EmDash seed, so editors add them in EmDash's media library instead; images on editing sites are untested.
 - **Open-licensed photos (`scripts/images.mjs`):** searches Openverse ([API](https://api.openverse.org/v1/), no key, checked 2026-10-27; anonymous use is 20 results a page and about one request a second, [Openverse](https://make.wordpress.org/openverse/2022/06/17/mitigating-out-of-terms-api-usage/)) for CC0, Public Domain Mark, CC BY and CC BY-SA images (the licences that allow commercial use and resizing) at least 1000 px on the long side. It makes a numbered contact sheet to look at before choosing, then downloads, resizes to at most 2000 px, strips metadata and writes the credit. Flickr and Wikimedia want a descriptive User-Agent. Wikimedia rate-limited this agent's address (429, `retry-after: 600`, 2026-10-27), so the download waits once for Retry-After. `/credits` lists every credited image with its licence, as CC BY requires, and the footer links to it.
-- **Image credits (`design/credits.json`):** every image in `public/` or `src/` needs an entry giving its source (owner, openverse, stock, generated or framework) and its alt text. Openverse and stock images also need the creator, licence and link; a generated image must be marked abstract. `check-content.mjs`, and so the QA gate, fails on an image without an entry. The ledger is seeded once into existing sites by `site update` and is site-owned from then on. Where images go is decided per page in the content files.
+- **Image credits (`design/credits.json`):** every image in `public/` or `src/` needs an entry giving its source (owner, openverse, stock, generated, brand or framework) and its alt text. Openverse and stock images also need the creator, licence and link; a generated image must be marked `illustrative` (or `abstract`). `check-content.mjs`, and so the QA gate, fails on an image without an entry. The ledger is seeded once into existing sites by `site update` and is site-owned from then on. Where images go is decided per page in the content files.
 - **First use:** the first real site (idea site, editing on), with autopilot direction from research. Its local end-to-end test and QA gate pass with editing on.
 - **This-or-that (`scripts/design-pairs.mjs`, P2.5, built 2026-10-27):** the agent writes 4–6 pairs in `design/pairs.json`; each option sets one or more of display and body font, colours, radius, density and imagery over the current DESIGN.md, so A and B differ only where the pair says. `render` draws each pair on the home page's real hero copy into `design/pairs/<id>.png` plus an `index.html`; fonts the site lacks are fetched from Fontsource into `node_modules/.cache` (never added to `package.json`), and the QA gate's banned fonts are refused. `pick <id> a|b` records the owner's answer in `design/intake.json`; `defaults` fills the rest with the recommended side, marked inferred. The pairs go to the owner as images in chat (the research's "link, or screenshots"), so no preview deploy is needed. Tested 2026-10-27 on the starter with four pairs; 3 unit tests.
 - **Critique rounds (`scripts/design-critique.mjs`, section 8 of the research, built 2026-10-27):** after the gates pass, in the same test-key copy. `start` screenshots every page except 404, thanks, privacy and credits at 1280 and 390 px; the agent fills the five-dimension rubric (hierarchy and clarity, subject-specificity, named tells, consistency with DESIGN.md, trust), its tells and at most three located fixes; `score` ends the loop when every score is 4 or more with at most one tell. `compare` rebuilds and runs the QA gate (a failure reverts the fixes and ends the loop), then makes ballots for every changed page and width (the first screen if it changed, else the full page), both ways round. `decide` keeps the fixes only if "after" wins both ways on every changed page, otherwise reverts them, and ends the loop after a round with no accepted revision or after three rounds. The critic and the judge are the agent's own vision model, as with the tile judge. First run on the starter (2026-10-27): round 1 found the form section printing its heading twice; the fix won all four ballots and is in this change. A second round with a deliberately worse change was reverted. 4 unit tests.
 
+### Design upgrade (2026-10-28)
+
+Why: every site had the same skeleton (one layout per section, the same order, long stacked phone pages: 8.4 and 9.2
+phone screens on two real sites), so only the skin changed between them. Research and recommendations: the
+"Framework B design upgrade" document (2026-10-28). Owner decisions the same day: generated imagery is allowed and its
+style is a kickoff question; fonts from any OFL source; no single animation library, the lightest thing that fits;
+free first.
+
+- **Composition and imagery in DESIGN.md.** Two Framework B blocks (the `@google/design.md` linter accepts extra
+  blocks). `composition`: align (left, center), density (airy, compact), separation (bands, hairlines, none), cards
+  (filled, outlined, flat), imageShape (rounded, square, full-bleed), motion (none, subtle, expressive) and
+  phoneBudget (2–20 phone screens for the home page, default 6). `imagery`: style (owner-photo, documentary-stock,
+  photoreal-generated, line-art, flat-illustration, watercolor, 3d, isometric, collage, cartoon, abstract,
+  icon-led), an optional secondary style, treatment (none, duotone, tint, warm, cool, mono), grain, and a one-line
+  art direction. `design-tokens.mjs` checks every value and writes them to `src/styles/design.json`, which the
+  sections, the layout and the QA gate read. The brief asks the imagery question (`design.imagery`).
+- **Section layouts.** Every section has a `variant` (hero: split, full-bleed, statement, editorial, bento; steps:
+  cards, timeline, numerals; features: grid, bento, list, cards; faq: stack, two-column; cta: card, band; form:
+  stacked, split; split: side, overlap; gallery: grid, masonry, strip; area: chips, columns; text: prose, lead) and,
+  except the hero, a `phone` setting: stack, swipe (a scroll-snap row), collapse (an exclusive `<details name>`
+  accordion) or hide. `auto` uses a per-section default (`PHONE_AUTO`). Both are optional EmDash fields, so editors
+  can change them.
+- **Phone layout.** A fixed bottom action bar with the CTA (and a Call button when `site.phone` is set) on every page
+  but the CTA's own; a row of page links under the header. The QA gate measures the home page at 390×844 and fails
+  it above the phone budget, and fails a first screen without the `<h1>` or a missing action bar.
+- **Motion, CSS only.** Hover lift and press states, a scroll-driven reveal (`animation-timeline: view()`, inside
+  `@supports`), a timeline line that draws, parallax on a full-bleed hero (expressive only), and cross-document view
+  transitions (`@view-transition`). All of it sits under `prefers-reduced-motion: no-preference`; the QA gate checks
+  that nothing animates with reduced motion. No animation library ships; one may be added per site when a design
+  needs JavaScript-driven motion.
+- **Logo (`scripts/brand-kit.mjs`).** Six layouts (wordmark, mark and name, stacked, badge, monogram, tracked with a
+  rule) set in the design's display font and converted to outlines with opentype.js 2.0.0 (MIT); the mark is the
+  initials or a filled Phosphor icon (`@phosphor-icons/core`, MIT). `pick` writes the logo, favicon, Apple touch icon,
+  192 and 512 px icons, a 1200×630 share image and the web manifest, and sets `site.logo`. Fonts and icons are fetched
+  into `node_modules/.cache`, never into `package.json`. CI runs it on every starter change.
+- **Imagery treatment (`scripts/lib/treatment.mjs`).** `images.mjs add` and `generate-image.mjs use` apply the
+  design's treatment so stock and generated images match; `images.mjs treat` applies it once to an owner photo. The
+  credit records the change.
+- **Generated images (`scripts/generate-image.mjs`).** Cloudflare Workers AI, FLUX.2 [klein] 4B (Apache 2.0, [BFL
+  licensing](https://help.bfl.ai/articles/9272590838-self-serve-dev-license-overview-pricing), checked 2026-10-28);
+  width and height 256–1920, 4 fixed steps, 26.05 neurons per output 512×512 tile against 10,000 free neurons a day
+  ([model](https://developers.cloudflare.com/changelog/post/2026-01-15-flux-2-klein-4b-workers-ai/),
+  [pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/), checked 2026-10-28). The prompt is the
+  style's description, the subject, the design's art direction and palette, and "no text or logos". `draft` makes
+  numbered candidates and a contact sheet; `use` applies the treatment and writes a credit with the model, prompt and
+  seed. Rules from the research ([Getty Images VisualGPS](https://newsroom.gettyimages.com/en/getty-images/nearly-90-of-consumers-want-transparency-on-ai-images-finds-getty-images-report),
+  checked 2026-10-28: nearly 90% of people want to know whether an image was made with AI, and AI pictures of people
+  or products read as more misleading than other subjects): a generated image never shows the business's own people, premises, products, work or results; a
+  photorealistic one shows no faces and carries a visible "Generated image" label; every one is listed on
+  `/credits`. Untested against the live API: no build has had a Workers AI token yet.
+
 Rules:
 
-- **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates people or premises.
+- **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.
 - **Performance threshold:** the research proposed 0.95. The framework keeps the 90 tripwire, because a real production build measured 94–98 run to run on identical code.

@@ -199,6 +199,8 @@ if (indexing) done("indexing", `search engines may index https://${host}; previe
 config.turnstile = { siteKey };
 const mailer = process.env.MAILER_URL && process.env.MAILER_SECRET;
 // Lead auto-replies on an idea site come from the mailer's Gmail (brief `autoReply`); without the mailer they stay off.
+// The phone action bar gets a Call button when the brief has the business's phone number.
+if (kickoff?.brief.business.phone) config.site.phone = String(kickoff.brief.business.phone).trim();
 if (consentMode === "checkbox") config.optIn = { ...(config.optIn || {}), mode: "checkbox" };
 config.email = { notify: mailer ? "apps-script" : "none", confirm: mailer && autoReply ? "apps-script" : "none" };
 if (autoReply && !mailer) warn("lead auto-reply asked for, but no Apps Script mailer is configured: auto-replies stay off");

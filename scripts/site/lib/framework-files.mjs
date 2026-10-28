@@ -3,7 +3,7 @@
 //
 // A site is a copy of starter/ plus a vendored copy of packages/core (in core/). Files fall into four groups:
 //   site-owned   never touched by an update: brand, content, design contract, records, Cloudflare bindings
-//   generated    rebuilt after an update from site-owned inputs: tokens.css, fonts.js, seed/, package-lock.json
+//   generated    rebuilt after an update from site-owned inputs: tokens.css, fonts.js, design.json, seed/, package-lock.json
 //   package.json merged key by key (dependencies, devDependencies, scripts, emdash)
 //   framework    everything else from starter/, plus core/: updated with a three-way merge
 // With client editing on, a few framework files come from starter/editing/ instead, their static versions live in
@@ -24,7 +24,7 @@ export const SITE_OWNED = [
 ];
 // Seeded: added to a site that doesn't have them yet, then site-owned (the site edits them; updates never touch them).
 export const SEEDED = [/^design\/credits\.json$/];
-export const GENERATED = [/^src\/styles\/tokens\.css$/, /^src\/styles\/fonts\.js$/, /^seed\//, /^package-lock\.json$/];
+export const GENERATED = [/^src\/styles\/tokens\.css$/, /^src\/styles\/fonts\.js$/, /^src\/styles\/design\.json$/, /^seed\//, /^package-lock\.json$/];
 const IGNORED = [/(^|\/)(node_modules|dist|\.astro|\.wrangler|qa-output)\//, /^core\//, /^\.dev\.vars$/];
 // The overlay targets: with editing on, these come from starter/editing/<path>.
 const OVERLAY = ["astro.config.mjs", "src/worker.js", "src/live.config.ts", "src/pages/index.astro"];

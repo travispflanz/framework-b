@@ -31,7 +31,7 @@ if (drafts.length < 2) throw new Error("give two or three DESIGN.md drafts: node
 for (const d of drafts) if (!existsSync(d)) throw new Error(`no such draft: ${d}`);
 const SITE = process.cwd();
 const RESTORE = join(SITE, ".design-tiles-restore.json");
-const TOUCHED = ["DESIGN.md", "src/styles/tokens.css", ".wrangler/deploy/config.json", "src/pages/design-tile.astro"];
+const TOUCHED = ["DESIGN.md", "src/styles/tokens.css", "src/styles/fonts.js", "src/styles/design.json", ".wrangler/deploy/config.json", "src/pages/design-tile.astro"];
 const restore = (saved) => {
   for (const [p, text] of Object.entries(saved)) {
     if (text === null) rmSync(join(SITE, p), { force: true });
@@ -102,7 +102,7 @@ try {
     const { server, base } = await serve(dist);
     mkdirSync(join(OUT, name), { recursive: true });
     for (const width of [1280, 390]) {
-      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
       await page.goto(`${base}/design-tile`, { waitUntil: "load" });
       await page.evaluate(() => document.fonts.ready);
       await page.screenshot({ path: join(OUT, name, `tile-${width}.png`), fullPage: true });
