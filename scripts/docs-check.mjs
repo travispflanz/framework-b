@@ -27,6 +27,11 @@ const fail = (where, what) => problems.push(`${where}: ${what}`);
 
 const tracked = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter(Boolean);
 const basenames = new Set(tracked.map((f) => f.split("/").pop()));
+// Existence is checked against tracked files, so a local build output or vendored copy can't hide a missing file.
+const trackedExists = (p) => {
+  const clean = p.replace(/^\.\//, "").replace(/\/+$/, "");
+  return clean === "" || tracked.includes(clean) || tracked.some((f) => f.startsWith(`${clean}/`));
+};
 const mdFiles = execFileSync("git", ["ls-files", "*.md"], { cwd: ROOT, encoding: "utf8" })
   .split("\n").filter((f) => f && !f.startsWith("docs/research/") && !f.includes("node_modules/"));
 
@@ -122,23 +127,24 @@ for (const md of mdFiles) {
   const text = readFileSync(join(ROOT, md), "utf8").replace(/```[\s\S]*?```/g, (b) => b.replace(/`/g, ""));
   const here = dirname(md);
   const isSiteDoc = md.startsWith("starter/");
-  const bases = [ROOT, join(ROOT, here), join(ROOT, "starter")];
+  const bases = ["", here === "." ? "" : here, "starter"];
+  const existsIn = (b, p) => trackedExists(b ? `${b}/${p}` : p);
   const spans = [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1].trim());
   for (const span of spans) {
     // 1. paths
     const first = span.split(/\s+/)[0];
     if (span === first && FILEISH.test(span) && !/[<>{}$]/.test(span) && !span.startsWith("/") && !span.startsWith("@") && !/^(build|framework|feat|fix|docs)\/[\w-]+$/.test(span) && !/^[\w-]+\.(com|dev|workers\.dev)/.test(span)) {
       const p = span.replace(/^\.\//, "");
-      const generated = /^(dist|qa-output|design\/(tiles|judge|pairs|critique|drafts)|node_modules|\.wrangler|\.dev\.vars|newsletter|seed|design\/sitemap\.md|editing\/static|src\/assets\/images|\.impeccable)\b/.test(p) ||
+      const generated = /^(dist|qa-output|design\/(tiles|judge|pairs|critique|drafts)|node_modules|\.wrangler|\.dev\.vars|newsletter|seed|core|design\/sitemap\.md|editing\/static|src\/assets\/images|\.impeccable)\b/.test(p) ||
         /(^|\/)(brief\.json|ballot\.json|park\.json|intake\.json|pairs\.json|state\.json|framework\.lock\.json|tokens\.css|credits\.json|live\.config\.ts|\.dev\.vars(\.example)?|home\.json)$/.test(p);
       // A bare file name ("editing.mjs") is shorthand for a file somewhere in the repo.
-      const ok = generated || (!p.includes("/") && basenames.has(p)) || bases.some((b) => existsSync(join(b, p.replace(/\*.*$/, ""))));
+      const ok = generated || (!p.includes("/") && basenames.has(p)) || bases.some((b) => existsIn(b, p.replace(/\*.*$/, "")));
       // Site docs name files that exist only in a site (made by create or by the agent); the list above covers them.
-      if (!ok && !(isSiteDoc && /^(src|public|design|scripts)\//.test(p) && existsSync(join(ROOT, "starter", p.split("/")[0])))) fail(md, `\`${span}\` doesn't exist`);
+      if (!ok && !(isSiteDoc && /^(src|public|design|scripts)\//.test(p) && trackedExists(`starter/${p.split("/")[0]}`))) fail(md, `\`${span}\` doesn't exist`);
     }
     // 2. scripts
     const node = span.match(/^node (\S+\.m?js)/);
-    if (node && !/[<>]/.test(node[1]) && !bases.some((b) => existsSync(join(b, node[1])))) fail(md, `\`${span}\`: ${node[1]} doesn't exist`);
+    if (node && !/[<>]/.test(node[1]) && !bases.some((b) => existsIn(b, node[1]))) fail(md, `\`${span}\`: ${node[1]} doesn't exist`);
     const npm = span.match(/^npm run ([\w:-]+)/);
     if (npm) {
       const known = [...npmScripts("starter"), ...npmScripts("packages/core"), ...npmScripts(here), ...npmScripts("ops/backup-worker")];
