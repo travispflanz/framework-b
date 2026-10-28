@@ -446,8 +446,12 @@ free first.
   seed. Rules from the research ([Getty Images VisualGPS](https://newsroom.gettyimages.com/en/getty-images/nearly-90-of-consumers-want-transparency-on-ai-images-finds-getty-images-report),
   checked 2026-10-28: nearly 90% of people want to know whether an image was made with AI, and AI pictures of people
   or products read as more misleading than other subjects): a generated image never shows the business's own people, premises, products, work or results; a
-  photorealistic one shows no faces and carries a visible "Generated image" label; every one is listed on
-  `/credits`. Untested against the live API: no build has had a Workers AI token yet.
+  photorealistic one shows no faces; every one is listed on `/credits`, and none carries a label on the page
+  (owner's decision 2026-10-28; the EU AI Act's disclosure duty, Article 50(4), covers deep fakes, content that
+  resembles real people, objects, places or events and would falsely appear authentic, and for evidently artistic
+  work only asks for a disclosure that "does not hamper the display or enjoyment of the work":
+  [AI Act Service Desk](https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-50), checked 2026-10-28).
+  Proven against the live API on 2026-10-28 (site images workflow, three runs).
 
 Rules:
 

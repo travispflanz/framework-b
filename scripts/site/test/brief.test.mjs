@@ -81,7 +81,7 @@ test("imagery: defaults to owner photos, checks styles, warns on generated photo
   assert.ok(decisionRows(plain.brief, plain.sources, "2026-10-28").includes("| 2026-10-28 | Imagery: owner-photo | Framework default | inferred |"));
   const chosen = normalizeBrief({ ...base, design: { imagery: { style: "photoreal-generated", secondary: "line-art", treatment: "duotone" } } });
   assert.deepEqual(chosen.errors, []);
-  assert.ok(chosen.warnings.some((w) => w.includes("Generated image")));
+  assert.ok(chosen.warnings.some((w) => w.includes("never show the business's own people")));
   assert.ok(decisionRows(chosen.brief, chosen.sources, "2026-10-28").includes("| 2026-10-28 | Imagery: photoreal-generated with line-art, duotone treatment | Kickoff | owner |"));
   assert.ok(normalizeBrief({ ...base, design: { imagery: { style: "oil-painting" } } }).errors.some((e) => e.startsWith("design.imagery.style")));
   const tokens = readFileSync(new URL("../../../starter/scripts/design-tokens.mjs", import.meta.url), "utf8");

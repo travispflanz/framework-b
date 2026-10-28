@@ -2,28 +2,18 @@
 // One image from a section's image field. The value has EmDash's media shape ({ src, alt, ... }).
 // On a static site `src` is a file name in src/assets/images/: Astro resizes it to WebP at several widths and the
 // browser picks one (`sizes`). Any other src (an EmDash media URL) renders as a plain <img>.
-// Every image in src/assets/images/ needs a credit in design/credits.json (scripts/check-content.mjs). A generated
-// photorealistic image is wrapped so it can carry a visible "Generated image" label: people should never mistake it
-// for a photo of the business.
+// Every image in src/assets/images/ needs a credit in design/credits.json (scripts/check-content.mjs); generated
+// images are listed on /credits and carry no label on the page (docs/DECISIONS.md, 2026-10-28).
 import { Image } from "astro:assets";
-import { isLabelled } from "./generated.js";
 
-// label={false}: the caller draws the label itself (the full-bleed hero, where a scrim covers the image).
-interface Props { image: { src?: string; alt?: string; width?: number; height?: number }; sizes: string; class?: string; eager?: boolean; label?: boolean }
-const { image, sizes, class: className = "", eager = false, label = true } = Astro.props;
+interface Props { image: { src?: string; alt?: string; width?: number; height?: number }; sizes: string; class?: string; eager?: boolean }
+const { image, sizes, class: className = "", eager = false } = Astro.props;
 const local = import.meta.glob<{ default: ImageMetadata }>("/src/assets/images/*.{jpg,jpeg,png,webp,avif}", { eager: true });
 const asset = image?.src ? local[`/src/assets/images/${image.src}`]?.default : undefined;
 if (image?.src && !asset && !/^(https?:)?\/\//.test(image.src)) throw new Error(`Image "${image.src}" is not in src/assets/images/`);
-const labelled = label && !!asset && isLabelled(image);
-const positioned = /(^|\s)(absolute|fixed)(\s|$)/.test(className);
 const widths = asset ? [480, 800, 1200, 1600].filter((w) => w <= asset.width) : [];
 ---
-{asset && labelled ? (
-  <span class:list={["block overflow-hidden", { relative: !positioned }, className]}>
-    <Image src={asset} alt={image.alt || ""} widths={widths} sizes={sizes} class="block size-full object-cover" loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : undefined} />
-    <span class="absolute bottom-2 right-2 rounded-control bg-ink px-2 py-1 text-label text-bg">Generated image</span>
-  </span>
-) : asset ? (
+{asset ? (
   <Image src={asset} alt={image.alt || ""} widths={widths} sizes={sizes} class={className} loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : undefined} />
 ) : image?.src ? (
   <img src={image.src} alt={image.alt || ""} width={image.width} height={image.height} class={className} loading={eager ? "eager" : "lazy"} decoding="async" />

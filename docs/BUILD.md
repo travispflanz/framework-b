@@ -97,7 +97,7 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 - Images: owner photos first; then open-licensed photos (`scripts/images.mjs`) or generated images
   (`scripts/generate-image.mjs`), whichever the imagery style calls for. Both apply the design's treatment so the
   set matches. Generated images never show the business's own people, premises, products or work; photorealistic
-  ones carry a visible "Generated image" label, and all of them are listed on `/credits`. Every image gets an entry in
+  ones show no faces, none carries a label on the page, and all of them are listed on `/credits`. Every image gets an entry in
   `design/credits.json`.
 
 ## 4. Content (P3)
