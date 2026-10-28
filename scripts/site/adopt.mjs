@@ -11,8 +11,9 @@
 // Phase "prepare" (before the owner reviews the new site):
 //   1. Checks adopt.json and the mapping queries (single read-only SELECTs), that the Worker and the old database
 //      exist, and that the Free plan's D1 budget (10 databases) has room for the new ones.
-//   2. Creates <id>-prod and <id>-staging with core's migrations, and copies the mapped leads and subscribers into
-//      <id>-prod (INSERT OR IGNORE: a rerun only adds what is new). Every mapped row is checked first.
+//   2. Creates <id>-prod with core's migrations (and brings the shared preview database, which previews use, up to
+//      the same migrations), and copies the mapped leads and subscribers into <id>-prod (INSERT OR IGNORE: a rerun
+//      only adds what is new). Every mapped row is checked first.
 //   3. Uploads: "reuse" keeps the existing bucket (the keys stay valid); "copyFrom" copies every stored file.
 //   4. Adds SIGNING_SECRET to the Worker when it has none (wrangler secret put deploys a version with the same code
 //      and the new secret, which the old code ignores) and to the previews' base configuration.
@@ -196,7 +197,7 @@ done("worker", `${adopt.worker} found; the site keeps its name, domains, secrets
 
 if (phase === "prepare") {
   const all = await cf(`${A}/d1/database?per_page=100`);
-  const missing = [names.db, names.stagingDb].filter((n) => !all.some((d) => d.name === n));
+  const missing = [names.db, names.previewDb].filter((n) => !all.some((d) => d.name === n));
   if (all.length + missing.length > 10) throw new Error(`The Free plan allows 10 D1 databases; the account has ${all.length} and adoption needs ${missing.length} more. Ask the owner which to remove (with a backup) or whether to upgrade.`);
   done("d1 budget", `${all.length} of 10 used; ${missing.length} to create`);
   if (DRY) {
@@ -204,10 +205,10 @@ if (phase === "prepare") {
     done("dry run", `${r.mapped.leads} lead(s) and ${r.mapped.subscribers} subscriber(s) map cleanly; ${await copyUploads(r.uploads)}`);
   } else {
     const prod = await d1(names.db, { create: true });
-    const staging = await d1(names.stagingDb, { create: true });
+    const previews = await d1(names.previewDb, { create: true });
     await applyMigrations(names.db, prod);
-    await applyMigrations(names.stagingDb, staging);
-    done("databases", `${names.db} and ${names.stagingDb} with core's migrations`);
+    await applyMigrations(names.previewDb, previews);
+    done("databases", `${names.db} created with core's migrations; previews use the shared ${names.previewDb} (migrations applied)`);
     const r = await copyRows(legacyUuid, prod);
     done("rows", `${r.added.leads} of ${r.mapped.leads} lead(s) and ${r.added.subscribers} of ${r.mapped.subscribers} subscriber(s) added (the rest were already there); ${adopt.legacyDb} unchanged`);
     done("uploads", await copyUploads(r.uploads));
@@ -230,8 +231,8 @@ if (phase === "prepare") {
       writeFileSync(adoptPath, JSON.stringify(adopt, null, 2) + "\n");
       done("builds", `${adopt.legacyBuild.length} current trigger(s) recorded in adopt.json for a rollback`);
     }
-    writeFileSync(wranglerPath, "// Framework B site adopted onto an existing Worker (scripts/site/adopt.mjs). Resource IDs are not secrets.\n" + JSON.stringify(adoptWrangler(wrangler, { worker: adopt.worker, db: prod, stagingDb: staging, id }), null, 2) + "\n");
-    done("wrangler.jsonc", `Worker ${adopt.worker}, DB ${names.db}, previews ${names.stagingDb}`);
+    writeFileSync(wranglerPath, "// Framework B site adopted onto an existing Worker (scripts/site/adopt.mjs). Resource IDs are not secrets.\n" + JSON.stringify(adoptWrangler(wrangler, { worker: adopt.worker, db: prod, previewDb: previews, id }), null, 2) + "\n");
+    done("wrangler.jsonc", `Worker ${adopt.worker}, DB ${names.db}, previews ${names.previewDb}`);
   }
 } else if (phase === "preview") {
   runWrangler(["--version"]);

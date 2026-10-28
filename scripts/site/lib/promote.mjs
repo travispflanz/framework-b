@@ -3,9 +3,13 @@
 
 export const DOMAIN_RE = /^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
-// Names of the per-site launch resources (docs/SPEC.md section 2: own prod and staging databases, own bucket).
+// Names of the per-site launch resources (docs/SPEC.md section 2: own production database and bucket). Previews
+// keep the shared preview database, where core keeps every site's rows apart by the site column: the Free plan
+// allows 10 D1 databases per account, so a launch site costs one, not two. Sites launched before 2026-10-28 keep
+// the <id>-staging database they were given.
+export const SHARED_PREVIEW_DB = "fb-previews";
 export function launchNames(id) {
-  return { db: `${id}-prod`, stagingDb: `${id}-staging`, uploads: `${id}-uploads` };
+  return { db: `${id}-prod`, previewDb: SHARED_PREVIEW_DB, uploads: `${id}-uploads` };
 }
 
 // Mail addresses on the domain. Owner notifications go out through Cloudflare's send_email binding from
@@ -48,10 +52,10 @@ export function launchConfig(config, { domain, postalAddress, resend, notify = "
   return out;
 }
 
-// wrangler.jsonc in launch mode: the domain as a Custom Domain, the site's own databases and bucket, and the
+// wrangler.jsonc in launch mode: the domain as a Custom Domain, the site's own database and bucket, and the
 // send_email binding restricted to the owner's verified inbox (only when Cloudflare sends the notifications). Everything else (assets, vars, EmDash bindings,
-// rate limits) is kept. workers_dev stays on: the twin answers with noindex (core headers).
-export function launchWrangler(wrangler, { id, domain, owner, db, stagingDb, sendEmail = true }) {
+// rate limits, the previews' shared database) is kept. workers_dev stays on: the twin answers with noindex (core headers).
+export function launchWrangler(wrangler, { id, domain, owner, db, sendEmail = true }) {
   const names = launchNames(id);
   const out = structuredClone(wrangler);
   const swapDb = (list, value) => (list || []).map((d) => (d.binding === "DB" ? { ...d, ...value } : d));
@@ -62,7 +66,6 @@ export function launchWrangler(wrangler, { id, domain, owner, db, stagingDb, sen
   out.r2_buckets = swapBucket(out.r2_buckets, { bucket_name: names.uploads });
   if (sendEmail) out.send_email = [{ name: "EMAIL", destination_address: owner }];
   else delete out.send_email;
-  if (out.previews) out.previews = { ...out.previews, d1_databases: swapDb(out.previews.d1_databases, { database_name: names.stagingDb, database_id: stagingDb }) };
   return out;
 }
 
