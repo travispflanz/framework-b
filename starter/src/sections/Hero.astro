@@ -28,7 +28,7 @@ const onDark = variant === "full-bleed";
     {isLabelled(value.image) && <span class="absolute bottom-2 right-2 rounded-control bg-ink px-2 py-1 text-label text-bg">Generated image</span>}
     <div class:list={["mx-auto grid w-full max-w-content gap-6 py-16", { "justify-items-center text-center": center }]}>
       {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}
-      <h1 class="max-w-(--container-prose) font-display text-display text-bg">{value.headline}</h1>
+      <h1 class="max-w-[22ch] font-display text-display text-balance text-bg">{value.headline}</h1>
       {value.subheadline && <p class="max-w-(--container-prose) text-body text-bg" set:html={inline(value.subheadline)} />}
       <Actions value={value} onDark center={center} />
       {points.length > 0 && <Points points={points} onDark center={center} />}
@@ -86,7 +86,7 @@ const onDark = variant === "full-bleed";
     <div class:list={["mx-auto grid w-full max-w-content items-center gap-10", { "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]": hasImage }]}>
       <div class:list={["reveal grid gap-6", { "justify-items-center text-center": center && !hasImage }]}>
         {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}
-        <h1 class="max-w-(--container-prose) font-display text-display text-ink">{value.headline}</h1>
+        <h1 class="max-w-[22ch] font-display text-display text-balance text-ink">{value.headline}</h1>
         {value.subheadline && <p class="max-w-(--container-prose) text-body text-ink-muted" set:html={inline(value.subheadline)} />}
         <Actions value={value} />
         {points.length > 0 && <Points points={points} />}

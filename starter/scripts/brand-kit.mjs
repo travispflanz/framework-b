@@ -208,9 +208,27 @@ if (cmd === "pick") {
   const logoPng = await sharp(Buffer.from(chosen)).resize({ width: 900, height: 260, fit: "inside" }).png().toBuffer();
   const meta = await sharp(logoPng).metadata();
   const tagline = site.site.tagline || "";
-  const tag = tagline ? textPath(body.font, tagline.length > 70 ? tagline.slice(0, 67) + "…" : tagline, 40) : null;
-  const tagSvg = tag ? Buffer.from(svg(Math.min(1100, tag.width + 4), 60, `<path fill="${C["ink-muted"]}" d="${textPath(body.font, tagline.length > 70 ? tagline.slice(0, 67) + "…" : tagline, 40, 2, 44).d}"/>`)) : null;
-  const tagPng = tagSvg ? await sharp(tagSvg).resize({ width: 1100, height: 60, fit: "inside" }).png().toBuffer() : null;
+  // The tagline wraps onto at most two centred lines of 1040 px; a longer one ends in an ellipsis.
+  const lines = [];
+  if (tagline) {
+    let line = "";
+    for (const word of tagline.split(/\s+/)) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && textPath(body.font, next, 40).width > 1040) { lines.push(line); line = word; } else line = next;
+    }
+    if (line) lines.push(line);
+    if (lines.length > 2) {
+      let second = lines[1];
+      while (second && textPath(body.font, `${second}…`, 40).width > 1040) second = second.replace(/\s*\S+$/, "");
+      lines.splice(1, lines.length - 1, `${second}…`);
+    }
+  }
+  const tagWidth = Math.max(0, ...lines.map((l) => textPath(body.font, l, 40).width));
+  const tagSvg = lines.length ? Buffer.from(svg(Math.ceil(tagWidth) + 4, lines.length * 56, lines.map((l, i) => {
+    const t = textPath(body.font, l, 40);
+    return `<path fill="${C["ink-muted"]}" d="${textPath(body.font, l, 40, 2 + (tagWidth - t.width) / 2, 44 + i * 56).d}"/>`;
+  }).join(""))) : null;
+  const tagPng = tagSvg ? await sharp(tagSvg).png().toBuffer() : null;
   const tagMeta = tagPng ? await sharp(tagPng).metadata() : { width: 0, height: 0 };
   const top = Math.round((630 - meta.height - (tagPng ? tagMeta.height + 40 : 0)) / 2);
   const comps = [{ input: logoPng, left: Math.round((1200 - meta.width) / 2), top }];
