@@ -52,7 +52,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
   - anything animating when the visitor asks for reduced motion;
   - content that doesn't match the schema;
   - reviews, ratings, customer counts or percentages without a source in `PRODUCT.md` (truth gate);
-  - generic AI words (copy lint);
+  - generic AI words (copy lint; the owner's own phrases listed under "## Owner's wording" in `PRODUCT.md` are skipped);
   - Impeccable findings in the source or on any rendered page, including any font, colour, radius or font size outside `DESIGN.md`. For a deliberate exception, run `npx impeccable ignores add-value <rule> <value> --reason "..."`; it is recorded in `.impeccable/config.json` for review.
 
 ## Rules

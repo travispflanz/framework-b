@@ -101,7 +101,12 @@ const PROOF = [/\b\d[\d,]*\+?\s*(happy\s+)?(customers|clients|homes|households|r
 const proofHits = PROOF.map((re) => copy.match(re)?.[0]).filter((m) => m && !approved.includes(m.toLowerCase()));
 check("truth gate: no reviews, ratings, customer counts or percentages without an owner source", proofHits.length === 0, proofHits.join(" | "));
 const TELLS = ["delve", "tapestry", "testament", "pivotal", "underscore", "landscape", "foster", "crucial", "empower", "unlock", "transform", "seamless", "elevate", "game-changer", "revolutionize", "cutting-edge", "in today's"];
-const tellHits = TELLS.filter((w) => new RegExp(`\\b${w}`, "i").test(copy));
+// The owner's own words (an adopted site's existing copy) may use one of these: list each phrase, verbatim, under
+// "## Owner's wording" in PRODUCT.md and the lint skips it.
+const product = existsSync("PRODUCT.md") ? readFileSync("PRODUCT.md", "utf8") : "";
+const ownerWording = (product.split(/##\s+Owner's wording/i)[1] || "").split(/\n##\s/)[0].split("\n").map((l) => l.match(/^\s*-\s+"?(.+?)"?\s*$/)?.[1]).filter(Boolean);
+const lintCopy = ownerWording.reduce((text, phrase) => text.split(phrase).join(" "), copy);
+const tellHits = TELLS.filter((w) => new RegExp(`\\b${w}`, "i").test(lintCopy));
 check("copy lint: none of the generic AI words", tellHits.length === 0, tellHits.join(", "));
 
 // Impeccable's deterministic detector (62 rules: AI-design tells, type, colour, layout, motion, quality), on the
