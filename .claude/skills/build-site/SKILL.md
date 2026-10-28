@@ -30,6 +30,8 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
    for the merge. Never merge it yourself.
 8. **Production.** QA on the production URL; ask the owner for one real lead from their phone; confirm it stored.
 9. **Handoff.** Update `HANDOFF.md`; report in a few lines.
+10. **Later, on request.** Launch on a domain, newsletter, drips, CRM mirror, editing off, park or teardown:
+   `docs/BUILD.md`, "After the build".
 
 ## Rules
 

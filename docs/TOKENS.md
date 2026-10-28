@@ -2,7 +2,9 @@
 
 Four Cloudflare credentials, each with the least access it needs. The token builder labels write access **Edit**; the [API permissions reference](https://developers.cloudflare.com/fundamentals/api/reference/permissions/) calls the same thing **Write**.
 
-"Verified" means a call needing this permission succeeded on the first live build (October 2026). "Unverified" means it is listed in Cloudflare's docs but no build has exercised it yet.
+"Verified" means a call needing this permission succeeded on a live build (October 2026). "Unverified" means it is listed in Cloudflare's docs but no build has exercised it yet.
+
+How to create a Cloudflare token: an **account** token at **Manage Account → API Tokens** ([direct link](https://dash.cloudflare.com/?to=/:account/api-tokens)), a **user** token at **My Profile → API Tokens**; then **Create Token**, choose the custom token instead of a template, add the permissions, choose the account (and zones), **Continue to summary**, **Create Token** ([Create API token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/), checked 2026-10-27). Scope it to your one account (and, for zone permissions, the zones your launch sites use), and paste the value straight into the ops repo secret: it is shown only once.
 
 ## 1. Deploy token (account-owned or user-owned API token)
 
@@ -18,11 +20,11 @@ Used by the builder agent for everything except Workers Builds. Scope it to the 
 | Turnstile Sites: Edit | Create the widget and add hostnames | Verified |
 | Email Routing Addresses: Edit | Destination addresses (verification click is still human) | Verified |
 | Access: Apps and Policies: Edit | `/admin` login and preview protection; the reusable `framework-b agent` Service Auth policy on each site's previews application | Verified |
-| Access: Service Tokens: Edit | Create and yearly refresh of the one `framework-b agent` service token, which lets QA open Access-protected previews ([service tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/), checked 2026-10-23: creating, refreshing and deleting need `Access: Service Tokens Write`) | Verified 2026-10-26 (ops copy). Only the ops repo's copy needs it: preview checks run there. Without it the create call returned `auth.forbidden` (2026-10-23) |
+| Access: Service Tokens: Edit | **site preview check** mints a 30-minute service token for each run and deletes it at the end, so QA can open Access-protected previews ([service tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/), checked 2026-10-23: creating, refreshing and deleting need `Access: Service Tokens Write`) | Verified 2026-10-26. Only the ops repo's copy needs it. Without it the create call returned `auth.forbidden` (2026-10-23) |
 | Access: Organizations, Identity Providers, and Groups: Edit | Read or create the one-time PIN login method | Verified |
 | Account Analytics: Edit | Create Web Analytics sites | Verified |
 | Workers KV Storage: Edit | EmDash session storage (only for sites with client editing); `create` makes the namespaces | Required for client editing. Checked by the ops repo's `verify secrets` workflow |
-| Email Sending: Edit | Cloudflare Email Sending (only on Workers Paid) | Unverified |
+| Email Sending: Edit | Cloudflare Email Sending (only on Workers Paid). Not used: leave it out | Not needed |
 
 ### Zone permissions (launch-mode zones only)
 
@@ -56,13 +58,13 @@ Used only by the `framework-backups` Worker (`ops/backup-worker`) to call D1's e
 
 - Account → D1 → Edit. Nothing else.
 
-It's stored once as the `D1_BACKUP_TOKEN` repository secret in `framework-b`. The deploy workflow copies it into the Worker as a secret. Status: unverified until the first scheduled run.
+It's stored once as the ops repo secret `D1_BACKUP_TOKEN`. The **deploy backup worker** workflow copies it into the Worker as a secret. Status: verified; the scheduled runs export every database in the account (7 of 7 on the run of 2026-10-25, read from its `/status` on 2026-10-27).
 
-The deploy token (section 1) also deploys this Worker and its Workflow, and creates the `framework-backups` bucket and its expiry rule. Whether Workers Scripts: Edit and Workers R2 Storage: Edit cover the Workflow and the lifecycle rule is unverified until the first deploy.
+The deploy token (section 1) also deploys this Worker and its Workflow, and creates the `framework-backups` bucket and its expiry rule. Verified: Workers Scripts: Edit and Workers R2 Storage: Edit cover both (deployed 2026-10-23).
 
 ## Resend admin key (ops repo only)
 
-One **full-access** Resend API key, stored only as the ops repo secret `RESEND_ADMIN_KEY`. Resend keys are either full access or sending only ([API keys](https://resend.com/docs/api-reference/api-keys/create-api-key), checked 2026-10-27), and adding a domain, managing contacts and sending broadcasts all need full access. Promote uses it to add `mail.<domain>` and create a sending-only key restricted to that domain, which becomes the Worker secret `RESEND_API_KEY`; the newsletter module uses it for contacts and broadcasts. Workers never get it. Rotate it in Resend (https://resend.com/api-keys) and update the secret. Status: untested.
+One **full-access** Resend API key, stored only as the ops repo secret `RESEND_ADMIN_KEY`. Resend keys are either full access or sending only ([API keys](https://resend.com/docs/api-reference/api-keys/create-api-key), checked 2026-10-27), and adding a domain, managing contacts and sending broadcasts all need full access. Promote uses it to add `mail.<domain>` and create a sending-only key restricted to that domain, which becomes the Worker secret `RESEND_API_KEY`; the newsletter module uses it for contacts and broadcasts. Workers never get it. Rotate it in Resend (https://resend.com/api-keys) and update the secret. Status: verified 2026-10-27 (two promotes set up `mail.<domain>` and per-site keys; a newsletter test and a broadcast were sent with it).
 
 ## Per-site Worker secrets for the CRM webhook
 
@@ -107,10 +109,10 @@ These are dashboard-only or third-party. The agent lists them with direct links,
 
 | Credential | Where it lives | Notes |
 |---|---|---|
-| Resend full-access key | Created by the owner for setup, used once, then deleted | Creates the sending domain and a domain-restricted sending key |
+| Resend full-access key | Ops repo secret `RESEND_ADMIN_KEY` (above) | Creates each launch site's sending domain and domain-restricted key; newsletter contacts and broadcasts. Can be deleted between uses |
 | Resend sending key | Worker secret `RESEND_API_KEY` | Restricted to one sending domain |
 | Apps Script mailer secret | Worker secret `MAILER_SECRET` and the script's properties | Only Framework B Workers can call the mailer |
 | UptimeRobot main API key | Ops repo secret `UPTIMEROBOT_API_KEY` | `create` adds each site's two monitors, `teardown` deletes them, and the self-test checks them. Must be the account's main key: monitor-specific and read-only keys cannot create monitors ([v3 API](https://uptimerobot.com/api/v3/), checked 2026-10-23) |
-| GitHub access | Claude GitHub app (cloud sessions) or a fine-grained token (Hermes), limited to selected repos | |
+| GitHub access for the agent | Claude GitHub app (cloud Claude sessions), or a fine-grained token / signed-in `gh` CLI for any other agent, limited to `framework-b`, the ops repo and the site repos | It needs to clone, push branches, open pull requests and dispatch the ops workflows (Actions: write on the ops repo) |
 
-Each agent environment (Hermes host, cloud session) holds its own copy of the deploy token, listed by name in each site's `SECRETS.md`. Values never go in a repo.
+Agents don't need the Cloudflare deploy token: every change to the account runs as an ops workflow, which holds the secrets. An agent that wants to read the account for diagnostics can be given a separate read-only token. Values never go in a repo.

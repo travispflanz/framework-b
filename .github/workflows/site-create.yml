@@ -6,7 +6,7 @@ on:
     inputs:
       framework_repo: { type: string, required: true, description: owner/name of the framework repo }
       framework_ref: { type: string, default: main }
-      brief: { type: string, default: "", description: "kickoff brief JSON; when set it supplies id, name, tagline, owner email, editing and indexing" }
+      brief: { type: string, default: "", description: "kickoff brief JSON; when set it supplies id, name, tagline, owner email, editing, indexing and the CRM mirror" }
       site_id: { type: string, default: "" }
       site_name: { type: string, default: "" }
       site_tagline: { type: string, default: "" }

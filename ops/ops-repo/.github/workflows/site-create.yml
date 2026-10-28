@@ -1,5 +1,5 @@
 # Caller: creates an idea-mode site. Replace OWNER with your GitHub user name.
-# Either paste a kickoff brief (docs/BUILD.md; it supplies id, name, tagline, inbox, editing and indexing), or fill
+# Either paste a kickoff brief (docs/BUILD.md; it supplies id, name, tagline, inbox, editing, indexing and the CRM mirror), or fill
 # in the fields below it.
 name: site create
 on:

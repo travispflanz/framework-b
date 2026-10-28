@@ -49,6 +49,7 @@ const turnstileMode = (process.env.TURNSTILE_MODE || "real").trim();
 const editing = (input?.EDITING ?? process.env.EDITING ?? "off").trim() === "on";
 const indexing = (input?.INDEXING ?? process.env.INDEXING ?? "off").trim() === "on";
 const crm = (input?.CRM ?? process.env.CRM ?? "none").trim();
+const autoReply = (input?.AUTO_REPLY ?? process.env.AUTO_REPLY ?? "off").trim() === "on";
 const repoName = `site-${id}`;
 const SHARED = { db: "fb-ideas", previewDb: "fb-previews", uploads: "fb-ideas-uploads", previewUploads: "fb-previews" };
 const TEST_SITEKEY = "1x00000000000000000000AA";
@@ -196,7 +197,9 @@ config.site = { ...config.site, id, name, tagline, mode: "idea", canonicalHost: 
 if (indexing) done("indexing", `search engines may index https://${host}; previews stay noindex`);
 config.turnstile = { siteKey };
 const mailer = process.env.MAILER_URL && process.env.MAILER_SECRET;
-config.email = { notify: mailer ? "apps-script" : "none", confirm: "none" };
+// Lead auto-replies on an idea site come from the mailer's Gmail (brief `autoReply`); without the mailer they stay off.
+config.email = { notify: mailer ? "apps-script" : "none", confirm: mailer && autoReply ? "apps-script" : "none" };
+if (autoReply && !mailer) warn("lead auto-reply asked for, but no Apps Script mailer is configured: auto-replies stay off");
 if (!mailer) warn("No mailer configured: leads are saved in D1 and visible in /admin, but no email is sent yet");
 // CRM mirror: the Google Sheet goes through the same Apps Script mailer; the webhook needs its URL as a secret later.
 config.crm = { sheet: crm.includes("sheet") && !!mailer, webhook: crm.includes("webhook") };

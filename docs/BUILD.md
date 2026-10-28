@@ -144,4 +144,27 @@ lines.
 ## Keeping a site current
 
 The ops repo's **site update** brings a site up to a newer framework on a branch with a tested pull request
-(SPEC section 2, "Updating a site"). Run **site preview check** on that branch before merging.
+(SPEC section 2, "Updating a site to a newer framework"). Run **site preview check** on that branch before merging.
+
+## After the build: launch and the modules
+
+Each of these is one ops workflow, run when the owner asks. Inputs: `ops/ops-repo/README.md`.
+
+- **Launch on a domain** (SPEC section 2): the domain must be an active zone in the account, or a one-level subdomain
+  of one, and the owner's inbox a verified Email Routing destination. Ask the owner for the postal address. Run
+  **site promote** with `phase: prepare` (try `dry_run: yes` first), send the owner its pull request, and after the
+  merge and deploy run `phase: finish`. Then the owner sends one real lead from their phone, and ticks the checklist
+  promote wrote into `HANDOFF.md`.
+- **Newsletter** (launch sites; SPEC section 10): write `newsletter/<date>-<slug>.md` (front matter `subject`, optional
+  `preview`) on a branch, run **site newsletter** with `mode: test` and `site_ref: <branch>`, let the owner read it and
+  merge, then `mode: send`.
+- **Drips** (launch sites with Resend): add the `drips` block to `site.config.json` and the Workflow binding to
+  `wrangler.jsonc` (site `AGENTS.md`, "Rules"), by pull request. Write the emails only from what the owner supplied.
+- **CRM mirror:** `"crm": { "sheet": true }` and/or `"webhook": true` in `site.config.json` by pull request (the
+  webhook also needs the Worker secret `CRM_WEBHOOK_URL`, and optionally `CRM_WEBHOOK_SECRET`); then **site crm sync**
+  copies the older leads.
+- **Client editing off:** **site editing** with `mode: off` opens a pull request with the content back in files.
+- **Take a site off its domain without deleting it:** **site snapshot**, then **site park** (`action: undo` puts it
+  back exactly).
+- **Remove a site:** **site teardown**, with the owner typing `confirm: delete <id>`. Leads are exported to backups
+  first.

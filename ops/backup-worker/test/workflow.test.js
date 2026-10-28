@@ -48,8 +48,8 @@ it("the weekly cron starts one run per day, named by the date", async () => {
     await m.disableSleeps();
     await m.disableRetryDelays();
   });
-  await worker.scheduled({ scheduledTime, cron: "17 6 * * 1" }, env);
-  await worker.scheduled({ scheduledTime, cron: "17 6 * * 1" }, env); // a retried trigger must not throw
+  await worker.scheduled({ scheduledTime, cron: "17 6 * * MON" }, env);
+  await worker.scheduled({ scheduledTime, cron: "17 6 * * MON" }, env); // a retried trigger must not throw
   await expect(instance.waitForStatus("errored")).resolves.not.toThrow(); // the mocked "broken" database fails
   expect((await env.BACKUP.get("backup-2026-10-26")).id).toBe("backup-2026-10-26");
 });

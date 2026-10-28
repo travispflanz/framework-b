@@ -1,6 +1,6 @@
-# Framework B specification (v2, draft)
+# Framework B specification
 
-How an AI agent builds, launches and hands off a website with this framework. Written 2026-10-22. Vendor facts carry the date they were checked. The design phase (P2) follows `docs/research/design-layer.md`, pending owner review.
+How an AI agent builds, launches and hands off a website with this framework, and the evidence for each part. Written 2026-10-22, current as of v1.0.0 (2026-10-27). Vendor facts carry the date they were checked. The design phase (P2) follows `docs/research/design-layer.md`, approved by the owner on 2026-10-22. For a human overview, read `README.md` first.
 
 ## 1. What a Framework B site is
 
@@ -11,7 +11,7 @@ How an AI agent builds, launches and hands off a website with this framework. Wr
   - `/u` unsubscribe
   - `/admin` behind Cloudflare Access
 - **Data:** D1 is the system of record for leads and subscribers. R2 holds uploads and backups.
-- **Protection:** Turnstile on every form, a honeypot field, an origin check, size limits, a per-IP rate limit (Workers rate limiting binding; untested on the Free plan), and Access on `/admin` and previews. The Worker also verifies the Access JWT itself.
+- **Protection:** Turnstile on every form, a honeypot field, an origin check, size limits, a per-IP rate limit (Workers rate limiting binding; it deploys on the Free plan, but whether it limits there is untested), and Access on `/admin` and previews. The Worker also verifies the Access JWT itself.
 - **Deploys:** Workers Builds. A push to `main` deploys production; any other branch deploys a preview URL.
 - **State:** each site has its own repo holding `site.config.json`, `DESIGN.md`, `DECISIONS.md`, `HANDOFF.md` and `SECRETS.md` (names only). Any agent can resume a site from its repo.
 - **Owner's machine:** nothing a site needs runs there.
@@ -21,11 +21,11 @@ How an AI agent builds, launches and hands off a website with this framework. Wr
 | | Idea | Launch |
 |---|---|---|
 | Address | `<site>.<account>.workers.dev` | Own domain; `www` → apex via a Single Redirect rule |
-| D1 | Shared `ideas` database, `site` column | Own `prod` + `staging` databases |
-| R2 uploads | Shared `ideas-uploads`, prefix `<site>/` | Own bucket |
-| Owner notification | Apps Script mailer (owner's Gmail) | Cloudflare `send_email` from `notify@<domain>` |
+| D1 | Shared `fb-ideas` database, `site` column (previews: `fb-previews`) | Own `<id>-prod` + `<id>-staging` databases |
+| R2 uploads | Shared `fb-ideas-uploads`, prefix `<site>/` (previews: `fb-previews`) | Own `<id>-uploads` bucket |
+| Owner notification | Apps Script mailer (owner's Gmail) | Cloudflare `send_email` from `notify@<domain>` when the site owns the whole zone; otherwise the Apps Script mailer |
 | Lead auto-reply | Optional, Apps Script mailer | Resend on `mail.<domain>` |
-| Newsletter / drips | Test sends only | Optional modules; Resend on `mail.<domain>` |
+| Newsletter / drips | Test sends only; forms already collect subscribers | Optional modules; Resend on `mail.<domain>` |
 | Indexing | Owner's choice, default `noindex` | Indexed; Search Console + Bing; the `workers.dev` twin is `noindex` |
 | EmDash | Optional; its own D1, R2 bucket, KV namespace and Cron Trigger | Optional |
 | Access | `/admin` and previews | `/admin` and previews |
@@ -51,7 +51,7 @@ Why ideas share resources: the Workers Free plan allows 10 D1 databases and 5 Cr
 
 Both run as workflows in the owner's private ops repo, because this repo's Actions logs are public. The ops workflows call the reusable `site-create.yml` and `site-teardown.yml` here, which run `scripts/site/create.mjs` and `scripts/site/teardown.mjs`.
 
-`create` (inputs: id, name, tagline, owner inbox, Turnstile mode):
+`create` (input: the kickoff brief, or id, name, tagline, owner inbox, editing, indexing; Turnstile mode for self-tests):
 
 1. Checks that the Worker name and the repo `site-<id>` are free.
 2. Creates the shared idea resources once: D1 `fb-ideas` and `fb-previews`, R2 `fb-ideas-uploads` and `fb-previews`.
@@ -71,7 +71,7 @@ Both run as workflows in the owner's private ops repo, because this repo's Actio
 
 Self-test on 2026-10-22 (`selftest-1022`):
 - create, live QA (103 checks), a live lead with a file upload, a production build from the repo, and teardown all passed.
-- Preview-branch builds are untested.
+- Preview-branch builds were proven from 2026-10-26 by the preview check below.
 
 `site selftest` runs the whole path weekly, and on demand, from the ops repo. It runs as one job:
 1. Creates `selftest-<run id>` with Turnstile test keys.
@@ -96,7 +96,7 @@ A copied starter never gets later fixes on its own, so `site update` brings an e
 - Afterwards it runs `npm install`, regenerates tokens.css (and the EmDash seed when editing is on), checks the content and writes the new lock. A changed EmDash content model is reported, because a deployed content database keeps its model until it is migrated.
 - The workflow commits on `framework/update-<commit>`, tests a copy of the site with Turnstile test keys (build, e2e, QA gate), and opens a pull request in `site-<id>` with the report and the test results. The preview build runs on that branch; production changes only when the owner merges.
 
-Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. First live run (2026-10-23, an editing site created before the lock existed): 4 files updated or added, no conflicts; build, e2e and QA passed on the copy; the branch was pushed, but opening the pull request needed `GH_SITES_TOKEN` to have "Pull requests: write" (docs/TOKENS.md). The step now fails when the pull request can't be opened. After the permission was added, a second run (lock-only change) opened its own pull request, with 14 e2e and 80 QA checks passing. Updating a static site live, and a live run with a conflict, are untested.
+Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. First live run (2026-10-23, an editing site created before the lock existed): 4 files updated or added, no conflicts; build, e2e and QA passed on the copy; the branch was pushed, but opening the pull request needed `GH_SITES_TOKEN` to have "Pull requests: write" (docs/TOKENS.md). The step now fails when the pull request can't be opened. After the permission was added, a second run (lock-only change) opened its own pull request, with 14 e2e and 80 QA checks passing. A static site was updated live on 2026-10-27 (27 files, opened and merged as a pull request, no conflicts). A live run with a conflict is untested; conflicts are covered by the fixture tests.
 
 ### Checking a preview (P6)
 
@@ -120,7 +120,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 | # | Question | Default |
 |---|---|---|
 | 1 | Business basics: name, one-line offer, audience, owner inbox; postal address for launch mode | Required: name, inbox |
-| 2 | Mode: idea, or launch on an existing domain or a new one | Idea |
+| 2 | Mode: idea, or launch on an existing domain or a new one. `create` always makes an idea site; `site promote` launches it | Idea |
 | 3 | Site shape: landing page, full site, or hybrid | From the design intake |
 | 4 | Forms: kinds and fields (all auto opt-in) | One contact form with a file field |
 | 5 | Lead auto-reply on or off; launch sender | Idea: off. Launch: Resend |
@@ -136,14 +136,14 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 |---|---|---|
 | P0 Preflight | Read the account's ceilings (D1, Workers, Turnstile, Cron, Web Analytics); check tokens and GitHub access; ask kickoff questions | Stop if a ceiling is hit; offer `teardown` of an old idea |
 | P1 Repo | Create the site's new repo from `starter/`; write `DECISIONS.md`; work on a branch | |
-| P2 Design | Infer → confirm → personality sliders → references → suggested styles → this-or-that pairs → three style tiles → five-word check → lock `PRODUCT.md` and `DESIGN.md` (section 12) | **Owner picks a tile** (best-scoring tile is used after 24 h, marked `inferred`) |
+| P2 Design | Infer → confirm → personality sliders → references → suggested styles → this-or-that pairs → three style tiles → five-word check → lock `PRODUCT.md` and `DESIGN.md` (section 12) | **Owner picks a tile**; on autopilot the judge picks (section 12), marked `inferred` |
 | P3 Build | Pages, copy, JSON-LD, sitemap, `robots.txt`, forms from the schema, privacy page matching what is collected | |
-| P4 Data | `bootstrap`: D1, R2, Turnstile hostname, secrets, Access apps, Builds triggers; register the site in `ops/registry` | |
+| P4 Data | `site create`: D1, R2, Turnstile hostname, secrets, Access apps, Builds triggers, monitors. No registry: ops services find sites through the Cloudflare API | |
 | P5 Integrations | Mailers, unsubscribe, optional modules | |
 | P6 Staging | Preview behind Access; end-to-end lead and upload test with Turnstile test keys; QA gate on the deployed preview (`site preview check`) | **Owner approves the preview** |
 | P7 Domain | Idea: none. Launch: existing zone, or check → price → approval → register | **Owner approves any purchase** |
-| P8 Go-live | Merge to `main`; QA gate on production; custom domain and redirect (launch); DMARC; Web Analytics | **QA gate passes** (automatic) |
-| P9 Handoff | `HANDOFF.md`: URLs, renewal dates, monitors, backups, secrets inventory, owner-attested checklist; release tag | |
+| P8 Go-live | Merge to `main`; QA gate on production; custom domain and redirect (launch, by `site promote`). DMARC and Web Analytics are not built | **QA gate passes** (automatic) |
+| P9 Handoff | `HANDOFF.md`: URLs, renewal dates, monitors, backups, secrets inventory, owner-attested checklist | |
 
 ## 5. Forms
 
@@ -165,7 +165,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 - **Transactional vs marketing:** confirmations are plain transactional mail: text plus minimal HTML, one unsubscribe link, no tracking, and no `List-Unsubscribe` headers. Marketing (newsletters, drips) carries `List-Unsubscribe` and `List-Unsubscribe-Post`, plus the postal address.
 - **Idea mode:** the Apps Script mailer (`ops/apps-script-mailer`). Free; 100 recipients a day per personal Gmail, shared across all idea sites.
 - **Launch mode:**
-  - Notifications use Cloudflare `send_email` to the verified owner inbox.
+  - Notifications use Cloudflare `send_email` to the verified owner inbox when the site owns the whole zone; on a subdomain, or an apex with mail elsewhere, they stay on the Apps Script mailer (section 2).
   - Confirmations use Resend Free (3,000 a month, 100 a day) on `mail.<domain>`, with a sending-only key restricted to that domain.
   - Cloudflare Email Sending is the alternative, on Workers Paid.
 - **New domains:** reputation starts at zero, and some filters block domains under 24 hours old. Tell the owner, test after 24–48 hours, and send no marketing for about 30 days.
@@ -213,7 +213,7 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
   - Accessibility, Best Practices and SEO: 100
   - CLS below 0.1
   - Performance: a 90 tripwire measured on production
-- **Design checks:** `design.md lint`, `impeccable detect` on the source and on every page at 1280 and 390 px, a copy lint, and the truth gate (no testimonial, logo, statistic or face without an owner source). Then at most three rounds of vision-model critique, keeping a revision only if it wins a side-by-side comparison both ways round (not built).
+- **Design checks:** `design.md lint`, `impeccable detect` on the source and on every page at 1280 and 390 px, a copy lint, and the truth gate (no testimonial, logo, statistic or face without an owner source). Then at most three rounds of vision-model critique, keeping a revision only if it wins a side-by-side comparison both ways round (`design-critique.mjs`, section 12).
   - Impeccable 4.8.0 (Apache-2.0; its engine binary ships as an npm optional dependency, so CI needs no download) runs 62 deterministic rules ([catalog](https://impeccable.style/slop); [npm](https://www.npmjs.com/package/impeccable), checked 2026-10-26). Rendered pages are scanned with `--cdp` in the browser QA already has open, so previews behind Access work and the detector never launches its own browser.
   - It reads `DESIGN.md`: a font outside it is a warning, and a colour, radius or font size outside it is an advisory. QA fails on all four, because they break the design contract (tested 2026-10-26 by adding an off-palette font, colour and radius to a component). This replaces the planned Stylelint check.
   - A deliberate exception goes in the site's `.impeccable/config.json` with a reason: `npx impeccable ignores add-value <rule> <value> --reason "..."` ([config and ignores](https://www.impeccable.style/docs/config), checked 2026-10-26).
@@ -240,7 +240,7 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     - Deletes nothing in Cloudflare. It lists the content database, media bucket, session namespace, the editor Access application and the two editing secrets for the owner to remove.
   - CI switches the starter on, edits the content database the way an editor would (new headline, a media-library image), switches off, checks every file `on` changed is back byte for byte, then runs the build, e2e and QA gate on the static site (`starter/scripts/test/editing-round-trip.mjs`). It was also run against a copy of a live editing site's deployed content on 2026-10-27; `--remote` with media-library images is untested.
 - **How the Worker is wired:**
-  - Core runs first: `createWorker(config, { fallback })`, core 0.2.0. `/api/*`, `/admin` and `/u` behave exactly as on a static site.
+  - Core runs first: `createWorker(config, { fallback })` (since core 0.2.0). `/api/*`, `/admin` and `/u` behave exactly as on a static site.
   - Everything else goes to the Astro/EmDash handler, including the pages and `/_emdash`.
   - The `noindex` rule still applies to every response.
 - **Where content lives:**
@@ -276,7 +276,7 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
 
 ## 10. Modules
 
-- **CRM mirror** (built 2026-10-27; core 0.3.0; Google Sheet proven live 2026-10-27: a new lead was copied as it arrived, and `site crm sync` added the 5 older ones; webhook proven live 2026-10-27 against `ops/webhook-check`: `site crm sync` delivered 7 leads and a new booking arrived 0.2 s after it was saved, all with valid signatures and the lead id as the Idempotency-Key): `site.config.json` `"crm": { "sheet": true, "webhook": false }`.
+- **CRM mirror** (built 2026-10-27; core 0.3.0; Google Sheet proven live 2026-10-27: a new lead was copied as it arrived, and `site crm sync` added the 5 older ones; webhook proven live 2026-10-27 against `ops/webhook-check`: a resend of the 7 older leads (`scripts/site/crm-sync.mjs`) and a new booking 0.2 s after it was saved all arrived with valid signatures and the lead id as the Idempotency-Key; resending to the webhook from the ops workflow needs the ops secrets `CRM_WEBHOOK_URL` and `CRM_WEBHOOK_SECRET` for that site, a path that is untested): `site.config.json` `"crm": { "sheet": true, "webhook": false }`.
   - After a lead is saved, the Worker copies one flat row (lead id, time, form, email, the form's fields, page, country, attribution) in `waitUntil`, so D1 is never blocked by a mirror.
   - `sheet`: a Google Sheet in the owner's Drive, through the account's Apps Script mailer: the spreadsheet "Framework B leads", one tab per site, created on first use. New fields add columns; values that would start a formula are stored as text.
   - `webhook`: a POST to the Worker secret `CRM_WEBHOOK_URL` (Zapier, Make, n8n or a CRM's own webhook), with `Idempotency-Key: <lead id>` and, with `CRM_WEBHOOK_SECRET`, an `X-Framework-B-Signature: sha256=<hmac of the body>` header.
@@ -328,7 +328,7 @@ Full rationale, sources and tool versions: `docs/research/design-layer.md`. Summ
 
 ### What's built (2026-10-23, tools added 2026-10-26)
 
-The design phase's foundation and its tools are in `starter/`. The intake conversation (P2.1–P2.5) is still run by the agent by hand; tiles, the judge and the credits ledger (P2.6–P2.8) are scripts.
+The design phase's foundation and its tools are in `starter/`. The intake conversation (P2.1–P2.4) is run by the agent by hand; this-or-that pairs (P2.5), tiles, the judge, the critique rounds and the credits ledger (P2.6–P2.8) are scripts.
 
 - **`DESIGN.md` → tokens:** `scripts/design-tokens.mjs` reads Google's DESIGN.md format.
   - It lints with `@google/design.md` 0.4.0 ([repo](https://github.com/google-labs-code/design.md), checked 2026-10-23); errors fail.
@@ -374,12 +374,12 @@ Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates people or premises.
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
-- **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library; Starwind UI supplies interactive components (test on Astro 7 first).
+- **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.
 - **Performance threshold:** the research proposed 0.95. The framework keeps the 90 tripwire, because a real production build measured 94–98 run to run on identical code.
 
 Owner-approved on 2026-10-22: the nine-step intake, paid reference libraries as an option only, and autopilot.
 
-Supporting tools from the second research round (`docs/research/apify-huggingface-design.md`). They feed the steps above and add no questions. All are free and **untested** until the template self-test runs them.
+Supporting tools from the second research round (`docs/research/apify-huggingface-design.md`). They feed the steps above and add no questions. All are free. **None of them is built yet** (reference capture, `dembrandt`, palette extraction and the extended ban list are proposals); the rules on proof and Apify apply now.
 
 - **P2.3 References:** the owner pastes URLs. The agent captures each one with Playwright at 390, 768 and 1440 px into private R2 under the site's brief, never into a repo. Gallery sites (Dribbble, Behance, Awwwards, Land-book) are not scraped; when the owner names a gallery entry, the agent follows it to the live site.
 - **P2.3 → P2.6 Tokens from references:** `dembrandt` (MIT) extracts the palette and font families of liked references as inputs to the tiles. Its type scale is too noisy to use (trial, `docs/research/trials.md`). In launch-mode QA, its drift gate checks rendered colours, radii and font sizes against tokens exported from `DESIGN.md`.
@@ -392,10 +392,4 @@ Supporting tools from the second research round (`docs/research/apify-huggingfac
 - **QA extra (optional):** CrUX real-user speed for the reference sites, beside the site's own Lighthouse result. Needs a free Google API key.
 - **Apify:** never required. Allowed only for screenshots when the agent has no browser, with a per-run spending cap. Finding local competitors on Google Maps needs the owner's sign-off for each run.
 
-Unverified, to be checked when adopting:
-
-- the `@google/design.md` CLI version (the format is alpha)
-- Starwind on Astro 7
-- the Tailwind 4 `--color-*: initial` palette reset
-- the OKLCH scale library
-- an Impeccable per-rule waiver wrapper
+Checked when adopted: the `@google/design.md` CLI (0.4.0, 2026-10-23), the Tailwind 4 `--color-*: initial` palette reset (4.3.3), and Impeccable's own ignores (`npx impeccable ignores add-value`, used instead of a waiver wrapper). Still unverified, because they are not used yet: Starwind on Astro 7, and an OKLCH scale library.

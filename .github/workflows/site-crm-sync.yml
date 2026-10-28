@@ -14,6 +14,9 @@ on:
       GH_SITES_TOKEN: { required: true }
       MAILER_URL: { required: false }
       MAILER_SECRET: { required: false }
+      # Only for a resend to the webhook: the site's webhook URL and secret, as ops repo secrets, for the site being synced.
+      CRM_WEBHOOK_URL: { required: false }
+      CRM_WEBHOOK_SECRET: { required: false }
 permissions:
   contents: read
 jobs:
@@ -42,5 +45,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           MAILER_URL: ${{ secrets.MAILER_URL }}
           MAILER_SECRET: ${{ secrets.MAILER_SECRET }}
+          CRM_WEBHOOK_URL: ${{ secrets.CRM_WEBHOOK_URL }}
+          CRM_WEBHOOK_SECRET: ${{ secrets.CRM_WEBHOOK_SECRET }}
           DAYS: ${{ inputs.days }}
         run: node framework/scripts/site/crm-sync.mjs --site site --days "$DAYS"
