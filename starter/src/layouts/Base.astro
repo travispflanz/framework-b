@@ -118,7 +118,7 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
         <div class:list={["mx-auto grid max-w-[var(--container-content)] gap-8 pt-10 text-sm text-[var(--color-ink-muted)]", ["md:grid-cols-[2fr]", "md:grid-cols-[2fr_1fr]", "md:grid-cols-[2fr_1fr_1fr]", "md:grid-cols-[2fr_1fr_1fr_1fr]"][Math.min(footerColumns.length, 3)]]}>
           <div class="grid content-start gap-2">
             <p class="font-display text-title text-[var(--color-ink)]">{config.site.name}</p>
-            {footer.note && <p class="max-w-prose" set:html={inline(footer.note)} />}
+            {footer.note && <p class="max-w-(--container-prose)" set:html={inline(footer.note)} />}
           </div>
           {footerColumns.map((c, i) => (
             <nav aria-labelledby={`footer-col-${i}`}>
@@ -130,7 +130,7 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
       )}
       <div class="mx-auto flex max-w-[var(--container-content)] flex-wrap justify-between gap-4 py-6 text-sm text-[var(--color-ink-muted)]">
         <p>© {year} {config.site.name}{config.site.postalAddress ? ` · ${config.site.postalAddress}` : ""}</p>
-        {footer.legal && <p class="w-full max-w-prose" set:html={inline(footer.legal)} />}
+        {footer.legal && <p class="w-full max-w-(--container-prose)" set:html={inline(footer.legal)} />}
         <p class="flex gap-4">{needsCredits && <a href="/credits">Image credits</a>}<a href="/privacy">Privacy</a></p>
       </div>
     </footer>

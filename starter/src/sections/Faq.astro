@@ -17,7 +17,7 @@ const phone = phoneOf("fb_faq", value);
     <div class:list={{ "lg:sticky lg:top-24 lg:self-start": variant === "two-column" }}>
       <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} center={false} />
     </div>
-    <div class="grid max-w-prose gap-3" data-reveal>
+    <div class="grid max-w-(--container-prose) gap-3" data-reveal>
       {value.items.map((item) => (
         <details name={`${headingId}-q`} class="card group p-0">
           <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 text-title text-ink [&::-webkit-details-marker]:hidden">

@@ -7,7 +7,7 @@ interface Props { eyebrow?: string; headline?: string; subheadline?: string; id?
 const { eyebrow, headline, subheadline, id, center = composition.align === "center" } = Astro.props;
 ---
 {(eyebrow || headline || subheadline) && (
-  <div class:list={["reveal mb-10 grid max-w-prose content-start gap-3", { "mx-auto text-center": center }]}>
+  <div class:list={["reveal mb-10 grid max-w-(--container-prose) content-start gap-3", { "mx-auto text-center": center }]}>
     {eyebrow && <p class="text-label text-accent">{eyebrow}</p>}
     {headline && <h2 id={id} class="font-display text-headline text-ink">{headline}</h2>}
     {subheadline && paragraphs(subheadline).map((p) => <p class="text-body text-ink-muted" set:html={inline(p)} />)}

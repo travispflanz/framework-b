@@ -29,5 +29,5 @@ const fold = phone === "collapse" && places.length > 6;
       </details>
     </>
   ) : <div data-reveal><AreaList places={places} variant={variant} /></div>}
-  {value.note && paragraphs(value.note).map((p) => <p class="mt-6 max-w-prose text-small text-ink-muted" set:html={inline(p)} />)}
+  {value.note && paragraphs(value.note).map((p) => <p class="mt-6 max-w-(--container-prose) text-small text-ink-muted" set:html={inline(p)} />)}
 </Section>

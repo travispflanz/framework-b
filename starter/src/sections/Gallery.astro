@@ -49,5 +49,5 @@ const phone = phoneOf("fb_gallery", value) === "collapse" ? "swipe" : phoneOf("f
       ))}
     </ul>
   )}
-  {value.note && paragraphs(value.note).map((p) => <p class="mt-8 max-w-prose text-small text-ink-muted" set:html={inline(p)} />)}
+  {value.note && paragraphs(value.note).map((p) => <p class="mt-8 max-w-(--container-prose) text-small text-ink-muted" set:html={inline(p)} />)}
 </Section>
