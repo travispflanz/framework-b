@@ -194,8 +194,8 @@ Any coding agent that can do the following:
   CLI signed in, or a GitHub token with Actions write access on the ops repo);
 - **look at images** (the design judge, the style tiles and the critique rounds are screenshots it has to judge);
 - search the web (research for the brief);
-- optional, for generated images: a token that can only run Workers AI models, as a network secret on a Claude cloud
-  environment or as `WORKERS_AI_TOKEN`, plus `CLOUDFLARE_ACCOUNT_ID` (`docs/TOKENS.md` section 5).
+- nothing extra for generated images: the ops repo's **site images** workflow holds the Workers AI token
+  (`docs/TOKENS.md` section 5).
 
 It has been proven with Claude (Claude Code, and Claude in a cloud session with the Claude GitHub app). The agent
 reads `AGENTS.md` and follows `docs/BUILD.md`, so Codex, Gemini CLI, Cursor, Hermes or another agent with the

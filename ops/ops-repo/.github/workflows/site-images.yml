@@ -1,0 +1,41 @@
+# Caller: generated images for a site, with the Workers AI token kept here (secret WORKERS_AI_TOKEN). Replace OWNER.
+# Run "draft", look at sheet.png in the run's artifact, then "use" with that run's id and the chosen number.
+name: site images
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id", required: true }
+      repo: { description: "the site's repo, if not site-<site id>", required: false, default: "" }
+      branch: { description: "site branch", required: true, default: build/initial }
+      action: { description: "draft or use", required: true, default: draft, type: choice, options: [draft, use] }
+      name: { description: "image file name (no extension)", required: true }
+      subject: { description: "draft: what the image shows", required: false, default: "" }
+      aspect: { description: "draft: 1:1, 3:2, 4:3, 4:5, 2:3, 16:9 or 21:9", required: false, default: "3:2" }
+      count: { description: "draft: how many candidates (1-8)", required: false, default: "4" }
+      style: { description: "draft: override the DESIGN.md imagery style", required: false, default: "" }
+      draft_run: { description: "use: run id of the draft", required: false, default: "" }
+      number: { description: "use: candidate number", required: false, default: "" }
+      alt: { description: "use: alt text", required: false, default: "" }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  images:
+    permissions:
+      contents: read
+      actions: read
+    uses: OWNER/framework-b/.github/workflows/site-images.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      repo: ${{ inputs.repo }}
+      branch: ${{ inputs.branch }}
+      action: ${{ inputs.action }}
+      name: ${{ inputs.name }}
+      subject: ${{ inputs.subject }}
+      aspect: ${{ inputs.aspect }}
+      count: ${{ inputs.count }}
+      style: ${{ inputs.style }}
+      draft_run: ${{ inputs.draft_run }}
+      number: ${{ inputs.number }}
+      alt: ${{ inputs.alt }}
+    secrets: inherit

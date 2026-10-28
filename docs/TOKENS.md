@@ -76,10 +76,10 @@ Created by the owner when a purchase is approved, used once, then deleted.
 
 ## 5. Workers AI token (only for generated images)
 
-Used by `scripts/generate-image.mjs` in a site repo, from the agent's own environment, to make images with Workers AI. Unlike the deploy token it can't change anything in the account: it can only run models.
+Used by `scripts/generate-image.mjs` to make images with Workers AI, from the ops repo's **site images** workflow (or an agent's own environment). Unlike the deploy token it can't change anything in the account: it can only run models.
 
 - Account → Workers AI → Read, and Account → Workers AI → Edit. Nothing else. The Workers AI page has a ready-made template: **Workers AI → Use REST API → Create a Workers AI API Token** ([REST API](https://developers.cloudflare.com/workers-ai/get-started/rest-api/), checked 2026-10-28: "that token will need permissions for both `Workers AI - Read` and `Workers AI - Edit`").
-- Give it to the agent without the agent seeing it where you can: in a Claude cloud session, add it as a network secret on the session's cloud environment (**Edit cloud environment → Network secrets → Add secret**: type Bearer, allowed website `api.cloudflare.com`, header `Authorization` with prefix `Bearer`); Anthropic's proxy adds it to requests for that host only ([Cloud environments](https://code.claude.com/docs/en/cloud-environments#add-network-secrets), checked 2026-10-28). Any other agent gets it as the environment variable `WORKERS_AI_TOKEN`. Either way the agent also needs the account id (`CLOUDFLARE_ACCOUNT_ID` or `--account`), which isn't secret.
+- Store it as the ops repo secret `WORKERS_AI_TOKEN`; the **site images** workflow uses it (`draft`, then `use`), so no agent ever holds it. For faster drafting, an agent can also run the script itself: in a Claude cloud session, add it as a network secret on the session's cloud environment (**Edit cloud environment → Network secrets → Add secret**: type Bearer, allowed website `api.cloudflare.com`, header `Authorization` with prefix `Bearer`); Anthropic's proxy adds it to requests for that host only ([Cloud environments](https://code.claude.com/docs/en/cloud-environments#add-network-secrets), checked 2026-10-28). Any other agent gets it as the environment variable `WORKERS_AI_TOKEN`. Either way the agent also needs the account id (`CLOUDFLARE_ACCOUNT_ID` or `--account`), which isn't secret.
 - Cost: Workers AI includes 10,000 neurons a day on both plans. On Workers Free, a request over that fails; on Workers Paid it is billed at $0.011 per 1,000 neurons ([Pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/), checked 2026-10-28). A 1536×1024 image from FLUX.2 [klein] 4B costs about 156 neurons (26.05 per 512×512 output tile), so the free allowance covers roughly 60 a day.
 - Status: unverified. No build has generated an image with it yet.
 
@@ -118,7 +118,7 @@ These are dashboard-only or third-party. The agent lists them with direct links,
 
 | Credential | Where it lives | Notes |
 |---|---|---|
-| Workers AI token | A network secret on the agent's cloud environment, or its `WORKERS_AI_TOKEN` (section 5) | Runs image models only; never stored in a repo or a Worker |
+| Workers AI token | Ops repo secret `WORKERS_AI_TOKEN` for **site images**; optionally a network secret on an agent's cloud environment (section 5) | Runs image models only; never stored in a repo or a Worker |
 | Resend full-access key | Ops repo secret `RESEND_ADMIN_KEY` (above) | Creates each launch site's sending domain and domain-restricted key; newsletter contacts and broadcasts. Can be deleted between uses |
 | Resend sending key | Worker secret `RESEND_API_KEY` | Restricted to one sending domain |
 | Apps Script mailer secret | Worker secret `MAILER_SECRET` and the script's properties | Only Framework B Workers can call the mailer |

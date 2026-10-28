@@ -112,8 +112,9 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   `add` the ones that fit with real alt text. A stock photo is never presented as the business's own work, customers or
   staff; prefer photos without identifiable people. For a generated style, `node scripts/generate-image.mjs draft
   "<subject>" --as <name> [--aspect 3:2]`, look at `design/generated/<name>/sheet.png`, then `use <name> <n> --alt
-  "..."`. It needs the Workers AI token (a network secret, or `WORKERS_AI_TOKEN`) and `CLOUDFLARE_ACCOUNT_ID` (docs/TOKENS.md section 5); without them, use
-  open-licensed photos and tell the owner.
+  "..."`. Without the Workers AI token in reach, run the ops repo's **site images** workflow instead (`draft`, look at
+  `sheet.png` in its artifact, then `use`); without the token at all, use open-licensed photos and tell the owner
+  (docs/TOKENS.md section 5).
 - `node scripts/check-content.mjs`.
 - With client editing on: `node scripts/editing.mjs seed` after the content changes.
 
