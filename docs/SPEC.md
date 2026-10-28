@@ -122,7 +122,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 | 1 | Business basics: name, one-line offer, audience, owner inbox; postal address for launch mode | Required: name, inbox |
 | 2 | Mode: idea, or launch on an existing domain or a new one. `create` always makes an idea site; `site promote` launches it | Idea |
 | 3 | Site shape: landing page, full site, or hybrid | From the design intake |
-| 4 | Forms: kinds and fields (all auto opt-in) | One contact form with a file field |
+| 4 | Forms: kinds and fields; consent `auto` (every form opts in) or `checkbox` (brief `consent`) | One contact form with a file field; `checkbox` for an EU, UK or Canadian audience |
 | 5 | Lead auto-reply on or off; launch sender | Idea: off. Launch: Resend |
 | 6 | Index now? | Idea: no (`create` input `indexing: on` makes the workers.dev address indexable; previews stay noindex). Launch: yes |
 | 7 | Client editing (EmDash) | Off |
@@ -149,7 +149,8 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 
 - **Schema:** forms are defined as JSON in `site.config.json` and rendered by the core form engine (multi-step, inline validation, progress shown).
 - **Auto opt-in:** every form is a sign-up form, and submitting it subscribes the visitor. Someone who unsubscribed and later fills in a form again is subscribed again; each lead row keeps the opt-in wording shown that time.
-- **Opt-in line:** every form subscribes the visitor. There is no checkbox, just one line under the submit button: "You'll get occasional emails from us. Unsubscribe anytime." This is allowed under US CAN-SPAM, which requires a working unsubscribe honored within 10 business days and a postal address in marketing email ([FTC guide](https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business)). If `site.config.json` says the site targets the EU or Canada, P0 warns the owner, because GDPR and CASL generally require prior consent.
+- **Two consent modes** (`optIn.mode`, core 0.5.0). `auto`, the default, is described in this bullet and the one above. `checkbox` shows a consent box before the submit button (`optIn.label`). Only a ticked box subscribes, and an address that unsubscribed is subscribed again only by ticking it. A form's `consent` is `required` (the box must be ticked to send) or `optional`. The brief defaults to `checkbox` for an EU, UK or Canadian audience. Tested in workerd; *untested* live.
+- **Opt-in line (auto mode):** every form subscribes the visitor. There is no checkbox, just one line under the submit button: "You'll get occasional emails from us. Unsubscribe anytime." This is allowed under US CAN-SPAM, which requires a working unsubscribe honored within 10 business days and a postal address in marketing email ([FTC guide](https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business)). For an EU, UK or Canadian audience the brief chooses the checkbox mode, because GDPR and CASL generally require prior consent; choosing `auto` there is a warning shown to the owner.
 - **What each lead stores:** consent wording, page and timestamp, plus attribution (`utm_*`, `src`, `ref`, first off-site referrer without its query string, landing page). Thank-you URLs carry no parameters.
 - **File field:** on the contact form by default ("Do you need to send us something?"). Upload flow (`packages/core/src/forms.js`):
   1. The form submit carries the file's name, size and type, never the file. The Worker checks Turnstile, the size cap (10 MB by default) and the type allow-list, then saves the lead with `upload_status = pending`.

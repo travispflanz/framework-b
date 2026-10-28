@@ -18,6 +18,7 @@ export const DEFAULT_UPLOAD_TYPES = [
 export const DEFAULT_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 export const HARD_UPLOAD_MAX_BYTES = 95 * 1024 * 1024; // Cloudflare Free/Pro plans reject request bodies over 100 MB
 export const DEFAULT_OPT_IN_TEXT = "You'll get occasional emails from us. Unsubscribe anytime.";
+export const DEFAULT_CONSENT_LABEL = "Email me occasional news. Unsubscribe anytime.";
 
 export function loadConfig(raw) {
   const errors = [];
@@ -44,7 +45,17 @@ export function loadConfig(raw) {
     errors.push("idea sites have no domain to send from; use apps-script or none");
   }
 
-  cfg.optIn = { text: DEFAULT_OPT_IN_TEXT, ...(cfg.optIn || {}) };
+  // Opt-in. "auto" (default): every form subscribes the visitor, with one line under the button (US CAN-SPAM).
+  // "checkbox": a consent box; only a ticked box subscribes, and an unsubscribed address is subscribed again only by
+  // ticking it. Use it for audiences in the EU, UK or Canada (GDPR, CASL) or when the owner wants explicit consent.
+  // A form's `consent` is "required" (the box must be ticked to send) or "optional" (default) in checkbox mode.
+  cfg.optIn = { mode: "auto", text: DEFAULT_OPT_IN_TEXT, label: DEFAULT_CONSENT_LABEL, ...(cfg.optIn || {}) };
+  if (!["auto", "checkbox"].includes(cfg.optIn.mode)) errors.push('optIn.mode must be "auto" or "checkbox"');
+
+  // /go: the entry point for printed QR codes and campaign links. It redirects to `go.to` (default "/") and keeps the
+  // query string, so utm_* and src are recorded as attribution by the page's form script. Keep it working forever.
+  cfg.go = { to: "/", ...(cfg.go || {}) };
+  if (!/^\/(?!\/)/.test(cfg.go.to)) errors.push('go.to must be a path on this site, starting with "/"');
 
   // CRM mirror (src/crm.js): copy each lead to the owner's Google Sheet and/or a webhook. Off unless set.
   cfg.crm = { sheet: false, webhook: false, ...(cfg.crm || {}) };
@@ -79,6 +90,9 @@ export function loadConfig(raw) {
       form.file = { enabled: false };
     }
     form.thanks = form.thanks || "/thanks";
+    form.consent = form.consent || "optional";
+    if (!["required", "optional"].includes(form.consent)) errors.push(`forms.${formId}.consent must be "required" or "optional"`);
+    if (fields.some((f) => f.name === "consent")) errors.push(`forms.${formId}: field name "consent" is reserved for the opt-in box`);
   }
 
   errors.push(...dripErrors(cfg));

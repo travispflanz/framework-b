@@ -1,7 +1,7 @@
 // GET /u shows a confirm button (mail scanners prefetch links, so GET never changes anything).
 // POST /u unsubscribes. Links are HMAC-signed per site and address.
 
-import { verify } from "./lib/crypto.js";
+import { verify, verifyLegacy } from "./lib/crypto.js";
 import { escapeHtml, page } from "./lib/util.js";
 
 export async function handleUnsubscribe(request, env, config) {
@@ -16,7 +16,10 @@ export async function handleUnsubscribe(request, env, config) {
   email = email.toLowerCase().slice(0, 254);
   const name = escapeHtml(config.site.name);
 
-  const valid = email && token && (await verify(env.SIGNING_SECRET, `unsub:${config.site.id}:${email}`, token));
+  // LEGACY_UNSUB_SECRET: for a site adopted from an older system whose emails carry links signed as "unsub:<email>".
+  // Links already in people's inboxes must keep working, so both forms are accepted.
+  const valid = email && token && ((await verify(env.SIGNING_SECRET, `unsub:${config.site.id}:${email}`, token)) ||
+    (env.LEGACY_UNSUB_SECRET && (await verifyLegacy(env.LEGACY_UNSUB_SECRET, `unsub:${email}`, token))));
   if (!valid) return page("Link not valid", `<h1>This link isn't valid</h1><p>Reply to any email from ${name} and we'll remove you.</p>`, 400);
 
   if (request.method === "POST") {

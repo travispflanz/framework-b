@@ -52,7 +52,9 @@ export function normalizeBrief(input) {
   const mode = pick("mode", "idea", (v) => ["idea", "launch"].includes(v));
   if (mode === "launch") errors.push("site create makes idea sites only: build it as an idea, then run site promote to put it on its domain (docs/SPEC.md section 2)");
   const region = String(pick("audienceRegion", "us", (v) => typeof v === "string")).toLowerCase();
-  if (GDPR_CASL.has(region)) warnings.push(`audienceRegion "${region}": every form opts visitors in automatically, which GDPR and CASL generally don't allow; ask the owner before building (SPEC section 5)`);
+  // Consent: "auto" (every form subscribes, US CAN-SPAM) or "checkbox" (a consent box; only a ticked box subscribes).
+  const consent = pick("consent", () => (GDPR_CASL.has(region) ? "checkbox" : "auto"), (v) => ["auto", "checkbox"].includes(v));
+  if (GDPR_CASL.has(region) && consent === "auto") warnings.push(`audienceRegion "${region}" with consent "auto": every form opts visitors in automatically, which GDPR and CASL generally don't allow; use consent "checkbox" or ask the owner (SPEC section 5)`);
 
   const forms = pick("forms", () => [{ id: "contact", purpose: "contact" }], (v) => Array.isArray(v) && v.length > 0 && v.every((f) => f && /^[a-z][a-z0-9-]*$/.test(f.id || "")));
   const newsletter = pick("newsletter", false, isBool);
@@ -75,6 +77,7 @@ export function normalizeBrief(input) {
     owner: { email },
     mode,
     audienceRegion: region,
+    consent,
     shape: pick("shape", "landing", (v) => SHAPES.includes(v)),
     forms,
     autoReply,
@@ -108,6 +111,7 @@ export const createInputs = (b) => ({
   INDEXING: b.indexing ? "on" : "off",
   CRM: b.crm,
   AUTO_REPLY: b.autoReply ? "on" : "off",
+  CONSENT: b.consent,
 });
 
 // DECISIONS.md rows for the kickoff answers ("owner" for stated, "inferred" for inferred or default).
@@ -121,7 +125,7 @@ export function decisionRows(b, sources, date) {
     ...(b.business.location || b.business.serviceArea.length ? [row(`Where: ${[b.business.location, b.business.serviceArea.join(", ")].filter(Boolean).join("; ")}`, "business.location", "business.serviceArea")] : []),
     row(`Mode: ${b.mode}`, "mode"),
     row(`Site shape: ${b.shape}`, "shape"),
-    row(`Forms: ${b.forms.map((f) => f.id).join(", ")} (every form opts visitors in)`, "forms"),
+    row(`Forms: ${b.forms.map((f) => f.id).join(", ")} (${b.consent === "checkbox" ? "a consent box; only a ticked box subscribes" : "every form opts visitors in"})`, "forms", "consent"),
     row(`Lead auto-reply: ${b.autoReply ? "on" : "off"}`, "autoReply"),
     row(`Search engines: ${b.indexing ? "indexed" : "noindex"}`, "indexing"),
     row(`Client editing (EmDash): ${b.editing ? "on" : "off"}`, "editing"),
