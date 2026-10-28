@@ -3,6 +3,7 @@
 
 const MESSAGES = {
   required: "Please fill this in.",
+  choose: "Please choose at least one.",
   invalid_email: "Please enter a valid email address.",
   invalid_phone: "Please enter a valid phone number.",
   invalid_url: "Please enter a full web address, starting with https://",
@@ -29,7 +30,8 @@ function readAttribution() {
 
 function setError(form, name, code) {
   const el = form.querySelector(`[data-fb-error="${name}"]`);
-  const input = name === "file" ? form.querySelector("[data-fb-file]") : form.elements[name];
+  // A group of radios or checkboxes is marked on its fieldset.
+  const input = name === "file" ? form.querySelector("[data-fb-file]") : form.querySelector(`[data-fb-group="${name}"]`) || form.elements[name];
   if (el) el.textContent = code ? MESSAGES[code] || MESSAGES.required : "";
   if (input && input.setAttribute) {
     if (code) input.setAttribute("aria-invalid", "true");
@@ -61,12 +63,20 @@ function validate(form, container) {
       first = first || input;
     }
   });
+  // A required group of checkboxes needs at least one ticked (browsers have no native check for that).
+  container.querySelectorAll("[data-fb-group][data-required]").forEach((group) => {
+    if (group.querySelector('input[type="checkbox"]') && !group.querySelector("input:checked")) {
+      setError(form, group.dataset.fbGroup, "choose");
+      first = first || group.querySelector("input");
+    }
+  });
   const file = container.querySelector("[data-fb-file]");
   if (file && file.files[0]) {
     const f = file.files[0];
     const max = Number(file.dataset.maxBytes);
     const types = file.accept.split(",");
-    const code = f.size > max ? "file_too_large" : !types.includes(f.type) ? "file_type" : null;
+    const ext = `.${f.name.split(".").pop()}`.toLowerCase();
+    const code = f.size > max ? "file_too_large" : !types.includes(f.type) && !types.includes(ext) ? "file_type" : null;
     setError(form, "file", code);
     if (code) first = first || file;
   }
@@ -87,7 +97,7 @@ function upload(url, file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
-    xhr.setRequestHeader("content-type", file.type);
+    xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
     xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(String(xhr.status))));
     xhr.onerror = () => reject(new Error("network"));
@@ -161,14 +171,19 @@ function wire(form) {
     const data = {};
     for (const el of form.elements) {
       if (!el.name || el.type === "file") continue;
-      if (el.type === "checkbox") data[el.name] = el.checked;
+      if (el.type === "checkbox" && el.closest("[data-fb-group]")) {
+        data[el.name] = data[el.name] || [];
+        if (el.checked) data[el.name].push(el.value);
+      } else if (el.type === "radio") {
+        if (el.checked || !(el.name in data)) data[el.name] = el.checked ? el.value : "";
+      } else if (el.type === "checkbox") data[el.name] = el.checked;
       else data[el.name] = el.value;
     }
     for (const [k, v] of Object.entries(readAttribution())) data[`attr_${k}`] = v;
     data.page = location.pathname;
     const fileInput = form.querySelector("[data-fb-file]");
     const file = fileInput?.files[0];
-    if (file) Object.assign(data, { file_name: file.name, file_size: file.size, file_type: file.type });
+    if (file) Object.assign(data, { file_name: file.name, file_size: file.size, file_type: file.type || "application/octet-stream" });
 
     try {
       const res = await fetch(form.action, {

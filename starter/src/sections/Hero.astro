@@ -9,7 +9,7 @@ import Actions from "./HeroActions.astro";
 import Icon from "./Icon.astro";
 import Points from "./HeroPoints.astro";
 import Picture from "./Picture.astro";
-import { lines } from "./text.js";
+import { lines, inline } from "./text.js";
 import { isLabelled } from "./generated.js";
 import { composition, variantOf } from "./design.js";
 
@@ -29,7 +29,7 @@ const onDark = variant === "full-bleed";
     <div class:list={["mx-auto grid w-full max-w-content gap-6 py-16", { "justify-items-center text-center": center }]}>
       {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}
       <h1 class="max-w-prose font-display text-display text-bg">{value.headline}</h1>
-      {value.subheadline && <p class="max-w-prose text-body text-bg">{value.subheadline}</p>}
+      {value.subheadline && <p class="max-w-prose text-body text-bg" set:html={inline(value.subheadline)} />}
       <Actions value={value} onDark center={center} />
       {points.length > 0 && <Points points={points} onDark center={center} />}
     </div>
@@ -39,7 +39,7 @@ const onDark = variant === "full-bleed";
     <div class:list={["reveal mx-auto grid w-full max-w-content gap-6", { "justify-items-center text-center": center }]}>
       {value.eyebrow && <p class="text-label text-accent">{value.eyebrow}</p>}
       <h1 class="font-display text-display text-ink">{value.headline}</h1>
-      {value.subheadline && <p class="max-w-prose text-body text-ink-muted">{value.subheadline}</p>}
+      {value.subheadline && <p class="max-w-prose text-body text-ink-muted" set:html={inline(value.subheadline)} />}
       <Actions value={value} center={center} />
       {points.length > 0 && <Points points={points} center={center} />}
     </div>
@@ -55,7 +55,7 @@ const onDark = variant === "full-bleed";
       <div class="reveal grid gap-6 lg:col-span-5 lg:pb-12">
         {value.eyebrow && <p class="border-l-4 border-accent pl-3 text-label text-ink">{value.eyebrow}</p>}
         <h1 class="font-display text-display text-ink">{value.headline}</h1>
-        {value.subheadline && <p class="max-w-prose text-body text-ink-muted">{value.subheadline}</p>}
+        {value.subheadline && <p class="max-w-prose text-body text-ink-muted" set:html={inline(value.subheadline)} />}
         <Actions value={value} />
         {points.length > 0 && <Points points={points} />}
       </div>
@@ -70,11 +70,11 @@ const onDark = variant === "full-bleed";
       <div class="card grid content-end gap-5 p-8 md:col-span-4 md:row-span-2">
         {value.eyebrow && <p class="text-label text-accent">{value.eyebrow}</p>}
         <h1 class="font-display text-display text-ink">{value.headline}</h1>
-        {value.subheadline && <p class="max-w-prose text-body text-ink-muted">{value.subheadline}</p>}
+        {value.subheadline && <p class="max-w-prose text-body text-ink-muted" set:html={inline(value.subheadline)} />}
       </div>
       {hasImage && <Picture image={value.image} sizes="(min-width: 768px) 33vw, 100vw" class="media aspect-[4/3] w-full object-cover md:col-span-2 md:row-span-2 md:aspect-auto md:h-full" eager />}
       {points.map((p) => (
-        <p class="card flex items-center gap-3 p-5 text-small text-ink md:col-span-2"><Icon name="check" class="size-5 shrink-0 text-accent" />{p}</p>
+        <p class="card flex items-center gap-3 p-5 text-small text-ink md:col-span-2"><Icon name="check" class="size-5 shrink-0 text-accent" /><span set:html={inline(p)} /></p>
       ))}
       {value.primary_cta_label && value.primary_cta_url && (
         <a href={value.primary_cta_url} class:list={["button-primary grid min-h-16 place-items-center p-5 text-center no-underline", points.length % 3 === 0 ? "md:col-span-6" : "md:col-span-2"]}>{value.primary_cta_label}</a>
@@ -87,7 +87,7 @@ const onDark = variant === "full-bleed";
       <div class:list={["reveal grid gap-6", { "justify-items-center text-center": center && !hasImage }]}>
         {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}
         <h1 class="max-w-prose font-display text-display text-ink">{value.headline}</h1>
-        {value.subheadline && <p class="max-w-prose text-body text-ink-muted">{value.subheadline}</p>}
+        {value.subheadline && <p class="max-w-prose text-body text-ink-muted" set:html={inline(value.subheadline)} />}
         <Actions value={value} />
         {points.length > 0 && <Points points={points} />}
       </div>

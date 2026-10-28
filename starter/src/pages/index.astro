@@ -5,6 +5,6 @@ import Base from "../layouts/Base.astro";
 import Sections from "../sections/Sections.astro";
 import page from "../content/home.json";
 ---
-<Base description={page.description} bleed>
+<Base exactTitle={page.title && page.title !== "Home" ? page.title : undefined} description={page.description} bleed>
   <Sections sections={page.sections} />
 </Base>

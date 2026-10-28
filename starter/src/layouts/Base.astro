@@ -1,6 +1,7 @@
 ---
 // Every page uses this layout. Brand values come from site.config.json only.
 import config from "../../site.config.json";
+import { inline } from "../sections/text.js";
 import credits from "../../design/credits.json";
 import "../styles/tokens.css";
 import fonts from "../styles/fonts.js";
@@ -8,9 +9,10 @@ import "../sections/sections.css";
 import { composition } from "../sections/design.js";
 
 // bleed: the page is made of full-width sections (src/sections), so <main> adds no column or padding.
-interface Props { title?: string; description?: string; noindex?: boolean; bleed?: boolean }
-const { title, description = config.site.tagline, noindex = false, bleed = false } = Astro.props;
-const fullTitle = title ? `${title} | ${config.site.name}` : config.site.name;
+// exactTitle: the whole <title>, without " | <site name>" (the home page's own title from home.json).
+interface Props { title?: string; exactTitle?: string; description?: string; noindex?: boolean; bleed?: boolean }
+const { title, exactTitle, description = config.site.tagline, noindex = false, bleed = false } = Astro.props;
+const fullTitle = exactTitle || (title ? `${title} | ${config.site.name}` : config.site.name);
 // With build.format "file", Astro.url.pathname is "/book.html" (and "/index.html" for the home page) at build
 // time. Workers assets redirect those to "/book" and "/", so canonical, og:url and the current nav item use the
 // extensionless path the visitor actually sees.
@@ -27,16 +29,23 @@ const org = {
 const year = new Date().getFullYear();
 // The footer links to /credits when an image from another creator needs attribution or an image was generated.
 const needsCredits = (credits.images || []).some((c) => c.source === "openverse" || c.source === "stock" || (c.source === "generated" && !c.test));
-const cta = config.nav.find((item) => item.cta);
+// Up to two nav items may carry "cta": true (a site with two front doors, for example buyers and sellers): the
+// first is the solid button, the second an outlined one, and both go in the phone action bar.
+const ctas = config.nav.filter((item) => item.cta).slice(0, 2);
+const cta = ctas[0];
 // Phones get an app-like frame: the pages as a visible row under the header (up to 6; NN/g found hidden menus
 // are used far less), and the main action in a bar at the bottom of the screen, within thumb reach, on every
 // page except the one it leads to. site.phone adds a call button beside it.
 const pageLinks = config.nav.filter((item) => !item.cta);
 const showPageRow = pageLinks.length > 0 && pageLinks.length <= 6;
-const actionBar = !!cta && path !== cta.href;
+const barCtas = ctas.filter((c) => path !== c.href);
+const actionBar = barCtas.length > 0;
 const phone = config.site.phone ? String(config.site.phone) : "";
 // The logo (scripts/brand-kit.mjs writes it and sets site.logo); otherwise the name in the display font.
 const logo = config.site.logo || "";
+// Optional footer: a short line about the business and link columns ({ note, columns: [{ title, links }] }).
+const footer = config.footer || {};
+const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
 ---
 <!doctype html>
 <html
@@ -82,7 +91,10 @@ const logo = config.site.logo || "";
               <a
                 href={item.href}
                 aria-current={path === item.href ? "page" : undefined}
-                class:list={["whitespace-nowrap", { "button-primary inline-flex min-h-11 items-center no-underline": item.cta }]}
+                class:list={["whitespace-nowrap", {
+                  "button-primary inline-flex min-h-11 items-center no-underline": item.cta && item === cta,
+                  "inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--color-accent)] px-4 text-label text-[var(--color-accent)] no-underline": item.cta && item !== cta,
+                }]}
               >{item.label}</a>
             </li>
           ))}
@@ -102,15 +114,32 @@ const logo = config.site.logo || "";
       <slot />
     </main>
     <footer class="border-t border-[var(--color-line)] px-[var(--spacing-gutter)]">
+      {(footer.note || footerColumns.length > 0) && (
+        <div class:list={["mx-auto grid max-w-[var(--container-content)] gap-8 pt-10 text-sm text-[var(--color-ink-muted)]", ["md:grid-cols-[2fr]", "md:grid-cols-[2fr_1fr]", "md:grid-cols-[2fr_1fr_1fr]", "md:grid-cols-[2fr_1fr_1fr_1fr]"][Math.min(footerColumns.length, 3)]]}>
+          <div class="grid content-start gap-2">
+            <p class="font-display text-title text-[var(--color-ink)]">{config.site.name}</p>
+            {footer.note && <p class="max-w-prose" set:html={inline(footer.note)} />}
+          </div>
+          {footerColumns.map((c, i) => (
+            <nav aria-labelledby={`footer-col-${i}`}>
+              <p id={`footer-col-${i}`} class="mb-2 font-semibold text-[var(--color-ink)]">{c.title}</p>
+              <ul class="grid gap-2">{c.links.map((l) => <li><a href={l.href}>{l.label}</a></li>)}</ul>
+            </nav>
+          ))}
+        </div>
+      )}
       <div class="mx-auto flex max-w-[var(--container-content)] flex-wrap justify-between gap-4 py-6 text-sm text-[var(--color-ink-muted)]">
         <p>© {year} {config.site.name}{config.site.postalAddress ? ` · ${config.site.postalAddress}` : ""}</p>
+        {footer.legal && <p class="w-full max-w-prose" set:html={inline(footer.legal)} />}
         <p class="flex gap-4">{needsCredits && <a href="/credits">Image credits</a>}<a href="/privacy">Privacy</a></p>
       </div>
     </footer>
     {actionBar && (
       <div class="fixed inset-x-0 bottom-0 z-40 flex gap-3 border-t border-[var(--color-line)] bg-[var(--color-bg)] px-[var(--spacing-gutter)] pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
         {phone && <a href={`tel:${phone.replace(/[^+\d]/g, "")}`} class="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-control)] border border-[var(--color-field)] px-4 font-semibold no-underline">Call</a>}
-        <a href={cta.href} class="button-primary inline-flex min-h-12 flex-1 items-center justify-center no-underline">{cta.label}</a>
+        {barCtas.map((c, i) => (
+          <a href={c.href} class:list={["inline-flex min-h-12 flex-1 items-center justify-center text-center no-underline", c === cta || barCtas.length === 1 ? "button-primary" : "rounded-[var(--radius-control)] border border-[var(--color-accent)] px-3 text-label text-[var(--color-accent)]"]}>{c.label}</a>
+        ))}
       </div>
     )}
   </body>

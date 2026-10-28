@@ -1,4 +1,5 @@
 ---
+import { inline, paragraphs } from "./text.js";
 // The eyebrow, headline and supporting sentence most sections start with.
 import { composition } from "./design.js";
 
@@ -9,6 +10,6 @@ const { eyebrow, headline, subheadline, id, center = composition.align === "cent
   <div class:list={["reveal mb-10 grid max-w-prose content-start gap-3", { "mx-auto text-center": center }]}>
     {eyebrow && <p class="text-label text-accent">{eyebrow}</p>}
     {headline && <h2 id={id} class="font-display text-headline text-ink">{headline}</h2>}
-    {subheadline && <p class="text-body text-ink-muted">{subheadline}</p>}
+    {subheadline && paragraphs(subheadline).map((p) => <p class="text-body text-ink-muted" set:html={inline(p)} />)}
   </div>
 )}

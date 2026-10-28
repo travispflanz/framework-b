@@ -7,6 +7,7 @@ import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import config from "./site.config.json" with { type: "json" };
 import { buildHeadersFile } from "./core/src/headers.js";
+import { sitemapFilter } from "./scripts/lib/sitemap.mjs";
 
 // Writes dist/_headers from site.config.json, so indexing rules never drift from the config.
 const headersFile = {
@@ -23,6 +24,6 @@ export default defineConfig({
   output: "static",
   trailingSlash: "never",
   build: { format: "file" },
-  integrations: [...(config.site.indexing ? [sitemap()] : []), headersFile],
+  integrations: [...(config.site.indexing ? [sitemap({ filter: sitemapFilter(import.meta.url) })] : []), headersFile],
   vite: { plugins: [tailwindcss()] },
 });

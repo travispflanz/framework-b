@@ -47,17 +47,21 @@ function checkFields(fields, value, where) {
   for (const k of Object.keys(value)) if (!known.has(k)) errors.push(`${where}.${k} is not a field of this section`);
 }
 
-// Pages: home.json is the home page; every other <slug>.json is /<slug> (src/pages/[page].astro).
+// Pages: home.json is the home page; every other <slug>.json is /<slug> (src/pages/[page].astro). privacy.json and
+// not-found.json replace the generated privacy page and the 404 page with the owner's own words, and contact.json the
+// plain contact page.
+const REPLACES = { privacy: "privacy", "not-found": "404", contact: "contact" };
 const BUILT_IN = new Set(readdirSync("src/pages").map((f) => f.replace(/\.(astro|js|ts|md)$/, "")).filter((f) => !f.startsWith("[")));
 for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))) {
   const page = JSON.parse(readFileSync(join("src/content", file), "utf8"));
   const slug = file.replace(/\.json$/, "");
   if (slug !== "home") {
     if (!/^[a-z][a-z0-9-]*$/.test(slug)) errors.push(`${file}: page file names are lowercase letters, digits and dashes (the name is the URL)`);
-    if (BUILT_IN.has(slug)) errors.push(`${file}: /${slug} is already a page in src/pages/`);
+    if (BUILT_IN.has(slug) && !REPLACES[slug]) errors.push(`${file}: /${slug} is already a page in src/pages/`);
     if (!page.title || typeof page.title !== "string") errors.push(`${file}: "title" is required (the browser tab and search result title)`);
   }
   if (page.description !== undefined && typeof page.description !== "string") errors.push(`${file}: "description" must be text`);
+  if (page.noindex !== undefined && typeof page.noindex !== "boolean") errors.push(`${file}: "noindex" must be true or false`);
   if (!(page.sections || []).length) errors.push(`${file}: a page needs at least one section`);
   else if (page.sections[0]._type !== "fb_hero") errors.push(`${file}: the first section must be a hero (the page's only <h1>)`);
   const keys = new Set();

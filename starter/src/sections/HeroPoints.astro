@@ -1,4 +1,5 @@
 ---
+import { inline } from "./text.js";
 // The hero's short reassurances (fb_hero), each with a tick.
 import Icon from "./Icon.astro";
 
@@ -7,6 +8,6 @@ const { points, onDark = false, center = false } = Astro.props;
 ---
 <ul class:list={["flex flex-wrap gap-x-6 gap-y-2 text-small", onDark ? "text-bg" : "text-ink", { "justify-center": center }]}>
   {points.map((p) => (
-    <li class="flex items-center gap-2"><Icon name="check" class:list={["size-5 shrink-0", onDark ? "text-bg" : "text-accent"]} />{p}</li>
+    <li class="flex items-center gap-2"><Icon name="check" class:list={["size-5 shrink-0", onDark ? "text-bg" : "text-accent"]} /><span set:html={inline(p)} /></li>
   ))}
 </ul>

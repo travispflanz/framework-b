@@ -69,7 +69,8 @@ A site has two modes:
 - One-prompt build: the agent writes a kickoff brief, creates the site, designs it, writes the content, runs the
   gates and sends you a preview (`docs/BUILD.md`).
 - Landing page, full site or hybrid. Every page is a JSON file of sections: hero, steps, features, pricing, service
-  area, FAQ, call to action, form, text, text-and-image, and gallery. Each section has several layouts (the hero
+  area, FAQ, call to action, form, text, text-and-image, gallery, lists (checks, crosses or numbers side by side) and
+  people (with your own photos). Any text can carry **bold**, *italic* and [links](/about). Each section has several layouts (the hero
   alone has five: split, full-bleed, statement, editorial and bento) and its own phone behaviour (stack, swipe
   sideways, fold into an accordion, or hide).
 - Design phase:
@@ -93,7 +94,8 @@ A site has two modes:
   CSS only.
 
 **Forms and leads**
-- Any number of forms, defined in `site.config.json`: text, email, phone, URL, long text, choice, checkbox and hidden
+- Any number of forms, defined in `site.config.json`: text, email, phone, URL, long text, dropdown, radio buttons,
+  groups of checkboxes (optionally under small headings), a single checkbox and hidden
   fields; multi-step forms; an optional file upload (10 MB by default).
 - Spam protection: Cloudflare Turnstile, a hidden honeypot field, an origin check and size limits. A per-IP rate
   limit is also deployed (whether it limits on the Free plan is *untested*).
@@ -301,32 +303,42 @@ Checked when the Worker starts (`packages/core/src/config.js`); a bad combinatio
 | `turnstile.siteKey` | The spam-check widget |
 | `email.notify` | `apps-script`, `cloudflare` (needs `notifyFrom`) or `none` |
 | `email.confirm` | `apps-script`, `resend` (needs `confirmFrom`) or `none`: the auto-reply |
+| `email.confirmName`, `email.replyTo` | The auto-reply's sender name (default the site name) and reply-to address (default the owner) |
 | `site.logo` | The logo file (`/logo.svg`), set by the brand kit |
 | `site.phone` | Adds a Call button to the phone action bar |
-| `nav` | Menu items `{ label, href }`; one item with `"cta": true` becomes the header button and the phone action bar |
-| `forms.<id>` | `title`, `submitLabel`, `fields`, `file`, `thanks`, `consent` (`required` or `optional`, checkbox mode) (see below) |
+| `nav` | Menu items `{ label, href }`; one or two items with `"cta": true` become the header buttons and the phone action bar |
+| `forms.<id>` | `title`, `submitLabel`, `fields`, `confirm` (`{ subject, text }` for the auto-reply; `{first_name}` and `{name}` are filled in), `steps` (a `{ title, intro }` heading per step), `file`, `thanks`, `consent` (`required` or `optional` in checkbox mode; `none` for a plain message form that never subscribes anyone) (see below) |
 | `optIn.mode` | `auto` or `checkbox` |
 | `optIn.text` | The line under every submit button (auto mode) |
 | `optIn.label` | The consent box's label (checkbox mode) |
 | `go.to` | Where `/go` sends visitors (default `/`) |
+| `footer` | `{ note, columns: [{ title, links: [{ label, href }] }], legal }`: a line about the business, link columns and a legal line |
 | `legacyUnsubSecret` | For an adopted site: the Worker secret that signed its older unsubscribe links (default `LEGACY_UNSUB_SECRET`) |
 | `crm` | `{ "sheet": true/false, "webhook": true/false }` |
 | `drips` | `{ "forms": [...], "from": "news", "emails": [{ "after": "1 day", "subject": "...", "text": "..." }] }`. Launch mode with Resend only; up to 10 emails |
 | `editing` | `{ "enabled": true, ... }`, written by `node scripts/editing.mjs on` |
 
-A form field is `{ "name", "type", "label", "required", "autocomplete", "hint", "options", "step", "maxLength" }`:
+A form field is `{ "name", "type", "label", "required", "autocomplete", "hint", "placeholder", "inputmode", "options", "step", "maxLength" }`
+(a form may also have a `note`, one line under the submit button; hints, the note and the consent label take inline
+formatting and links):
 
-- `type` is one of `text`, `email`, `tel`, `url`, `textarea`, `select` (needs `options`), `checkbox` or `hidden`.
+- `type` is one of `text`, `email`, `tel`, `url`, `textarea`, `select`, `radio`, `checkboxes` (these three need
+  `options`: strings, or `{ value, label, group }`; `group` puts checkboxes under small headings), `checkbox` or
+  `hidden`. A `checkboxes` answer is stored as a list.
 - Every form needs a required `email` field.
 - Give fields a `step` number to split the form into steps.
 - `file` is `{ "label", "hint", "maxBytes", "types" }`. The default is 10 MB, and PDF, images, text, Word and Excel
-  files are allowed.
+  files are allowed. `types` lists MIME types and may also list extensions (`".fdx"`) for files browsers report
+  without a type.
 
 ### Page content (`src/content/<page>.json`)
 
 Each page is a list of sections. The section fields are defined once in `starter/src/sections/schema.js`, and
 `node scripts/check-content.mjs` checks every page against them. `home.json` is the home page; any other file is
-`/<file name>` and needs a `title`. Every page starts with a hero. Any section can set `variant` (its layout) and
+`/<file name>` and needs a `title`; `"noindex": true` keeps it out of search results and the sitemap (thanks
+pages). `privacy.json`, `not-found.json` and `contact.json` replace the generated privacy page, the 404 page and the plain
+contact page with your own. A `title` in `home.json` is the home page's whole title.
+Every page starts with a hero. Any section can set `variant` (its layout) and
 `phone` (`auto`, `stack`, `swipe`, `collapse`, `hide`).
 
 ## Built-in rules

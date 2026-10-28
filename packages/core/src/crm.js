@@ -11,7 +11,7 @@ const ATTRIBUTION = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "ut
 // One flat row: fixed columns first, then the form's own fields, then attribution.
 export function crmRow(config, { id, form, email, createdAt, page, country, fields = {}, attribution = {} }) {
   const row = { id, created_at: createdAt, site: config.site.id, form, email };
-  for (const [k, v] of Object.entries(fields)) if (!(k in row) && k !== "email") row[k] = v;
+  for (const [k, v] of Object.entries(fields)) if (!(k in row) && k !== "email") row[k] = Array.isArray(v) ? v.join(", ") : v;
   row.page = page || "";
   row.country = country || "";
   for (const k of ATTRIBUTION) if (attribution[k]) row[`attr_${k}`] = attribution[k];

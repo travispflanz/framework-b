@@ -2,7 +2,10 @@
 // Every brand value the runtime uses comes from here; nothing site-specific is hard-coded.
 import { dripErrors } from "./drips-config.js";
 
-const FIELD_TYPES = new Set(["text", "email", "tel", "url", "textarea", "select", "checkbox", "hidden"]);
+// radio: one of `options`; checkboxes: any of `options` (stored as a list). Options are strings or
+// { value, label, group }; `group` puts options under a small heading (checkboxes only).
+const FIELD_TYPES = new Set(["text", "email", "tel", "url", "textarea", "select", "radio", "checkboxes", "checkbox", "hidden"]);
+const OPTION_TYPES = new Set(["select", "radio", "checkboxes"]);
 const MAILERS = new Set(["none", "apps-script", "cloudflare", "resend"]);
 
 export const DEFAULT_UPLOAD_TYPES = [
@@ -79,7 +82,7 @@ export function loadConfig(raw) {
         errors.push(`forms.${formId}: field name "${f.name}" is reserved`);
       }
       if (!FIELD_TYPES.has(f.type)) errors.push(`forms.${formId}.${f.name}: unknown type "${f.type}"`);
-      if (f.type === "select" && !Array.isArray(f.options)) errors.push(`forms.${formId}.${f.name}: select needs options`);
+      if (OPTION_TYPES.has(f.type) && (!Array.isArray(f.options) || !f.options.length)) errors.push(`forms.${formId}.${f.name}: ${f.type} needs options`);
       if (names.has(f.name)) errors.push(`forms.${formId}: duplicate field "${f.name}"`);
       names.add(f.name);
       f.maxLength = f.maxLength || (f.type === "textarea" ? 5000 : 200);
@@ -94,9 +97,11 @@ export function loadConfig(raw) {
     } else {
       form.file = { enabled: false };
     }
+    // Optional headings for multi-step forms: steps[n - 1] = { title, intro } for the fields with "step": n.
+    if (form.steps !== undefined && (!Array.isArray(form.steps) || form.steps.some((st) => !st || typeof st !== "object"))) errors.push(`forms.${formId}.steps must be a list of { title, intro }`);
     form.thanks = form.thanks || "/thanks";
     form.consent = form.consent || "optional";
-    if (!["required", "optional"].includes(form.consent)) errors.push(`forms.${formId}.consent must be "required" or "optional"`);
+    if (!["required", "optional", "none"].includes(form.consent)) errors.push(`forms.${formId}.consent must be "required", "optional" or "none"`);
     if (fields.some((f) => f.name === "consent")) errors.push(`forms.${formId}: field name "consent" is reserved for the opt-in box`);
   }
 

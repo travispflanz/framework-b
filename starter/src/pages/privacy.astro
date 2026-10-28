@@ -1,6 +1,9 @@
 ---
-// Generated from what the site actually collects (site.config.json), so it can't drift from the forms.
+// Generated from what the site actually collects (site.config.json), so it can't drift from the forms. A site
+// whose owner has their own privacy wording puts it in src/content/privacy.json, which replaces this page.
 import Base from "../layouts/Base.astro";
+import Sections from "../sections/Sections.astro";
+const custom = Object.values(import.meta.glob<{ default: any }>("../content/privacy.json", { eager: true }))[0]?.default;
 import raw from "../../site.config.json";
 import { loadConfig } from "../../core/src/config.js";
 const config = loadConfig(raw);
@@ -9,6 +12,11 @@ const anyFile = forms.some(([, f]) => f.file.enabled);
 const labels = [...new Set(forms.flatMap(([, f]) => f.fields.filter((x) => x.type !== "hidden").map((x) => x.label || x.name)))];
 const autoReply = config.email.confirm !== "none";
 ---
+{custom ? (
+<Base title={custom.title} description={custom.description} bleed>
+  <Sections sections={custom.sections} />
+</Base>
+) : (
 <Base title="Privacy">
   <article class="grid max-w-prose gap-4">
     <h1 class="text-3xl font-bold">Privacy</h1>
@@ -29,3 +37,4 @@ const autoReply = config.email.confirm !== "none";
     <p>Reply to any email from us and ask, and we'll delete what we hold about you.</p>
   </article>
 </Base>
+)}

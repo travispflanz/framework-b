@@ -43,10 +43,15 @@ try {
   const consoleErrors = [];
   page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(m.text()));
 
-  // Find a page that renders this form.
-  // The form is on the home page (landing pages) or on /contact.
-  await page.goto(`${base}/?utm_source=e2e&utm_medium=test`);
-  if (!(await page.locator(`form[data-fb-form="${formId}"]`).count())) await page.goto(`${base}/contact?utm_source=e2e&utm_medium=test`);
+  // Find a page that renders this form: the first content page with a form section for it, else the home page or
+  // the built-in /contact page.
+  const pages = readdirSync("src/content").filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""));
+  const holder = pages.find((slug) => (JSON.parse(readFileSync(`src/content/${slug}.json`, "utf8")).sections || []).some((s) => s._type === "fb_form" && s.form === formId));
+  const paths = [...new Set([holder === undefined ? null : holder === "home" ? "/" : `/${holder}`, "/", "/contact"].filter(Boolean))];
+  for (const p of paths) {
+    await page.goto(`${base}${p}?utm_source=e2e&utm_medium=test`);
+    if (await page.locator(`form[data-fb-form="${formId}"]`).count()) break;
+  }
   const formEl = page.locator(`form[data-fb-form="${formId}"]`).first();
 
   const submit = formEl.locator('button[type="submit"]');
@@ -64,6 +69,8 @@ try {
     for (const f of form.fields.filter((x) => (x.step || 1) === step && x.type !== "hidden")) {
       const input = formEl.locator(`[name="${f.name}"]`);
       if (f.type === "checkbox") { if (f.required) await input.check(); }
+      else if (f.type === "radio") await input.first().check();
+      else if (f.type === "checkboxes") { await input.nth(0).check(); if (f.options.length > 1) await input.nth(1).check(); }
       else if (f.type === "select") await input.selectOption({ index: 1 });
       else await input.fill(values[f.name] || values[f.type] || "E2E");
     }
@@ -77,6 +84,9 @@ try {
     writeFileSync(filePath, "%PDF-1.4\n% e2e test file\n");
     await formEl.locator("[data-fb-file]").setInputFiles(filePath);
   }
+
+  // Checkbox opt-in: tick the consent box, so the lead also subscribes (a required box blocks the send otherwise).
+  if (site.optIn?.mode === "checkbox" && form.consent !== "none") await formEl.locator('[name="consent"]').check();
 
   await page.waitForFunction(() => document.querySelector('[name="cf-turnstile-response"]')?.value, null, { timeout: 30000 });
   const [submitResponse] = await Promise.all([
@@ -93,11 +103,20 @@ try {
 
   const [lead] = sql("SELECT * FROM leads ORDER BY created_at DESC LIMIT 1");
   check("lead saved in D1", lead?.email === "e2e@example.com" && lead?.form === formId);
+  const groups = form.fields.filter((f) => f.type === "checkboxes");
+  if (groups.length) {
+    const fields = JSON.parse(lead?.fields_json || "{}");
+    check("ticked checkboxes stored as a list", groups.every((f) => Array.isArray(fields[f.name]) && fields[f.name].length === Math.min(2, f.options.length)), JSON.stringify(groups.map((f) => fields[f.name])));
+  }
   const attr = JSON.parse(lead?.attribution_json || "{}");
   check("attribution captured", attr.utm_source === "e2e" && !!attr.landing, JSON.stringify(attr));
   const [sub] = sql("SELECT status FROM subscribers WHERE email = 'e2e@example.com'");
-  check("visitor auto-subscribed", sub?.status === "subscribed");
-  if (site.email.notify !== "none") check("mail failure recorded, not lost", lead?.notified === 0 && !!lead?.notify_error, lead?.notify_error);
+  if (form.consent === "none") check("a plain message form subscribes nobody", !sub);
+  else check(site.optIn?.mode === "checkbox" ? "visitor who ticked the box subscribed" : "visitor auto-subscribed", sub?.status === "subscribed");
+  // Locally the mailers have no secrets, so a send fails and is recorded; Cloudflare's email binding is simulated by
+  // wrangler dev and succeeds.
+  if (site.email.notify === "cloudflare") check("owner notification sent through the email binding", lead?.notified === 1, lead?.notify_error);
+  else if (site.email.notify !== "none") check("mail failure recorded, not lost", lead?.notified === 0 && !!lead?.notify_error, lead?.notify_error);
   if (filePath) {
     check("file stored", lead?.upload_status === "stored" && lead?.upload_key === `${site.site.id}/${lead.id}/brief.pdf`, `${lead?.upload_status} ${lead?.upload_key}`);
     check("file bytes in R2 match", local.r2get(lead.upload_key).includes("% e2e test file"));

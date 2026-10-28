@@ -16,7 +16,7 @@ import { handleAdmin } from "./admin.js";
 import { dripWorkflowClass } from "./drips.js";
 import { json } from "./lib/util.js";
 
-export const CORE_VERSION = "0.5.0";
+export const CORE_VERSION = "0.6.0";
 
 // The drips Workflow class for this site: `export const DripWorkflow = dripWorkflow(config);` in the site's Worker.
 // It does nothing until site.config.json has a "drips" block and wrangler.jsonc binds it as DRIPS.

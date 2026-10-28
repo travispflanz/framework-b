@@ -31,7 +31,8 @@ async function readBody(request) {
   const type = request.headers.get("content-type") || "";
   if (type.includes("application/x-www-form-urlencoded")) {
     const form = await request.formData();
-    const obj = Object.fromEntries(form);
+    const obj = {};
+    for (const [k, v] of form) obj[k] = k in obj ? [].concat(obj[k], v) : v; // repeated names (checkboxes) become lists
     return JSON.stringify(obj).length > MAX_BODY_BYTES ? null : obj;
   }
   const text = await request.text();
@@ -54,6 +55,13 @@ function validateFields(form, body) {
     let v = body[f.name];
     if (f.type === "checkbox") {
       values[f.name] = v === true || v === "on" || v === "true" || v === "1" ? "yes" : "";
+    } else if (f.type === "checkboxes") {
+      const allowed = f.options.map((o) => String(o.value ?? o));
+      const picked = (Array.isArray(v) ? v : v == null || v === "" ? [] : [v]).map((x) => String(x).trim()).filter(Boolean);
+      if (picked.length > allowed.length || picked.some((x) => !allowed.includes(x))) errors[f.name] = "invalid_option";
+      values[f.name] = [...new Set(picked.filter((x) => allowed.includes(x)))];
+      if (f.required && !values[f.name].length) errors[f.name] = errors[f.name] || "required";
+      continue;
     } else {
       v = typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();
       if (v.length > f.maxLength) errors[f.name] = "too_long";
@@ -61,7 +69,7 @@ function validateFields(form, body) {
       if (v && f.type === "email" && (v.length > 254 || !EMAIL_RE.test(v))) errors[f.name] = "invalid_email";
       if (v && f.type === "url" && !/^https?:\/\/\S+$/i.test(v)) errors[f.name] = "invalid_url";
       if (v && f.type === "tel" && !/^[+()\d\s.\-]{5,30}$/.test(v)) errors[f.name] = "invalid_phone";
-      if (v && f.type === "select" && !f.options.some((o) => (o.value ?? o) === v)) errors[f.name] = "invalid_option";
+      if (v && (f.type === "select" || f.type === "radio") && !f.options.some((o) => String(o.value ?? o) === v)) errors[f.name] = "invalid_option";
       values[f.name] = v;
     }
     if (f.required && !values[f.name]) errors[f.name] = errors[f.name] || "required";
@@ -83,10 +91,14 @@ function attribution(body) {
 function fileRequest(form, body) {
   if (!form.file.enabled || !body.file_name) return { file: null };
   const size = Number(body.file_size);
-  const type = String(body.file_type || "").toLowerCase();
+  // Browsers report no type for some files (a Final Draft .fdx, for one), so `types` may also list extensions
+  // (".fdx"); such a file is stored as application/octet-stream.
+  const ext = `.${String(body.file_name).split(".").pop()}`.toLowerCase();
+  const byExt = form.file.types.includes(ext);
+  const type = String(body.file_type || "").toLowerCase() || (byExt ? "application/octet-stream" : "");
   if (!Number.isInteger(size) || size <= 0) return { error: "file_size" };
   if (size > form.file.maxBytes) return { error: "file_too_large" };
-  if (!form.file.types.includes(type)) return { error: "file_type" };
+  if (!form.file.types.includes(type) && !byExt) return { error: "file_type" };
   return { file: { name: safeFileName(body.file_name), size, type } };
 }
 
@@ -132,9 +144,12 @@ export async function handleSubmit(request, env, ctx, config, formId) {
   const page = clip(body.page || request.headers.get("referer") || "", 500).split("?")[0];
   const attr = attribution(body);
   const file = fileReq.file;
-  const consents = !checkboxMode || ticked;
+  // consent "none": a plain message form (a contact form that promises not to add anyone to a list). It never
+  // subscribes, shows no box and no opt-in line.
+  const plain = form.consent === "none";
+  const consents = !plain && (!checkboxMode || ticked);
   // The wording the visitor agreed to, kept on the lead row; empty when a checkbox form was sent without the box.
-  const consentText = checkboxMode ? (ticked ? config.optIn.label : "") : config.optIn.text;
+  const consentText = plain ? "" : checkboxMode ? (ticked ? config.optIn.label : "") : config.optIn.text;
 
   const statements = [
     env.DB.prepare(

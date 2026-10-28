@@ -402,3 +402,109 @@ describe("legacy unsubscribe links", () => {
     expect(() => loadConfig({ ...structuredClone(config), legacyUnsubSecret: "not a name" })).toThrow(/legacyUnsubSecret/);
   });
 });
+
+describe("radio and checkbox-group fields", () => {
+  const cfg = structuredClone(config);
+  cfg.forms.backer = {
+    title: "Backer",
+    steps: [{ title: "About you", intro: "Two minutes." }, { title: "How you'd help" }],
+    fields: [
+      { name: "email", type: "email", label: "Email", required: true, step: 1 },
+      { name: "funded", type: "radio", label: "Funded a film before?", required: true, step: 1, options: ["Yes", "No"] },
+      { name: "gives", type: "checkboxes", label: "What you could offer", required: true, step: 2,
+        options: [{ value: "money", label: "Money", group: "Money" }, { value: "venue", label: "A venue", group: "Places" }, { value: "van", label: "A van", group: "Things" }] },
+    ],
+  };
+  const w = createWorker(cfg);
+  async function post(body, type = "application/json") {
+    const ctx = createExecutionContext();
+    const res = await w.fetch(new Request(`${BASE}/api/submit/backer`, {
+      method: "POST",
+      headers: { "content-type": type, ...ORIGIN, "cf-connecting-ip": `192.0.2.${Math.floor(Math.random() * 250)}` },
+      body: type === "application/json" ? JSON.stringify({ "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX", ...body }) : body,
+    }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    return res;
+  }
+
+  it("stores the radio choice and the ticked options as a list, and mails them joined", async () => {
+    const res = await post({ email: "group@example.com", funded: "No", gives: ["venue", "money"] });
+    expect(res.status).toBe(200);
+    const lead = await env.DB.prepare("SELECT fields_json FROM leads WHERE email = 'group@example.com'").first();
+    expect(JSON.parse(lead.fields_json)).toMatchObject({ funded: "No", gives: ["venue", "money"] });
+    const mail = JSON.parse(outbound.find((o) => o.url.startsWith("https://script.google.com/")).init.body);
+    expect(mail.notify.text).toContain("What you could offer: venue, money");
+  });
+
+  it("refuses unknown options and an empty required group", async () => {
+    const bad = await (await post({ email: "g2@example.com", funded: "Maybe", gives: ["yacht"] })).json();
+    expect(bad.fields).toEqual({ funded: "invalid_option", gives: "invalid_option" });
+    const empty = await (await post({ email: "g3@example.com", funded: "Yes", gives: [] })).json();
+    expect(empty.fields).toEqual({ gives: "required" });
+  });
+
+  it("keeps repeated names from a plain form post as a list", async () => {
+    const body = new URLSearchParams([["email", "g4@example.com"], ["funded", "Yes"], ["gives", "van"], ["gives", "money"], ["cf-turnstile-response", "XXXX.DUMMY.TOKEN.XXXX"]]);
+    const res = await post(body, "application/x-www-form-urlencoded");
+    expect(res.status).toBe(303);
+    const lead = await env.DB.prepare("SELECT fields_json FROM leads WHERE email = 'g4@example.com'").first();
+    expect(JSON.parse(lead.fields_json).gives).toEqual(["van", "money"]);
+  });
+
+  it("checks options and step headings in the config", () => {
+    expect(() => loadConfig({ ...structuredClone(cfg), forms: { x: { fields: [{ name: "email", type: "email", required: true }, { name: "r", type: "radio" }] } } })).toThrow(/radio needs options/);
+    expect(() => loadConfig({ ...structuredClone(cfg), forms: { x: { steps: "one", fields: [{ name: "email", type: "email", required: true }] } } })).toThrow(/steps must be a list/);
+  });
+});
+
+describe("plain message forms and upload types by extension", () => {
+  const cfg = structuredClone(config);
+  cfg.forms.contact.consent = "none";
+  cfg.forms.contact.file = { types: ["application/pdf", ".fdx"] };
+  const w = createWorker(cfg);
+  async function post(body) {
+    const ctx = createExecutionContext();
+    const res = await w.fetch(new Request(`${BASE}/api/submit/contact`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...ORIGIN, "cf-connecting-ip": `198.18.0.${Math.floor(Math.random() * 250)}` },
+      body: JSON.stringify({ "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX", ...body }),
+    }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    return res;
+  }
+
+  it("never subscribes on a consent: none form", async () => {
+    expect((await post({ name: "Plain", email: "plain@example.com" })).status).toBe(200);
+    expect(await env.DB.prepare("SELECT * FROM subscribers WHERE email = 'plain@example.com'").first()).toBeNull();
+    const lead = await env.DB.prepare("SELECT consent_text FROM leads WHERE email = 'plain@example.com'").first();
+    expect(lead.consent_text).toBe("");
+  });
+
+  it("accepts a typeless file by its listed extension and refuses others", async () => {
+    const ok = await (await post({ name: "S", email: "fdx@example.com", file_name: "script.fdx", file_size: 1200, file_type: "" })).json();
+    expect(ok.ok).toBe(true);
+    expect(ok.upload).toBeTruthy();
+    const row = await env.DB.prepare("SELECT upload_type FROM leads WHERE email = 'fdx@example.com'").first();
+    expect(row.upload_type).toBe("application/octet-stream");
+    const bad = await (await post({ name: "S", email: "exe@example.com", file_name: "tool.exe", file_size: 1200, file_type: "" })).json();
+    expect(bad.fields.file).toBe("file_type");
+  });
+});
+
+describe("auto-reply wording", () => {
+  it("fills {first_name} and {name} in a form's confirm subject and text", async () => {
+    const cfg = structuredClone(config);
+    cfg.forms.contact.confirm = { subject: "We got it, {first_name}", text: "Hi {first_name},\n\nThanks, {name}." };
+    const w = createWorker(cfg);
+    const ctx = createExecutionContext();
+    await w.fetch(new Request(`${BASE}/api/submit/contact`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...ORIGIN, "cf-connecting-ip": "198.19.0.7" },
+      body: JSON.stringify({ "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX", name: "Ada Lovelace", email: "ada@example.com" }),
+    }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    const payload = JSON.parse(outbound.find((o) => o.url.startsWith("https://script.google.com/")).init.body);
+    expect(payload.reply.subject).toBe("We got it, Ada");
+    expect(payload.reply.text.startsWith("Hi Ada,\n\nThanks, Ada Lovelace.")).toBe(true);
+  });
+});

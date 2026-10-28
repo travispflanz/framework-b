@@ -14,6 +14,7 @@ import emdash from "emdash/astro";
 import { access, d1, r2 } from "@emdash-cms/cloudflare";
 import config from "./site.config.json" with { type: "json" };
 import { buildHeadersFile } from "./core/src/headers.js";
+import { sitemapFilter } from "./scripts/lib/sitemap.mjs";
 
 // Writes _headers from site.config.json, so indexing rules never drift from the config.
 const headersFile = {
@@ -38,7 +39,7 @@ export default defineConfig({
   },
   integrations: [
     react(), // EmDash's admin is a React app
-    ...(config.site.indexing ? [sitemap()] : []),
+    ...(config.site.indexing ? [sitemap({ filter: sitemapFilter(import.meta.url) })] : []),
     emdash({
       database: d1({ binding: "CMS_DB" }),
       storage: r2({ binding: "MEDIA" }),

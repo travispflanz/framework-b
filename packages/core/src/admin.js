@@ -59,7 +59,7 @@ export async function handleAdmin(request, env, config) {
     if (!r) return page("Not found", "<h1>Lead not found</h1>", 404);
     const fields = safeJson(r.fields_json, {});
     const attr = safeJson(r.attribution_json, {});
-    const rows = Object.entries(fields).map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td><pre>${escapeHtml(v)}</pre></td></tr>`).join("");
+    const rows = Object.entries(fields).map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td><pre>${escapeHtml(Array.isArray(v) ? v.join(", ") : typeof v === "object" && v ? JSON.stringify(v) : v)}</pre></td></tr>`).join("");
     const attrRows = Object.entries(attr).map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`).join("");
     const file = r.upload_name
       ? `<p>File: ${escapeHtml(r.upload_name)} (${Number(r.upload_size)} bytes, ${escapeHtml(r.upload_status)})${

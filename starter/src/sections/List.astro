@@ -1,0 +1,39 @@
+---
+// fb_list: one to three short lists, each with an optional title and a marker (check, cross, number or dot).
+// Layouts: "columns" (side by side from tablet width) or "stack" (one under another).
+import Icon from "./Icon.astro";
+import Section from "./Section.astro";
+import SectionIntro from "./SectionIntro.astro";
+import { lines, paragraphs, inline } from "./text.js";
+import { phoneOf, variantOf } from "./design.js";
+
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+const { value, blockKey, tone } = Astro.props;
+const headingId = `h-${blockKey || value.anchor_id || "list"}`;
+const columns = variantOf("fb_list", value) === "columns" && value.lists.length > 1;
+---
+<Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phoneOf("fb_list", value)}>
+  <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
+  <div class:list={["grid gap-10", { "md:grid-cols-2": columns && value.lists.length === 2, "md:grid-cols-3": columns && value.lists.length === 3 }]} data-reveal>
+    {value.lists.map((list, li) => {
+      const marker = list.marker || "check";
+      const Tag = marker === "number" ? "ol" : "ul";
+      return (
+        <div class="grid content-start gap-4">
+          {list.title && <h3 id={`${headingId}-${li}`} class="font-display text-title text-ink">{list.title}</h3>}
+          <Tag class="grid max-w-prose gap-3 text-body text-ink" aria-labelledby={list.title ? `${headingId}-${li}` : undefined}>
+            {lines(list.items).map((item, i) => (
+              <li class="flex gap-3">
+                {marker === "number" ? <span class="w-6 shrink-0 font-display text-accent" aria-hidden="true">{i + 1}.</span>
+                  : marker === "dot" ? <span class="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
+                  : <Icon name={marker === "cross" ? "x" : "check"} class:list={["mt-1 size-5 shrink-0", marker === "cross" ? "text-error" : "text-accent"]} />}
+                <span set:html={inline(item)} />
+              </li>
+            ))}
+          </Tag>
+        </div>
+      );
+    })}
+  </div>
+  {value.note && <div class="mt-8 grid max-w-prose gap-4 text-body text-ink-muted">{paragraphs(value.note).map((p) => <p set:html={inline(p)} />)}</div>}
+</Section>
