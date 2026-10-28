@@ -17,7 +17,9 @@ export async function unsubscribeUrl(env, config, origin, email) {
 function notifyMessage(config, form, formId, lead, origin) {
   const lines = [`New ${formId} submission on ${config.site.name}`, ""];
   for (const f of form.fields) {
-    if (lead.fields[f.name] !== undefined && lead.fields[f.name] !== "") lines.push(`${f.label || f.name}: ${lead.fields[f.name]}`);
+    const v = lead.fields[f.name];
+    const text = Array.isArray(v) ? v.join(", ") : v;
+    if (text !== undefined && text !== "") lines.push(`${f.label || f.name}: ${text}`);
   }
   if (lead.upload) lines.push("", `File: ${lead.upload.name} (${lead.upload.size} bytes), uploading now. Open it from ${origin}/admin/lead/${lead.id}`);
   lines.push("", `Page: ${lead.page || "(unknown)"}`, `Lead: ${origin}/admin/lead/${lead.id}`);

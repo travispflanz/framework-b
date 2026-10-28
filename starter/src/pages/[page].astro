@@ -1,13 +1,14 @@
 ---
 // Every src/content/<slug>.json except home.json is a page at /<slug>, built from the section library.
-// A page file has "title", optional "description", and "sections" (the first one a hero).
+// A page file has "title", optional "description", optional "noindex" (true for thanks pages and the like: kept out
+// of search results and the sitemap), and "sections" (the first one a hero).
 // With client editing on, these pages stay static: only the home page comes from EmDash.
 export const prerender = true;
 import Base from "../layouts/Base.astro";
 import Sections from "../sections/Sections.astro";
 
 export function getStaticPaths() {
-  const files = import.meta.glob<{ default: { title: string; description?: string; sections: Array<Record<string, any>> } }>("../content/*.json", { eager: true });
+  const files = import.meta.glob<{ default: { title: string; description?: string; noindex?: boolean; sections: Array<Record<string, any>> } }>("../content/*.json", { eager: true });
   return Object.entries(files)
     .map(([path, mod]) => ({ slug: path.split("/").pop()!.replace(/\.json$/, ""), page: mod.default }))
     .filter(({ slug }) => slug !== "home")
@@ -16,6 +17,6 @@ export function getStaticPaths() {
 
 const { page } = Astro.props;
 ---
-<Base title={page.title} description={page.description} bleed>
+<Base title={page.title} description={page.description} noindex={page.noindex === true} bleed>
   <Sections sections={page.sections} />
 </Base>

@@ -64,6 +64,8 @@ try {
     for (const f of form.fields.filter((x) => (x.step || 1) === step && x.type !== "hidden")) {
       const input = formEl.locator(`[name="${f.name}"]`);
       if (f.type === "checkbox") { if (f.required) await input.check(); }
+      else if (f.type === "radio") await input.first().check();
+      else if (f.type === "checkboxes") { await input.nth(0).check(); if (f.options.length > 1) await input.nth(1).check(); }
       else if (f.type === "select") await input.selectOption({ index: 1 });
       else await input.fill(values[f.name] || values[f.type] || "E2E");
     }
@@ -93,6 +95,11 @@ try {
 
   const [lead] = sql("SELECT * FROM leads ORDER BY created_at DESC LIMIT 1");
   check("lead saved in D1", lead?.email === "e2e@example.com" && lead?.form === formId);
+  const groups = form.fields.filter((f) => f.type === "checkboxes");
+  if (groups.length) {
+    const fields = JSON.parse(lead?.fields_json || "{}");
+    check("ticked checkboxes stored as a list", groups.every((f) => Array.isArray(fields[f.name]) && fields[f.name].length === Math.min(2, f.options.length)), JSON.stringify(groups.map((f) => fields[f.name])));
+  }
   const attr = JSON.parse(lead?.attribution_json || "{}");
   check("attribution captured", attr.utm_source === "e2e" && !!attr.landing, JSON.stringify(attr));
   const [sub] = sql("SELECT status FROM subscribers WHERE email = 'e2e@example.com'");

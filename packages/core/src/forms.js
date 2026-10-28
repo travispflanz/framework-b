@@ -31,7 +31,8 @@ async function readBody(request) {
   const type = request.headers.get("content-type") || "";
   if (type.includes("application/x-www-form-urlencoded")) {
     const form = await request.formData();
-    const obj = Object.fromEntries(form);
+    const obj = {};
+    for (const [k, v] of form) obj[k] = k in obj ? [].concat(obj[k], v) : v; // repeated names (checkboxes) become lists
     return JSON.stringify(obj).length > MAX_BODY_BYTES ? null : obj;
   }
   const text = await request.text();
@@ -54,6 +55,13 @@ function validateFields(form, body) {
     let v = body[f.name];
     if (f.type === "checkbox") {
       values[f.name] = v === true || v === "on" || v === "true" || v === "1" ? "yes" : "";
+    } else if (f.type === "checkboxes") {
+      const allowed = f.options.map((o) => String(o.value ?? o));
+      const picked = (Array.isArray(v) ? v : v == null || v === "" ? [] : [v]).map((x) => String(x).trim()).filter(Boolean);
+      if (picked.length > allowed.length || picked.some((x) => !allowed.includes(x))) errors[f.name] = "invalid_option";
+      values[f.name] = [...new Set(picked.filter((x) => allowed.includes(x)))];
+      if (f.required && !values[f.name].length) errors[f.name] = errors[f.name] || "required";
+      continue;
     } else {
       v = typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();
       if (v.length > f.maxLength) errors[f.name] = "too_long";
@@ -61,7 +69,7 @@ function validateFields(form, body) {
       if (v && f.type === "email" && (v.length > 254 || !EMAIL_RE.test(v))) errors[f.name] = "invalid_email";
       if (v && f.type === "url" && !/^https?:\/\/\S+$/i.test(v)) errors[f.name] = "invalid_url";
       if (v && f.type === "tel" && !/^[+()\d\s.\-]{5,30}$/.test(v)) errors[f.name] = "invalid_phone";
-      if (v && f.type === "select" && !f.options.some((o) => (o.value ?? o) === v)) errors[f.name] = "invalid_option";
+      if (v && (f.type === "select" || f.type === "radio") && !f.options.some((o) => String(o.value ?? o) === v)) errors[f.name] = "invalid_option";
       values[f.name] = v;
     }
     if (f.required && !values[f.name]) errors[f.name] = errors[f.name] || "required";

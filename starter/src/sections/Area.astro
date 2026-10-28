@@ -4,7 +4,7 @@
 import AreaList from "./AreaList.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
-import { lines, paragraphs } from "./text.js";
+import { lines, paragraphs, inline } from "./text.js";
 import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
@@ -29,5 +29,5 @@ const fold = phone === "collapse" && places.length > 6;
       </details>
     </>
   ) : <div data-reveal><AreaList places={places} variant={variant} /></div>}
-  {value.note && paragraphs(value.note).map((p) => <p class="mt-6 max-w-prose text-small text-ink-muted">{p}</p>)}
+  {value.note && paragraphs(value.note).map((p) => <p class="mt-6 max-w-prose text-small text-ink-muted" set:html={inline(p)} />)}
 </Section>

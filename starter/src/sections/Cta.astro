@@ -2,7 +2,7 @@
 // fb_cta: a short closing push toward the main action. Layouts: "card" (a card in the band) or "band" (the whole
 // band in the accent colour).
 import Section from "./Section.astro";
-import { paragraphs } from "./text.js";
+import { paragraphs, inline } from "./text.js";
 import { composition, phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
@@ -16,7 +16,7 @@ const center = composition.align === "center";
   <section id={value.anchor_id || undefined} aria-labelledby={headingId} class:list={["bg-accent px-gutter py-section", { "max-sm:hidden": phone === "hide" }]}>
     <div class:list={["reveal mx-auto grid w-full max-w-content gap-5", center ? "justify-items-center text-center" : "justify-items-start"]}>
       <h2 id={headingId} class="max-w-prose font-display text-headline text-accent-ink">{value.headline}</h2>
-      {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-accent-ink">{p}</p>)}
+      {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-accent-ink" set:html={inline(p)} />)}
       <a href={value.cta_url} class="button-inverse inline-flex min-h-12 items-center justify-center no-underline">{value.cta_label}</a>
     </div>
   </section>
@@ -24,7 +24,7 @@ const center = composition.align === "center";
   <Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
     <div class:list={["reveal card grid gap-4 p-8", center ? "justify-items-center text-center" : "justify-items-start"]}>
       <h2 id={headingId} class="font-display text-headline text-ink">{value.headline}</h2>
-      {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-ink-muted">{p}</p>)}
+      {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-ink-muted" set:html={inline(p)} />)}
       <a href={value.cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.cta_label}</a>
     </div>
   </Section>

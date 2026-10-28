@@ -2,7 +2,7 @@
 // fb_split: a headline and text beside an image, the image on the left or right (stacked on phones).
 import Picture from "./Picture.astro";
 import Section from "./Section.astro";
-import { paragraphs } from "./text.js";
+import { paragraphs, inline } from "./text.js";
 import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
@@ -17,7 +17,7 @@ const overlap = variantOf("fb_split", value) === "overlap";
     <div class:list={["reveal grid content-start gap-4", overlap ? ["card relative z-10 p-8 md:row-start-1", imageLeft ? "md:col-start-7 md:col-end-13" : "md:col-start-1 md:col-end-7"] : { "md:order-2": imageLeft }]}>
       {value.eyebrow && <p class="text-label text-accent">{value.eyebrow}</p>}
       <h2 id={headingId} class="font-display text-headline text-ink">{value.headline}</h2>
-      {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-ink-muted">{p}</p>)}
+      {paragraphs(value.body).map((p) => <p class="max-w-prose text-body text-ink-muted" set:html={inline(p)} />)}
       {value.cta_label && value.cta_url && (
         <p><a href={value.cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.cta_label}</a></p>
       )}

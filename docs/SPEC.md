@@ -171,7 +171,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 
 ## 5. Forms
 
-- **Schema:** forms are defined as JSON in `site.config.json` and rendered by the core form engine (multi-step, inline validation, progress shown).
+- **Schema:** forms are defined as JSON in `site.config.json` and rendered by the core form engine (multi-step, inline validation, progress shown). Field types: text, email, tel, url, textarea, select, radio, checkboxes (a group whose answer is stored as a list; options may carry a `group` heading), checkbox and hidden. `steps` gives each step a visible title and intro (core 0.6.0, added for adopting an existing site's forms; tested in workerd and the starter's browser test of every variant).
 - **Auto opt-in:** every form is a sign-up form, and submitting it subscribes the visitor. Someone who unsubscribed and later fills in a form again is subscribed again; each lead row keeps the opt-in wording shown that time.
 - **Two consent modes** (`optIn.mode`, core 0.5.0). `auto`, the default, is described in this bullet and the one above. `checkbox` shows a consent box before the submit button (`optIn.label`). Only a ticked box subscribes, and an address that unsubscribed is subscribed again only by ticking it. A form's `consent` is `required` (the box must be ticked to send) or `optional`. The brief defaults to `checkbox` for an EU, UK or Canadian audience. Tested in workerd; *untested* live.
 - **Opt-in line (auto mode):** every form subscribes the visitor. There is no checkbox, just one line under the submit button: "You'll get occasional emails from us. Unsubscribe anytime." This is allowed under US CAN-SPAM, which requires a working unsubscribe honored within 10 business days and a postal address in marketing email ([FTC guide](https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business)). For an EU, UK or Canadian audience the brief chooses the checkbox mode, because GDPR and CASL generally require prior consent; choosing `auto` there is a warning shown to the owner.
@@ -370,7 +370,8 @@ The design phase's foundation and its tools are in `starter/`. The intake conver
     - DESIGN.md components as classes, such as `.button-primary` and its `-hover` state.
   - The CLI's own `export --format css-tailwind` drops line-heights and font fallbacks, which is why the framework writes its own export.
 - **Section library (`src/sections/`):**
-  - The sections are hero (with an optional image), steps, features, pricing, area, faq, cta, form, text, split (text beside an image) and gallery.
+  - The sections are hero (with an optional image), steps, features, pricing, area, faq, cta, form, text, split (text beside an image), gallery, list (up to three lists side by side, each with check, cross, number or dot markers) and people (the owner's own photos, names and roles; added 2026-10-28 for adopting an existing site).
+  - Text fields take inline `**bold**`, `*italic*` and `[label](link)` (links starting with `/`, `#`, `https://`, `mailto:` or `tel:`). Everything else is escaped (`src/sections/text.js`), so content can't inject markup.
   - Pages: `home.json` is `/`; every other `src/content/<slug>.json` is `/<slug>`, rendered by `src/pages/[page].astro` and checked like the home page (title required, hero first, no clash with a page in `src/pages/`). With client editing on, only the home page comes from EmDash; the others stay static.
   - Each is defined once in `schema.js`, in EmDash's block-type format. That one definition:
     - checks static content (`scripts/check-content.mjs`);
@@ -378,7 +379,7 @@ The design phase's foundation and its tools are in `starter/`. The intake conver
     - becomes the EmDash block types when editing is on (`editing.mjs` writes them into the seed).
   - Pages are JSON files in `src/content/`.
   - There are deliberately no testimonial, logo or statistics sections.
-- **Icons:** 30 Lucide line icons vendored inline (`lucide-static` 1.61.0, ISC).
+- **Icons:** 48 Lucide line icons vendored inline (`lucide-static` 1.61.0, ISC).
 - **Header:** a nav item with `cta: true` becomes the header button. On phones only the name and that button show.
 - **QA additions:**
   - tokens.css must match DESIGN.md;

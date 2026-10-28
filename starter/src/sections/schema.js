@@ -39,6 +39,8 @@ export const VARIANTS = {
   fb_split: ["side", "overlap"],
   fb_gallery: ["grid", "masonry", "strip"],
   fb_text: ["prose", "lead"],
+  fb_list: ["columns", "stack"],
+  fb_people: ["grid", "row"],
 };
 // How a section behaves on a phone (under 640 px). "auto" picks the section's own default (PHONE_AUTO).
 export const PHONE = ["auto", "stack", "swipe", "collapse", "hide"];
@@ -211,6 +213,49 @@ export const SECTIONS = [
     { slug: "eyebrow", label: "Small label above the headline", type: "string" },
     { slug: "headline", label: "Headline", type: "string" },
     { slug: "body", label: "Text (leave a blank line between paragraphs)", type: "text", required: true },
+  ]),
+  block("fb_list", "Lists", "One to three short lists side by side: what's included and what isn't, rules, a checklist", [
+    { slug: "eyebrow", label: "Small label above the headline", type: "string" },
+    { slug: "headline", label: "Headline", type: "string", required: true },
+    { slug: "subheadline", label: "Supporting text", type: "text" },
+    {
+      slug: "lists",
+      label: "Lists",
+      type: "repeater",
+      required: true,
+      validation: {
+        minItems: 1,
+        maxItems: 3,
+        subFields: [
+          { slug: "title", label: "List title", type: "string" },
+          { slug: "items", label: "Items (one per line)", type: "text", required: true },
+          { slug: "marker", label: "Marker", type: "select", options: ["check", "cross", "number", "dot"] },
+        ],
+      },
+    },
+    { slug: "note", label: "Text under the lists", type: "text" },
+  ]),
+  block("fb_people", "People", "The people behind the business, with the owner's own photos", [
+    { slug: "eyebrow", label: "Small label above the headline", type: "string" },
+    { slug: "headline", label: "Headline", type: "string", required: true },
+    { slug: "body", label: "Text before the people (leave a blank line between paragraphs)", type: "text" },
+    {
+      slug: "people",
+      label: "People",
+      type: "repeater",
+      required: true,
+      validation: {
+        minItems: 1,
+        maxItems: 6,
+        subFields: [
+          image("image", "Photo (the owner's own)"),
+          { slug: "name", label: "Name", type: "string", required: true },
+          { slug: "role", label: "Role or caption", type: "string" },
+          { slug: "bio", label: "A few sentences", type: "text" },
+        ],
+      },
+    },
+    { slug: "note", label: "Text after the people (leave a blank line between paragraphs)", type: "text" },
   ]),
 ];
 

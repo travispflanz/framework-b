@@ -9,8 +9,8 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import sharp from "sharp";
 import { applyTreatment, readImagery, readPalette } from "../lib/treatment.mjs";
 
-const BACKUP = ["DESIGN.md", "src/styles/tokens.css", "src/styles/fonts.js", "src/styles/design.json", "design/credits.json"];
-const PAGES = ["variants-a", "variants-b", "variants-c"];
+const BACKUP = ["DESIGN.md", "src/styles/tokens.css", "src/styles/fonts.js", "src/styles/design.json", "design/credits.json", "site.config.json"];
+const PAGES = ["variants-a", "variants-b", "variants-c", "variants-thanks"];
 const IMAGES = ["variant-1.jpg", "variant-2.jpg", "variant-3.jpg", "variant-4.jpg"];
 const saved = new Map(BACKUP.map((f) => [f, existsSync(f) ? readFileSync(f) : null]));
 const imageDirExisted = existsSync("src/assets/images");
@@ -48,6 +48,22 @@ try {
   for (const [i, name] of IMAGES.entries()) credits.images.push({ file: `src/assets/images/${name}`, source: "generated", alt: "An abstract colour gradient used to test layouts", illustrative: true, photoreal: i === 0 || i === 2, test: true });
   writeFileSync("design/credits.json", JSON.stringify(credits, null, 2) + "\n");
 
+  // A multi-step form with a radio group and grouped checkboxes, step headings, and a footer with link columns.
+  const site = JSON.parse(readFileSync("site.config.json", "utf8"));
+  site.forms.survey = {
+    title: "Survey", submitLabel: "Send", thanks: "/variants-thanks",
+    steps: [{ title: "About you", intro: "Two quick questions." }, { title: "What you could offer", intro: "Tick any that apply." }],
+    fields: [
+      { name: "name", type: "text", label: "Your name", required: true, step: 1 },
+      { name: "email", type: "email", label: "Email", required: true, step: 1 },
+      { name: "before", type: "radio", label: "Have you done this before?", required: true, step: 1, options: ["Yes, several times", "Once or twice", "Not yet"] },
+      { name: "offer", type: "checkboxes", label: "What could you offer?", required: true, step: 2, options: [
+        { value: "money", label: "Money", group: "Money" }, { value: "room", label: "A room", group: "Places" }, { value: "van", label: "A van", group: "Things" }, { value: "camera", label: "A camera", group: "Things" }] },
+    ],
+  };
+  site.footer = { note: "One line about the business, with a [link](/variants-b).", columns: [{ title: "Company", links: [{ label: "Layouts A", href: "/variants-a" }] }, { title: "Start", links: [{ label: "Layouts C", href: "/variants-c" }] }], legal: "A legal line, **in bold** where it matters." };
+  writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
+
   const img = (n, alt = "An abstract colour gradient") => ({ src: `variant-${n}.jpg`, alt });
   const steps = [{ title: "First step", body: "What happens first, in one sentence." }, { title: "Second step", body: "What happens next." }, { title: "Third step", body: "How it ends for the visitor." }];
   const items = ["sparkles", "clock", "shield-check", "map-pin", "heart-handshake", "calendar"].map((icon, i) => ({ icon, title: `Reason ${i + 1}`, body: "One sentence that says why this matters to the visitor." }));
@@ -69,17 +85,23 @@ try {
       { _type: "fb_gallery", _key: "gallery", variant: "strip", headline: "A strip of images", items: gallery },
       { _type: "fb_area", _key: "area", variant: "columns", headline: "Places in columns", places: "North\nSouth\nEast\nWest\nCentre\nRiverside\nHillside\nOld Town" },
       { _type: "fb_split", _key: "split", variant: "overlap", headline: "Text overlapping an image", body: "A paragraph beside the image.", image: img(3), image_side: "left" },
-      { _type: "fb_text", _key: "text", variant: "lead", headline: "Text with a lead paragraph", body: "The first paragraph is set larger.\n\nThe rest is ordinary body text." },
+      { _type: "fb_text", _key: "text", variant: "lead", headline: "Text with a lead paragraph", body: "The first paragraph is set larger.\n\nThe rest is ordinary body text, with **bold**, *italic*, an [internal link](/variants-a) and an [outside one](https://example.com)." },
+      { _type: "fb_list", _key: "lists", variant: "columns", headline: "Lists side by side", subheadline: "Checks, crosses and numbers.", lists: [{ title: "What we do", items: "One thing\nAnother thing, with **bold**", marker: "check" }, { title: "What we never do", items: "Charge to join\nSell your details", marker: "cross" }, { title: "In order", items: "First\nSecond\nThird", marker: "number" }], note: "A note under the lists." },
+      { _type: "fb_people", _key: "people", variant: "grid", headline: "The people behind it", body: "A paragraph before the people.", people: [{ name: "First Person", role: "*on camera*, 2012", image: img(2, "A colour gradient standing in for a photo") }, { name: "Second Person", role: "behind the camera", bio: "Two sentences about them." }], note: "A paragraph after, with a [link](/variants-a)." },
     ],
     "variants-c": [
       { _type: "fb_hero", _key: "hero", variant: "bento", headline: "A bento hero", subheadline: "Tiles for the headline, the image, each reassurance and the action.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", points: "First reassurance\nSecond reassurance\nThird reassurance", image: img(4) },
       { _type: "fb_features", _key: "features", variant: "cards", headline: "Reasons as cards", items: items.slice(0, 3) },
       { _type: "fb_pricing", _key: "pricing", headline: "Plans that swipe on phones", plans: [{ name: "Small", price: "$10", cta_label: "Choose", cta_url: "/#contact" }, { name: "Large", price: "$20", cta_label: "Choose", cta_url: "/#contact", highlighted: true, badge: "Most chosen" }] },
       { _type: "fb_form", _key: "form", variant: "split", headline: "A form beside its introduction", subheadline: "One sentence about what happens next.", form: Object.keys(JSON.parse(readFileSync("site.config.json", "utf8")).forms)[0] },
+      { _type: "fb_form", _key: "survey", variant: "stacked", headline: "A two-step form with choices", form: "survey" },
+    ],
+    "variants-thanks": [
+      { _type: "fb_hero", _key: "hero", variant: "statement", headline: "Thanks, that's arrived", subheadline: "A thanks page kept out of search results." },
     ],
   };
   for (const [slug, sections] of Object.entries(pages)) {
-    writeFileSync(`src/content/${slug}.json`, JSON.stringify({ title: slug, description: "Layout variant test page", sections }, null, 2) + "\n");
+    writeFileSync(`src/content/${slug}.json`, JSON.stringify({ title: slug, description: "Layout variant test page", ...(slug === "variants-thanks" ? { noindex: true } : {}), sections }, null, 2) + "\n");
   }
 
   run("node", ["scripts/check-content.mjs"]);
@@ -87,6 +109,11 @@ try {
   run("node", ["scripts/qa.mjs"]);
   const hero = readFileSync("dist/variants-a.html", "utf8");
   if (!hero.includes("Generated image")) throw new Error("the photorealistic generated image has no visible label");
+  const b = readFileSync("dist/variants-b.html", "utf8");
+  for (const want of ["<strong>bold</strong>", "<em>italic</em>", 'href="/variants-a" class="underline', 'rel="noopener"', "What we never do", "Second Person"]) if (!b.includes(want)) throw new Error(`variants-b is missing ${want}`);
+  const c = readFileSync("dist/variants-c.html", "utf8");
+  for (const want of ['type="radio"', 'name="offer" value="camera"', "What you could offer", ">Things<"]) if (!c.includes(want)) throw new Error(`variants-c is missing ${want}`);
+  if (!readFileSync("dist/variants-thanks.html", "utf8").includes('content="noindex')) throw new Error("the noindex page has no robots noindex");
   console.log("\nEvery layout variant passed the QA gate with the second composition");
 } finally {
   restore();

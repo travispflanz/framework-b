@@ -58,6 +58,7 @@ for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))
     if (!page.title || typeof page.title !== "string") errors.push(`${file}: "title" is required (the browser tab and search result title)`);
   }
   if (page.description !== undefined && typeof page.description !== "string") errors.push(`${file}: "description" must be text`);
+  if (page.noindex !== undefined && typeof page.noindex !== "boolean") errors.push(`${file}: "noindex" must be true or false`);
   if (!(page.sections || []).length) errors.push(`${file}: a page needs at least one section`);
   else if (page.sections[0]._type !== "fb_hero") errors.push(`${file}: the first section must be a hero (the page's only <h1>)`);
   const keys = new Set();

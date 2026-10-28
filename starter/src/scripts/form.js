@@ -3,6 +3,7 @@
 
 const MESSAGES = {
   required: "Please fill this in.",
+  choose: "Please choose at least one.",
   invalid_email: "Please enter a valid email address.",
   invalid_phone: "Please enter a valid phone number.",
   invalid_url: "Please enter a full web address, starting with https://",
@@ -29,7 +30,8 @@ function readAttribution() {
 
 function setError(form, name, code) {
   const el = form.querySelector(`[data-fb-error="${name}"]`);
-  const input = name === "file" ? form.querySelector("[data-fb-file]") : form.elements[name];
+  // A group of radios or checkboxes is marked on its fieldset.
+  const input = name === "file" ? form.querySelector("[data-fb-file]") : form.querySelector(`[data-fb-group="${name}"]`) || form.elements[name];
   if (el) el.textContent = code ? MESSAGES[code] || MESSAGES.required : "";
   if (input && input.setAttribute) {
     if (code) input.setAttribute("aria-invalid", "true");
@@ -59,6 +61,13 @@ function validate(form, container) {
     } else {
       setError(form, input.name, nativeCode(input));
       first = first || input;
+    }
+  });
+  // A required group of checkboxes needs at least one ticked (browsers have no native check for that).
+  container.querySelectorAll("[data-fb-group][data-required]").forEach((group) => {
+    if (group.querySelector('input[type="checkbox"]') && !group.querySelector("input:checked")) {
+      setError(form, group.dataset.fbGroup, "choose");
+      first = first || group.querySelector("input");
     }
   });
   const file = container.querySelector("[data-fb-file]");
@@ -161,7 +170,12 @@ function wire(form) {
     const data = {};
     for (const el of form.elements) {
       if (!el.name || el.type === "file") continue;
-      if (el.type === "checkbox") data[el.name] = el.checked;
+      if (el.type === "checkbox" && el.closest("[data-fb-group]")) {
+        data[el.name] = data[el.name] || [];
+        if (el.checked) data[el.name].push(el.value);
+      } else if (el.type === "radio") {
+        if (el.checked || !(el.name in data)) data[el.name] = el.checked ? el.value : "";
+      } else if (el.type === "checkbox") data[el.name] = el.checked;
       else data[el.name] = el.value;
     }
     for (const [k, v] of Object.entries(readAttribution())) data[`attr_${k}`] = v;

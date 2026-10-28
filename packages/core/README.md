@@ -1,8 +1,8 @@
 # @framework-b/core
 
-The runtime every Framework B site's Worker is built from. Version `0.5.0` (`CORE_VERSION` in `src/index.js`). Live on idea and launch sites since 2026-10-27; 0.5.0's additions are tested in workerd only (*untested* live).
+The runtime every Framework B site's Worker is built from. Version `0.6.0` (`CORE_VERSION` in `src/index.js`). Live on idea and launch sites since 2026-10-27; the additions of 0.5.0 and 0.6.0 are tested in workerd only (*untested* live).
 
-Versions: 0.1.0 forms, uploads, mailers, unsubscribe and admin; 0.2.0 the EmDash fallback (`createWorker(config, { fallback })`); 0.2.1 a fix found on the first real site; 0.3.0 the CRM mirror; 0.4.0 drips; 0.5.0 the checkbox consent mode, `/go` and older unsubscribe links (for adopting an existing site).
+Versions: 0.1.0 forms, uploads, mailers, unsubscribe and admin; 0.2.0 the EmDash fallback (`createWorker(config, { fallback })`); 0.2.1 a fix found on the first real site; 0.3.0 the CRM mirror; 0.4.0 drips; 0.5.0 the checkbox consent mode, `/go` and older unsubscribe links (for adopting an existing site); 0.6.0 radio and checkbox-group fields and step headings in forms.
 
 A site vendors a copy of this folder into `core/` (`scripts/vendor-core.mjs` at `site create`; `site update` replaces it with a newer copy) and wires it up in a few lines:
 
