@@ -29,4 +29,4 @@ Every site starts in idea mode and can be promoted to launch mode with one scrip
 
 ## Status
 
-v1.0.0 (2026-10-27): a site is built from one prompt, previewed, approved by the owner and promoted to its own domain, with the newsletter, CRM mirror and drips modules. See `docs/ROADMAP.md` for what each step proved and what is still untested.
+v1.0.0 (2026-10-27): a site is built from one prompt, previewed, approved by the owner and promoted to its own domain, with the newsletter, CRM mirror and drips modules. See `docs/ROADMAP.md` for what each step proved.
