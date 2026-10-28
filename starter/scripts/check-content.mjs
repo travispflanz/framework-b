@@ -48,8 +48,9 @@ function checkFields(fields, value, where) {
 }
 
 // Pages: home.json is the home page; every other <slug>.json is /<slug> (src/pages/[page].astro). privacy.json and
-// not-found.json replace the generated privacy page and the 404 page with the owner's own words.
-const REPLACES = { privacy: "privacy", "not-found": "404" };
+// not-found.json replace the generated privacy page and the 404 page with the owner's own words, and contact.json the
+// plain contact page.
+const REPLACES = { privacy: "privacy", "not-found": "404", contact: "contact" };
 const BUILT_IN = new Set(readdirSync("src/pages").map((f) => f.replace(/\.(astro|js|ts|md)$/, "")).filter((f) => !f.startsWith("[")));
 for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))) {
   const page = JSON.parse(readFileSync(join("src/content", file), "utf8"));

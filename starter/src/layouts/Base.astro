@@ -9,9 +9,10 @@ import "../sections/sections.css";
 import { composition } from "../sections/design.js";
 
 // bleed: the page is made of full-width sections (src/sections), so <main> adds no column or padding.
-interface Props { title?: string; description?: string; noindex?: boolean; bleed?: boolean }
-const { title, description = config.site.tagline, noindex = false, bleed = false } = Astro.props;
-const fullTitle = title ? `${title} | ${config.site.name}` : config.site.name;
+// exactTitle: the whole <title>, without " | <site name>" (the home page's own title from home.json).
+interface Props { title?: string; exactTitle?: string; description?: string; noindex?: boolean; bleed?: boolean }
+const { title, exactTitle, description = config.site.tagline, noindex = false, bleed = false } = Astro.props;
+const fullTitle = exactTitle || (title ? `${title} | ${config.site.name}` : config.site.name);
 // With build.format "file", Astro.url.pathname is "/book.html" (and "/index.html" for the home page) at build
 // time. Workers assets redirect those to "/book" and "/", so canonical, og:url and the current nav item use the
 // extensionless path the visitor actually sees.

@@ -11,7 +11,7 @@ export function getStaticPaths() {
   const files = import.meta.glob<{ default: { title: string; description?: string; noindex?: boolean; sections: Array<Record<string, any>> } }>("../content/*.json", { eager: true });
   return Object.entries(files)
     .map(([path, mod]) => ({ slug: path.split("/").pop()!.replace(/\.json$/, ""), page: mod.default }))
-    .filter(({ slug }) => !["home", "privacy", "not-found"].includes(slug)) // those two replace privacy.astro and 404.astro
+    .filter(({ slug }) => !["home", "privacy", "not-found", "contact"].includes(slug)) // these replace privacy.astro, 404.astro and contact.astro
     .map(({ slug, page }) => ({ params: { page: slug }, props: { page } }));
 }
 

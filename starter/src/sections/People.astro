@@ -19,7 +19,7 @@ const count = value.people.length;
   <ul class:list={["grid gap-8", row ? "max-w-prose" : { "sm:grid-cols-2": count > 1, "lg:grid-cols-3": count > 2 }]} data-reveal>
     {value.people.map((person) => (
       <li class:list={[row ? "grid items-start gap-5 sm:grid-cols-[10rem_1fr]" : "grid content-start gap-4"]}>
-        {person.image?.src && <Picture image={person.image} sizes={row ? "10rem" : "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"} class="media aspect-[4/5] w-full object-cover" />}
+        {person.image?.src && <Picture image={person.image} sizes={row ? "10rem" : "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"} class="media aspect-[4/3] w-full object-cover" />}
         <div class="grid content-start gap-1">
           <p class="font-display text-title text-ink">{person.name}</p>
           {person.role && <p class="text-small text-ink-muted" set:html={inline(person.role)} />}
