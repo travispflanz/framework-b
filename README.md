@@ -57,7 +57,7 @@ A site has two modes:
 | | Idea mode (every site starts here) | Launch mode (after **site promote**) |
 |---|---|---|
 | Address | `<site>.<your-subdomain>.workers.dev` | Your domain, or a one-level subdomain of it |
-| Database | Shared with other idea sites (one `site` column) | Its own production and staging databases |
+| Database | Shared with other idea sites (one `site` column) | Its own production database (previews share one with the other sites) |
 | Owner emails | Through your Gmail (Apps Script mailer) | Cloudflare Email Routing when the site owns the whole domain, otherwise your Gmail |
 | Lead auto-reply | Optional, through your Gmail (*untested*) | Optional, through Resend from `hello@mail.<domain>` |
 | Newsletter and drips | Subscribers are collected; nothing is sent | Optional, through Resend from `mail.<domain>` |
@@ -149,7 +149,7 @@ that matter (checked 2026-10-21 to 2026-10-27; sources in `docs/SPEC.md`):
 
 | Limit | Free plan | What it means here |
 |---|---|---|
-| D1 databases per Cloudflare account | 10 | Idea sites share 2. Each launch site uses 2 more, and so does each site with client editing |
+| D1 databases per Cloudflare account | 10 | Idea sites and every site's previews share 2. Each launch site uses 1 more; client editing uses 2 more |
 | Cron Triggers per account | 5 | The backup Worker uses 1; each site with client editing uses 1; your other Workers count too |
 | Worker requests | 100,000 a day | Static pages are free and unlimited; form posts, `/admin` and `/api` count. With client editing on, every request counts, because Workers Cache bills cached and static requests too ([pricing](https://developers.cloudflare.com/workers/platform/pricing/), checked 2026-10-27) |
 | Workers per account | 100 | One per site, plus the backup Worker |
@@ -358,7 +358,7 @@ These are enforced by the scripts and the QA gate, not left to the agent's judgm
 - **The form on `localhost` says the spam check failed (error 110200).** The real Turnstile widget only allows your
   `workers.dev` address. Local tests use Turnstile's test keys (`node scripts/fill-test-placeholders.mjs
   --turnstile-test`).
-- **"No room for two more databases".** The Free plan allows 10 D1 databases. Tear down an idea you no longer need,
+- **"No room for more databases".** The Free plan allows 10 D1 databases. Tear down an idea you no longer need,
   or switch client editing off on a site.
 - **A test email to yourself never arrives.** Gmail silently drops a message forwarded back to the account that
   sent it. Test from another account.

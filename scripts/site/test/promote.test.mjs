@@ -40,20 +40,18 @@ test("launch config refuses a bad domain or a missing postal address", () => {
   assert.throws(() => launchConfig(ideaConfig, { domain: "example.com", postalAddress: " " }), /postal address/);
 });
 
-test("launch wrangler: custom domain, own databases and bucket, send_email; other bindings kept", () => {
-  const w = launchWrangler(ideaWrangler, { id: "example-co", domain: "example.com", owner: "owner@example.com", db: "prod-uuid", stagingDb: "staging-uuid" });
+test("launch wrangler: custom domain, own database and bucket, send_email; previews keep the shared database", () => {
+  const w = launchWrangler(ideaWrangler, { id: "example-co", domain: "example.com", owner: "owner@example.com", db: "prod-uuid" });
   assert.deepEqual(w.routes, [{ pattern: "example.com", custom_domain: true }]);
   assert.equal(w.workers_dev, true);
   assert.deepEqual(w.d1_databases[0], { binding: "DB", database_name: "example-co-prod", database_id: "prod-uuid", migrations_dir: "core/migrations" });
   assert.deepEqual(w.d1_databases[1], ideaWrangler.d1_databases[1]);
   assert.deepEqual(w.r2_buckets, [{ binding: "UPLOADS", bucket_name: "example-co-uploads" }, { binding: "MEDIA", bucket_name: "example-co-media" }]);
   assert.deepEqual(w.send_email, [{ name: "EMAIL", destination_address: "owner@example.com" }]);
-  assert.equal(w.previews.d1_databases[0].database_name, "example-co-staging");
-  assert.equal(w.previews.d1_databases[0].database_id, "staging-uuid");
-  assert.deepEqual(w.previews.d1_databases[1], ideaWrangler.previews.d1_databases[1]);
+  assert.deepEqual(w.previews.d1_databases, ideaWrangler.previews.d1_databases, "previews keep the shared preview database");
   assert.deepEqual(w.previews.r2_buckets, ideaWrangler.previews.r2_buckets, "previews keep the shared previews bucket");
   assert.deepEqual(w.vars, ideaWrangler.vars);
-  assert.deepEqual(launchNames("example-co"), { db: "example-co-prod", stagingDb: "example-co-staging", uploads: "example-co-uploads" });
+  assert.deepEqual(launchNames("example-co"), { db: "example-co-prod", previewDb: "fb-previews", uploads: "example-co-uploads" });
 });
 
 test("redirect rule is merged by ref, keeping other rules and dropping read-only fields", () => {
@@ -108,7 +106,7 @@ test("notifications use Email Routing only on a whole zone with no other mail pr
 test("launch files for an Apps Script site: no notifyFrom, no send_email binding", () => {
   const c = launchConfig({ ...ideaConfig, email: { notify: "none", confirm: "none" } }, { domain: "site.example.com", postalAddress: "PO Box 1", resend: true, notify: "apps-script" });
   assert.deepEqual(c.email, { notify: "apps-script", confirm: "resend", confirmFrom: "hello@mail.site.example.com" });
-  const w = launchWrangler({ ...ideaWrangler, send_email: [{ name: "EMAIL" }] }, { id: "example-co", domain: "site.example.com", owner: "o@example.com", db: "p", stagingDb: "s", sendEmail: false });
+  const w = launchWrangler({ ...ideaWrangler, send_email: [{ name: "EMAIL" }] }, { id: "example-co", domain: "site.example.com", owner: "o@example.com", db: "p", sendEmail: false });
   assert.equal(w.send_email, undefined);
   assert.deepEqual(w.routes, [{ pattern: "site.example.com", custom_domain: true }]);
 });

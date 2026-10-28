@@ -71,15 +71,15 @@ export function checkSubscriberRow(row, site) {
   return { row: { ...row, site, email: String(row.email || "").toLowerCase() }, errors };
 }
 
-// The site's wrangler.jsonc after prepare: the existing Worker's name, the new databases for DB (production and
-// previews). Routes, buckets and everything else are the site's own choice and stay as written.
-export function adoptWrangler(wrangler, { worker, db, stagingDb, id }) {
+// The site's wrangler.jsonc after prepare: the existing Worker's name, the new production database for DB and the
+// shared preview database for previews. Routes, buckets and everything else are the site's own choice and stay as written.
+export function adoptWrangler(wrangler, { worker, db, previewDb, id }) {
   const names = launchNames(id);
   const out = structuredClone(wrangler);
   const swapDb = (list, value) => (list || []).map((d) => (d.binding === "DB" ? { ...d, ...value } : d));
   out.name = worker;
   out.d1_databases = swapDb(out.d1_databases, { database_name: names.db, database_id: db });
-  if (out.previews?.d1_databases) out.previews = { ...out.previews, d1_databases: swapDb(out.previews.d1_databases, { database_name: names.stagingDb, database_id: stagingDb }) };
+  if (out.previews?.d1_databases) out.previews = { ...out.previews, d1_databases: swapDb(out.previews.d1_databases, { database_name: names.previewDb, database_id: previewDb }) };
   return out;
 }
 
