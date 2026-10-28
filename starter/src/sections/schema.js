@@ -25,13 +25,40 @@ const link = (slug, label, required = false) => ({
 // credited in design/credits.json; alt text is required unless the image is purely decorative.
 const image = (slug, label, required = false) => ({ slug, label, type: "image", ...(required ? { required: true } : {}) });
 
+// Layout variants (docs/SPEC.md section 12, "Section variants"): how a section is drawn, chosen per section, so
+// two sites with the same content can look structurally different. The first option is the default.
+export const VARIANTS = {
+  fb_hero: ["split", "full-bleed", "statement", "editorial", "bento"],
+  fb_steps: ["cards", "timeline", "numerals"],
+  fb_features: ["grid", "bento", "list", "cards"],
+  fb_pricing: ["cards"],
+  fb_area: ["chips", "columns"],
+  fb_faq: ["stack", "two-column"],
+  fb_cta: ["card", "band"],
+  fb_form: ["stacked", "split"],
+  fb_split: ["side", "overlap"],
+  fb_gallery: ["grid", "masonry", "strip"],
+  fb_text: ["prose", "lead"],
+};
+// How a section behaves on a phone (under 640 px). "auto" picks the section's own default (PHONE_AUTO).
+export const PHONE = ["auto", "stack", "swipe", "collapse", "hide"];
+export const PHONE_AUTO = { fb_steps: "swipe", fb_features: "collapse", fb_pricing: "swipe", fb_gallery: "swipe", fb_area: "collapse" };
+
 const block = (slug, label, description, fields) => ({
   slug,
   label,
   description,
   category: "Sections",
   currentVersion: 1,
-  versions: [{ version: 1, fields: [...fields, anchor] }],
+  versions: [{
+    version: 1,
+    fields: [
+      ...fields,
+      ...(VARIANTS[slug]?.length > 1 ? [{ slug: "variant", label: "Layout", type: "select", validation: { options: VARIANTS[slug] } }] : []),
+      ...(slug === "fb_hero" ? [] : [{ slug: "phone", label: "On phones", type: "select", validation: { options: PHONE } }]),
+      anchor,
+    ],
+  }],
 });
 
 export const SECTIONS = [

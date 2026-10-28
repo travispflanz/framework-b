@@ -1,21 +1,52 @@
 ---
-// fb_steps: how it works, as a numbered list.
+// fb_steps: how it works, as numbered steps. Layouts: "cards" (a row of numbered cards), "timeline" (a vertical
+// line that draws as you scroll when motion is on), "numerals" (large numbers, no cards). On phones the steps
+// swipe sideways by default.
+import PhoneAccordion from "./PhoneAccordion.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
+import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "steps"}`;
+const variant = variantOf("fb_steps", value);
+const phone = phoneOf("fb_steps", value);
+const collapse = phone === "collapse";
+const pad = (i) => String(i + 1).padStart(2, "0");
 ---
-<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+<Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
   <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
-  <ol class="grid gap-6 md:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
-    {value.steps.map((s, i) => (
-      <li class="card grid content-start gap-3 p-6">
-        <span class="grid size-10 place-items-center rounded-full bg-highlight text-label text-highlight-ink" aria-hidden="true">{i + 1}</span>
-        <h3 class="font-display text-title text-ink">{s.title}</h3>
-        <p class="text-body text-ink-muted">{s.body}</p>
-      </li>
-    ))}
-  </ol>
+  {variant === "timeline" ? (
+    <ol class:list={["timeline grid max-w-prose gap-10", { "max-sm:hidden": collapse }]} data-reveal>
+      {value.steps.map((s, i) => (
+        <li class="relative grid gap-2 pl-16">
+          <span class="absolute left-0 top-0 grid size-11 place-items-center rounded-full bg-accent text-label text-accent-ink" aria-hidden="true">{i + 1}</span>
+          <h3 class="font-display text-title text-ink">{s.title}</h3>
+          <p class="text-body text-ink-muted">{s.body}</p>
+        </li>
+      ))}
+    </ol>
+  ) : variant === "numerals" ? (
+    <ol class:list={["phone-list grid gap-10 md:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]", { "max-sm:hidden": collapse }]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.steps.map((s, i) => (
+        <li class="grid content-start gap-3 border-t border-line pt-6">
+          <span class="font-display text-display text-accent" aria-hidden="true">{pad(i)}</span>
+          <h3 class="font-display text-title text-ink">{s.title}</h3>
+          <p class="text-body text-ink-muted">{s.body}</p>
+        </li>
+      ))}
+    </ol>
+  ) : (
+    <ol class:list={["phone-list grid gap-6 md:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]", { "max-sm:hidden": collapse }]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.steps.map((s, i) => (
+        <li class="card grid content-start gap-3 p-6">
+          <span class="grid size-10 place-items-center rounded-full bg-highlight text-label text-highlight-ink" aria-hidden="true">{i + 1}</span>
+          <h3 class="font-display text-title text-ink">{s.title}</h3>
+          <p class="text-body text-ink-muted">{s.body}</p>
+        </li>
+      ))}
+    </ol>
+  )}
+  {collapse && <PhoneAccordion group={`${headingId}-phone`} items={value.steps.map((s, i) => ({ title: `${i + 1}. ${s.title}`, body: s.body }))} />}
 </Section>

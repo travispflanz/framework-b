@@ -136,8 +136,15 @@ async function screenshots(into) {
   try {
     for (const path of pagesFromDist()) {
       for (const width of WIDTHS) {
-        const page = await browser.newPage({ viewport: { width, height: width > 600 ? 900 : 844 } });
+        // Reduced motion shows every element in its final state (scroll-driven reveals start transparent below the
+        // fold), and lazy images are loaded, so the full-page screenshot shows the page as a visitor ends up seeing it.
+        const page = await browser.newPage({ viewport: { width, height: width > 600 ? 900 : 844 }, reducedMotion: "reduce" });
         await page.goto(site.base + path, { waitUntil: "networkidle" });
+        await page.evaluate(async () => {
+          const imgs = [...document.querySelectorAll('img[loading="lazy"]')];
+          imgs.forEach((img) => { img.loading = "eager"; });
+          await Promise.all(imgs.map((img) => (img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; setTimeout(r, 5000); }))));
+        });
         const name = `${(path.slice(1) || "home").replace(/\//g, "_")}-${width}`;
         await page.screenshot({ path: join(into, `${name}-first.png`) });
         await page.screenshot({ path: join(into, `${name}-full.png`), fullPage: true });

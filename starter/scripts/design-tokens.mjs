@@ -12,6 +12,13 @@
 //   typography: display, headline, title, body, small, label  (fontFamily, fontSize, fontWeight, lineHeight)
 //   rounded:    control, card
 //   spacing:    gutter, section, content, prose  (content and prose are container widths)
+// Two Framework B blocks set the skeleton and the imagery, not just the skin (both optional; defaults keep the
+// original look). They are written to src/styles/design.json, which Base.astro and the sections read:
+//   composition: align (left|center), density (airy|compact), separation (bands|hairlines|none),
+//                cards (filled|outlined|flat), imageShape (rounded|square|full-bleed), motion (none|subtle|expressive),
+//                phoneBudget (screens, the home page's maximum length on a 390 x 844 phone; the QA gate checks it)
+//   imagery:     style (see IMAGERY_STYLES), secondary (optional), treatment (none|duotone|tint|warm|cool|mono),
+//                grain (true|false), prompt (one line of art direction reused for every generated image)
 // Extra tokens are allowed and exported too. Components (button-primary, button-secondary, ...) become classes
 // in @layer components. Fonts must be installed Fontsource packages (self-hosted, OFL), for example
 // `npm i @fontsource-variable/figtree`; the script imports the variable package when present.
@@ -21,6 +28,7 @@ import { parse } from "yaml";
 
 const CHECK = process.argv.includes("--check");
 const OUT = "src/styles/tokens.css";
+const DESIGN_OUT = "src/styles/design.json";
 const FONTS_OUT = "src/styles/fonts.js";
 const REQUIRED = {
   colors: ["bg", "surface", "ink", "ink-muted", "line", "field", "accent", "accent-ink", "highlight", "highlight-ink", "error", "focus"],
@@ -61,6 +69,29 @@ for (const name of REQUIRED.typography) {
     if (tokens.typography[name][prop] === undefined) throw new Error(`typography.${name}.${prop} is required`);
   }
 }
+
+// Composition and imagery (Framework B blocks). Every value is checked, so a typo fails here, not on the page.
+const COMPOSITION = {
+  align: ["left", "center"],
+  density: ["airy", "compact"],
+  separation: ["bands", "hairlines", "none"],
+  cards: ["filled", "outlined", "flat"],
+  imageShape: ["rounded", "square", "full-bleed"],
+  motion: ["none", "subtle", "expressive"],
+};
+const COMPOSITION_DEFAULTS = { align: "left", density: "airy", separation: "bands", cards: "filled", imageShape: "rounded", motion: "none", phoneBudget: 6 };
+const IMAGERY_STYLES = ["owner-photo", "documentary-stock", "photoreal-generated", "line-art", "flat-illustration", "watercolor", "3d", "isometric", "collage", "cartoon", "abstract", "icon-led"];
+const TREATMENTS = ["none", "duotone", "tint", "warm", "cool", "mono"];
+const composition = { ...COMPOSITION_DEFAULTS, ...(tokens.composition || {}) };
+for (const [k, allowed] of Object.entries(COMPOSITION)) {
+  if (!allowed.includes(composition[k])) throw new Error(`composition.${k} must be one of ${allowed.join(", ")} (got ${composition[k]})`);
+}
+if (!(Number(composition.phoneBudget) >= 2 && Number(composition.phoneBudget) <= 20)) throw new Error("composition.phoneBudget must be a number of screens from 2 to 20");
+composition.phoneBudget = Number(composition.phoneBudget);
+const imagery = { style: "owner-photo", treatment: "none", grain: false, prompt: "", ...(tokens.imagery || {}) };
+for (const k of ["style", "secondary"]) if (imagery[k] !== undefined && !IMAGERY_STYLES.includes(imagery[k])) throw new Error(`imagery.${k} must be one of ${IMAGERY_STYLES.join(", ")}`);
+if (!TREATMENTS.includes(imagery.treatment)) throw new Error(`imagery.treatment must be one of ${TREATMENTS.join(", ")}`);
+const designJson = JSON.stringify({ composition, imagery }, null, 2) + "\n";
 
 // WCAG 2.2 AA pairs the section library and forms rely on: text 4.5:1 (1.4.3), input borders and the focus
 // ring 3:1 against what they sit on (1.4.11). "line" is decorative only and has no minimum.
@@ -223,9 +254,12 @@ if (CHECK) {
   if (current !== css) throw new Error(`${OUT} is out of date with DESIGN.md. Run: node scripts/design-tokens.mjs`);
   const currentFonts = existsSync(FONTS_OUT) ? readFileSync(FONTS_OUT, "utf8") : "";
   if (currentFonts !== fontsJs) throw new Error(`${FONTS_OUT} is out of date with DESIGN.md. Run: node scripts/design-tokens.mjs`);
-  console.log(`${OUT} and ${FONTS_OUT} match DESIGN.md`);
+  const currentDesign = existsSync(DESIGN_OUT) ? readFileSync(DESIGN_OUT, "utf8") : "";
+  if (currentDesign !== designJson) throw new Error(`${DESIGN_OUT} is out of date with DESIGN.md. Run: node scripts/design-tokens.mjs`);
+  console.log(`${OUT}, ${FONTS_OUT} and ${DESIGN_OUT} match DESIGN.md`);
 } else {
   writeFileSync(OUT, css);
   writeFileSync(FONTS_OUT, fontsJs);
+  writeFileSync(DESIGN_OUT, designJson);
   console.log(`Wrote ${OUT} from DESIGN.md (${families.join(", ")})`);
 }

@@ -1,18 +1,22 @@
 ---
-// Image credits: every image from another creator, with its licence and source, from design/credits.json.
-// CC BY and CC BY-SA require this attribution; the footer links here whenever there is something to credit.
+// Image credits: every image from another creator, with its licence and source, and every generated image, with the
+// model that made it, from design/credits.json. CC BY and CC BY-SA require this attribution; the footer links here
+// whenever there is something to credit.
 export const prerender = true;
 import Base from "../layouts/Base.astro";
 import credits from "../../design/credits.json";
 
 const LICENSE_URL = { "cc0": "https://creativecommons.org/publicdomain/zero/1.0/", "pdm": "https://creativecommons.org/publicdomain/mark/1.0/" };
-const items = (credits.images || []).filter((c) => c.source === "openverse" || c.source === "stock");
+const all = credits.images || [];
+const items = all.filter((c) => c.source === "openverse" || c.source === "stock");
+const generated = all.filter((c) => c.source === "generated" && !c.test);
 ---
 <Base title="Image credits" noindex>
   <h1 class="font-display text-headline text-ink">Image credits</h1>
-  {items.length === 0 ? (
+  {items.length === 0 && generated.length === 0 ? (
     <p class="mt-6 text-body text-ink-muted">Every image on this site belongs to us.</p>
-  ) : (
+  ) : null}
+  {items.length > 0 && (
     <ul class="mt-8 grid gap-4 text-body text-ink" role="list">
       {items.map((c) => (
         <li>
@@ -22,5 +26,16 @@ const items = (credits.images || []).filter((c) => c.source === "openverse" || c
         </li>
       ))}
     </ul>
+  )}
+  {generated.length > 0 && (
+    <section aria-labelledby="generated" class="mt-12">
+      <h2 id="generated" class="font-display text-title text-ink">Generated images</h2>
+      <p class="mt-3 max-w-prose text-body text-ink-muted">These images were made with an image generator to illustrate the site. They don't show our own people, premises, products or work.</p>
+      <ul class="mt-6 grid gap-4 text-body text-ink" role="list">
+        {generated.map((c) => (
+          <li>{c.alt || c.file.split("/").pop()}{c.model ? `: generated with ${c.model}` : ": generated"}{c.created ? `, ${c.created}` : ""}.</li>
+        ))}
+      </ul>
+    </section>
   )}
 </Base>

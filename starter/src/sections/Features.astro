@@ -1,22 +1,65 @@
 ---
-// fb_features: reasons to choose the business, each with an icon.
+// fb_features: reasons to choose the business, each with an icon. Layouts: "grid" (icons in columns), "bento"
+// (the first reason large, the rest as tiles), "list" (a compact two-column list), "cards" (a card each).
+// On phones they fold into an accordion by default, so six reasons take one screen instead of three.
 import Icon from "./Icon.astro";
+import PhoneAccordion from "./PhoneAccordion.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
+import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "features"}`;
+const variant = variantOf("fb_features", value);
+const phone = phoneOf("fb_features", value);
+const collapse = phone === "collapse";
+const hideWide = { "max-sm:hidden": collapse };
 ---
-<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+<Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
   <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
-  <ul class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-    {value.items.map((item) => (
-      <li class="grid content-start gap-3">
-        <Icon name={item.icon} class="size-8 text-accent" />
-        <h3 class="font-display text-title text-ink">{item.title}</h3>
-        <p class="text-body text-ink-muted">{item.body}</p>
-      </li>
-    ))}
-  </ul>
+  {variant === "bento" ? (
+    <ul class:list={["phone-list grid gap-4 md:grid-cols-4", hideWide]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.items.map((item, i) => (
+        <li class:list={["card grid content-start gap-3 p-6", { "md:col-span-2 md:row-span-2 md:content-end md:p-8": i === 0, "md:col-span-2": i > 0 && value.items.length % 2 === 0 && i === value.items.length - 1 }]}>
+          <Icon name={item.icon} class:list={["text-accent", i === 0 ? "size-12" : "size-8"]} />
+          <h3 class:list={["font-display text-ink", i === 0 ? "text-headline" : "text-title"]}>{item.title}</h3>
+          <p class="text-body text-ink-muted">{item.body}</p>
+        </li>
+      ))}
+    </ul>
+  ) : variant === "list" ? (
+    <ul class:list={["phone-list grid gap-x-12 md:grid-cols-2", hideWide]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.items.map((item) => (
+        <li class="flex gap-4 border-b border-line py-5">
+          <Icon name={item.icon} class="mt-1 size-6 shrink-0 text-accent" />
+          <div class="grid gap-1">
+            <h3 class="font-display text-title text-ink">{item.title}</h3>
+            <p class="text-body text-ink-muted">{item.body}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  ) : variant === "cards" ? (
+    <ul class:list={["phone-list grid gap-6 sm:grid-cols-2 lg:grid-cols-3", hideWide]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.items.map((item) => (
+        <li class="card grid content-start gap-3 p-6">
+          <span class="grid size-12 place-items-center rounded-full bg-highlight text-highlight-ink"><Icon name={item.icon} class="size-6" /></span>
+          <h3 class="font-display text-title text-ink">{item.title}</h3>
+          <p class="text-body text-ink-muted">{item.body}</p>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <ul class:list={["phone-list grid gap-8 sm:grid-cols-2 lg:grid-cols-3", hideWide]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.items.map((item) => (
+        <li class="grid content-start gap-3">
+          <Icon name={item.icon} class="size-8 text-accent" />
+          <h3 class="font-display text-title text-ink">{item.title}</h3>
+          <p class="text-body text-ink-muted">{item.body}</p>
+        </li>
+      ))}
+    </ul>
+  )}
+  {collapse && <PhoneAccordion group={`${headingId}-phone`} items={value.items.map((item) => ({ title: item.title, body: item.body }))} />}
 </Section>

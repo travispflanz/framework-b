@@ -135,8 +135,8 @@ for (const md of mdFiles) {
     const first = span.split(/\s+/)[0];
     if (span === first && FILEISH.test(span) && !/[<>{}$]/.test(span) && !span.startsWith("/") && !span.startsWith("@") && !/^(build|framework|feat|fix|docs)\/[\w-]+$/.test(span) && !/^[\w-]+\.(com|dev|workers\.dev)/.test(span)) {
       const p = span.replace(/^\.\//, "");
-      const generated = /^(dist|qa-output|design\/(tiles|judge|pairs|critique|drafts)|node_modules|\.wrangler|\.dev\.vars|newsletter|seed|core|design\/sitemap\.md|editing\/static|src\/assets\/images|\.impeccable)\b/.test(p) ||
-        /(^|\/)(brief\.json|ballot\.json|park\.json|intake\.json|pairs\.json|state\.json|framework\.lock\.json|tokens\.css|credits\.json|live\.config\.ts|\.dev\.vars(\.example)?|home\.json)$/.test(p);
+      const generated = /^(dist|qa-output|design\/(tiles|judge|pairs|critique|drafts|brand|generated)|node_modules|\.wrangler|\.dev\.vars|newsletter|seed|core|design\/sitemap\.md|editing\/static|src\/assets\/images|\.impeccable)\b/.test(p) ||
+        /(^|\/)(brief\.json|adopt\.json|ballot\.json|park\.json|intake\.json|pairs\.json|state\.json|framework\.lock\.json|tokens\.css|credits\.json|live\.config\.ts|\.dev\.vars(\.example)?|home\.json)$/.test(p);
       // A bare file name ("editing.mjs") is shorthand for a file somewhere in the repo.
       const ok = generated || (!p.includes("/") && basenames.has(p)) || bases.some((b) => existsIn(b, p.replace(/\*.*$/, "")));
       // Site docs name files that exist only in a site (made by create or by the agent); the list above covers them.

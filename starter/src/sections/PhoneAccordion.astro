@@ -1,0 +1,20 @@
+---
+// The phone version of a list section whose `phone` behaviour is "collapse": one question-style row per item that
+// opens in place, one at a time (<details name>, no JavaScript). The section renders its normal list for wider
+// screens (`max-sm:hidden`) and this one only under 640 px, so nothing moves after the page has painted.
+import { paragraphs } from "./text.js";
+
+interface Props { items: Array<{ title: string; body?: string }>; group: string }
+const { items, group } = Astro.props;
+---
+<div class="grid gap-2 sm:hidden">
+  {items.map((item, i) => (
+    <details name={group} open={i === 0} class="card group p-0">
+      <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-ink [&::-webkit-details-marker]:hidden">
+        <span class="font-display text-title">{item.title}</span>
+        <span class="text-accent transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+      </summary>
+      {item.body && <div class="grid gap-3 px-4 pb-4 text-body text-ink-muted">{paragraphs(item.body).map((p) => <p>{p}</p>)}</div>}
+    </details>
+  ))}
+</div>

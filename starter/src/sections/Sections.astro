@@ -1,7 +1,8 @@
 ---
 // Renders a page's sections in order. Content comes from src/content/<page>.json, or from EmDash when client
 // editing is on; both use the same shape: [{ _type: "fb_hero", _key: "...", ...fields }].
-// Bands alternate between the page background and the surface tone, starting after the hero.
+// With composition.separation "bands" (DESIGN.md), bands alternate between the page background and the surface tone,
+// starting after the hero; with "hairlines" or "none" every band uses the page background.
 import Area from "./Area.astro";
 import Cta from "./Cta.astro";
 import Faq from "./Faq.astro";
@@ -13,6 +14,7 @@ import Pricing from "./Pricing.astro";
 import Split from "./Split.astro";
 import Steps from "./Steps.astro";
 import Text from "./Text.astro";
+import { composition } from "./design.js";
 
 const COMPONENTS = { fb_hero: Hero, fb_steps: Steps, fb_features: Features, fb_pricing: Pricing, fb_area: Area, fb_faq: Faq, fb_cta: Cta, fb_form: FormSection, fb_text: Text, fb_split: Split, fb_gallery: Gallery };
 
@@ -22,7 +24,7 @@ let band = 0;
 const items = sections.map((value, i) => {
   const Component = COMPONENTS[value._type];
   if (!Component) throw new Error(`Unknown section type "${value._type}"`);
-  const tone = value._type === "fb_hero" ? undefined : band++ % 2 === 0 ? "bg" : "surface";
+  const tone = value._type === "fb_hero" ? undefined : composition.separation !== "bands" ? "bg" : band++ % 2 === 0 ? "bg" : "surface";
   return { Component, value, key: value._key || `s${i}`, tone };
 });
 ---

@@ -49,6 +49,7 @@ with `gh workflow run "<name>" -R <you>/<ops repo> -f site_id=...`.
 | **site update** | `site_id`, `base` (only for very old sites) | Brings a site up to the current framework on a branch, tests it, opens a pull request |
 | **site mailer** | `site_id`, `check_only` | Connects a site made before the mailer existed; `check_only: yes` just sends a test notification |
 | **site promote** | `site_id`, `domain`, `phase` (`prepare` then `finish`), `postal_address`, `dry_run` | Moves an idea site to its own domain (launch mode). Merge the pull request `prepare` opens before `finish` |
+| **site adopt** | `site_id`, `repo`, `phase` (`prepare`, `preview`, `cutover`, `rollback`), `branch`, `dry_run` | Moves an existing site that wasn't built with Framework B onto it, keeping its Worker; its leads are copied and the old database is only read. Merge the new site before `cutover` |
 | **site newsletter** | `site_id`, `issue`, `mode` (`test` or `send`), `to`, `site_ref`, `force` | Test-sends a newsletter issue (also from a draft branch), or sends it to every subscriber (launch sites) |
 | **site crm sync** | `site_id`, `days` | Copies a site's leads to its CRM mirror (Google Sheet, webhook); safe to rerun |
 | **site editing** | `site_id`, `mode` (`off`) | Switches client editing off and brings the content back into files, as a pull request |

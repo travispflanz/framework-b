@@ -1,25 +1,53 @@
 ---
-// fb_gallery: a grid of images with optional captions.
+// fb_gallery: images with optional captions. Layouts: "grid" (even tiles), "masonry" (natural shapes in columns),
+// "strip" (a sideways row you swipe or scroll at every width). On phones the grid swipes by default.
 import Picture from "./Picture.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { paragraphs } from "./text.js";
+import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "gallery"}`;
+const variant = variantOf("fb_gallery", value);
+const phone = phoneOf("fb_gallery", value) === "collapse" ? "swipe" : phoneOf("fb_gallery", value);
 ---
-<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+<Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
   <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
-  <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="list">
-    {value.items.map((item) => (
-      <li>
-        <figure class="grid gap-2">
-          <Picture image={item.image} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" class="aspect-[4/3] w-full rounded-card object-cover" />
-          {item.caption && <figcaption class="text-small text-ink-muted">{item.caption}</figcaption>}
-        </figure>
-      </li>
-    ))}
-  </ul>
+  {variant === "masonry" ? (
+    <ul class="phone-list columns-1 gap-6 sm:columns-2 lg:columns-3" role="list" data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.items.map((item) => (
+        <li class="mb-6 break-inside-avoid">
+          <figure class="grid gap-2">
+            <Picture image={item.image} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" class="media w-full" />
+            {item.caption && <figcaption class="text-small text-ink-muted">{item.caption}</figcaption>}
+          </figure>
+        </li>
+      ))}
+    </ul>
+  ) : variant === "strip" ? (
+    <ul class="strip flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4" role="list" tabindex="0" aria-label={value.headline}>
+      {value.items.map((item) => (
+        <li class="w-4/5 shrink-0 snap-start sm:w-2/5 lg:w-1/3">
+          <figure class="grid gap-2">
+            <Picture image={item.image} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 40vw, 80vw" class="media aspect-[4/5] w-full object-cover" />
+            {item.caption && <figcaption class="text-small text-ink-muted">{item.caption}</figcaption>}
+          </figure>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <ul class="phone-list grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="list" data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.items.map((item) => (
+        <li>
+          <figure class="grid gap-2">
+            <Picture image={item.image} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" class="media aspect-[4/3] w-full object-cover" />
+            {item.caption && <figcaption class="text-small text-ink-muted">{item.caption}</figcaption>}
+          </figure>
+        </li>
+      ))}
+    </ul>
+  )}
   {value.note && paragraphs(value.note).map((p) => <p class="mt-8 max-w-prose text-small text-ink-muted">{p}</p>)}
 </Section>

@@ -81,19 +81,20 @@ for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))
     }
   }
 }
-// Image credits (docs/SPEC.md section 12: owner photos first, open-licensed second, generated only for abstraction).
+// Image credits (docs/SPEC.md section 12: owner photos first; open-licensed or generated images only as illustration).
 const IMAGE = /\.(png|jpe?g|webp|avif|gif|svg|ico)$/i;
 const walk = (d) => (existsSync(d) ? readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)])) : []);
 const images = [...walk("public"), ...walk("src")].filter((f) => IMAGE.test(f)).map((f) => f.replace(/\\/g, "/"));
 const ledger = existsSync("design/credits.json") ? JSON.parse(readFileSync("design/credits.json", "utf8")).images || [] : [];
-const SOURCES = ["owner", "openverse", "stock", "generated", "framework"];
+const SOURCES = ["owner", "openverse", "stock", "generated", "framework", "brand"];
 for (const file of images) if (!ledger.some((c) => c.file === file)) errors.push(`${file} has no entry in design/credits.json (source, licence, alt text)`);
 for (const c of ledger) {
   const where = `design/credits.json ${c.file || "(no file)"}`;
   if (!c.file || !existsSync(c.file)) errors.push(`${where}: the file doesn't exist`);
   if (!SOURCES.includes(c.source)) errors.push(`${where}: source must be one of ${SOURCES.join(", ")}`);
   if (["openverse", "stock"].includes(c.source)) for (const k of ["creator", "license", "url"]) if (!c[k]) errors.push(`${where}: a ${c.source} image needs "${k}"`);
-  if (c.source === "generated" && c.abstract !== true) errors.push(`${where}: a generated image must be abstract ("abstract": true); never people, premises or products`);
+  // Generated images are illustrative only: never the business's own people, premises, products, work or results.
+  if (c.source === "generated" && c.abstract !== true && c.illustrative !== true) errors.push(`${where}: a generated image must be marked "illustrative": true (or "abstract": true); it may never show the business's own people, premises, products, work or results`);
   if (typeof c.alt !== "string") errors.push(`${where}: "alt" is required ("" for a decorative image)`);
 }
 

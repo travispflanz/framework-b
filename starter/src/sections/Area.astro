@@ -1,20 +1,33 @@
 ---
-// fb_area: where the business works.
-import Icon from "./Icon.astro";
+// fb_area: where the business works. Layouts: "chips" (places as tags) or "columns" (a plain list in columns).
+// On phones a long list folds behind one row by default.
+import AreaList from "./AreaList.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { lines, paragraphs } from "./text.js";
+import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "area"}`;
+const variant = variantOf("fb_area", value);
+const phone = phoneOf("fb_area", value);
+const places = lines(value.places);
+const fold = phone === "collapse" && places.length > 6;
 ---
-<Section id={value.anchor_id} tone={tone} labelledby={headingId}>
+<Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
   <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.body} id={headingId} />
-  <ul class="flex flex-wrap gap-3">
-    {lines(value.places).map((place) => (
-      <li class="card flex items-center gap-2 px-4 py-2 text-small text-ink"><Icon name="map-pin" class="size-4 shrink-0 text-accent" />{place}</li>
-    ))}
-  </ul>
+  {fold ? (
+    <>
+      <div class="max-sm:hidden" data-reveal><AreaList places={places} variant={variant} /></div>
+      <details class="card group p-0 sm:hidden">
+        <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-ink [&::-webkit-details-marker]:hidden">
+          <span class="font-display text-title">{places.length} places</span>
+          <span class="text-accent transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+        </summary>
+        <div class="px-4 pb-4"><AreaList places={places} variant={variant} /></div>
+      </details>
+    </>
+  ) : <div data-reveal><AreaList places={places} variant={variant} /></div>}
   {value.note && paragraphs(value.note).map((p) => <p class="mt-6 max-w-prose text-small text-ink-muted">{p}</p>)}
 </Section>

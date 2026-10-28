@@ -1,5 +1,6 @@
 # Builds the starter with the current core, runs its end-to-end test in a real browser, then the QA gate,
-# twice: as a static site, and with client editing (EmDash) switched on, then switched off again.
+# twice: as a static site (plus every layout variant and the brand kit), and with client editing (EmDash) switched
+# on, then switched off again.
 # Local Worker, local D1 and R2, Turnstile test keys, no email, no Cloudflare account access.
 name: starter tests
 on:
@@ -14,7 +15,7 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -79,6 +80,14 @@ jobs:
       - run: npm run test:e2e
         working-directory: starter
       - run: npm run qa
+        working-directory: starter
+      - name: Every section layout variant, the second composition and an imagery treatment pass the QA gate
+        if: matrix.editing == 'off'
+        run: node scripts/test/variants.mjs
+        working-directory: starter
+      - name: Brand kit (six logo layouts, then the pick's logo, icons and share image)
+        if: matrix.editing == 'off'
+        run: node scripts/test/brand-kit.mjs
         working-directory: starter
       - name: Switch client editing off (an editor's change and image come back as files), then test the static site
         if: matrix.editing == 'on'

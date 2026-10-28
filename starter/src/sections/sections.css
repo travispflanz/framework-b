@@ -1,3 +1,85 @@
-/* Section library layout rules that depend on context. Colours, type and radii come only from tokens.css. */
-/* A card sits on the opposite tone of its band, so it stays visible on both. */
+/* Section library layout rules that depend on context. Colours, type and radii come only from tokens.css.
+   The composition attributes on <html> (data-cards, data-image-shape, data-density, data-motion) come from DESIGN.md
+   through src/styles/design.json; Base.astro sets them. */
+
+/* Cards. "filled" sits on the opposite tone of its band, so it stays visible on both; "outlined" is a border on
+   the band's own colour; "flat" has neither. */
 section.bg-surface .card { background-color: var(--color-bg); }
+html[data-cards="outlined"] .card { background-color: transparent; border: 1px solid var(--color-line); }
+html[data-cards="flat"] .card { background-color: transparent; }
+html[data-cards="flat"] .card.p-6, html[data-cards="flat"] .card.p-8 { padding-inline: 0; }
+
+/* Image shape. */
+.media { border-radius: var(--radius-card); }
+html[data-image-shape="square"] .media { border-radius: 0; }
+
+/* Density: a compact composition tightens the space between sections. */
+html[data-density="compact"] section.py-section { padding-block: calc(var(--spacing-section) * 0.6); }
+
+/* Second button style: the accent's two colours swapped, for use on an accent band. */
+.button-inverse {
+  background-color: var(--color-accent-ink);
+  color: var(--color-accent);
+  border-radius: var(--radius-control);
+  font-weight: var(--text-label--font-weight);
+  font-size: var(--text-label);
+  padding: 12px 20px;
+}
+
+/* Full-bleed hero: a scrim between the photo and the words, darker where the words are. */
+.hero-scrim { background: linear-gradient(to top, color-mix(in srgb, var(--color-ink) 85%, transparent), color-mix(in srgb, var(--color-ink) 45%, transparent)); }
+.hero-bleed { min-height: min(85svh, 48rem); display: grid; align-items: end; }
+
+/* Steps timeline: the line behind the numbers. */
+.timeline { position: relative; }
+.timeline::before { content: ""; position: absolute; left: 21px; top: 8px; bottom: 8px; width: 2px; background: var(--color-line); transform-origin: top; }
+
+/* A sideways strip that scrolls at every width. */
+.strip { scrollbar-width: thin; scroll-padding-inline: var(--spacing-gutter); }
+
+/* Phones (under 640 px): "swipe" turns a list into a sideways row with the next item peeking in. */
+@media (max-width: 639px) {
+  .phone-list[data-phone="swipe"] {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--spacing-gutter);
+    margin-inline: calc(var(--spacing-gutter) * -1);
+    padding-inline: var(--spacing-gutter);
+    padding-bottom: 0.5rem;
+    columns: auto;
+  }
+  .phone-list[data-phone="swipe"] > * { flex: 0 0 82%; scroll-snap-align: start; margin-bottom: 0; }
+}
+
+/* Motion (composition.motion). Only transform and opacity move, so nothing shifts the layout; nothing moves for
+   people who ask for reduced motion, and browsers without scroll-driven animations show everything at once. */
+@media (prefers-reduced-motion: no-preference) {
+  html:is([data-motion="subtle"], [data-motion="expressive"]) .card { transition: transform 200ms ease, border-color 200ms ease; }
+  html:is([data-motion="subtle"], [data-motion="expressive"]) a.card:hover,
+  html:is([data-motion="subtle"], [data-motion="expressive"]) li.card:hover { transform: translateY(-3px); }
+  html:is([data-motion="subtle"], [data-motion="expressive"]) :is(.button-primary, .button-inverse) { transition: transform 150ms ease; }
+  html:is([data-motion="subtle"], [data-motion="expressive"]) :is(.button-primary, .button-inverse):active { transform: scale(0.97); }
+
+  @supports (animation-timeline: view()) {
+    html:is([data-motion="subtle"], [data-motion="expressive"]) :is(.reveal, [data-reveal] > *) {
+      animation: fb-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 90%;
+    }
+    html:is([data-motion="subtle"], [data-motion="expressive"]) .timeline::before {
+      animation: fb-draw linear both;
+      animation-timeline: view();
+      animation-range: entry 20% cover 60%;
+    }
+    html[data-motion="expressive"] .parallax {
+      animation: fb-drift linear both;
+      animation-timeline: view();
+      animation-range: cover;
+    }
+  }
+}
+@keyframes fb-rise { from { opacity: 0; transform: translateY(1.5rem); } to { opacity: 1; transform: none; } }
+@keyframes fb-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes fb-drift { from { transform: translateY(-4%) scale(1.08); } to { transform: translateY(4%) scale(1.08); } }

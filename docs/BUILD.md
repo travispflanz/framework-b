@@ -71,7 +71,14 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   marked for the owner to confirm, and "Approved claims" (only from `claims`).
 - `DESIGN.md` in Google's format: autopilot follows SPEC section 12 by hand (direction from the brief's words and
   research, a deliberate choice off the ban list). If `design.autopilot` is false, run the intake with the owner.
-- Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette and type pair; install their fonts), then:
+- Industry first: read two or three of the best sites in the business's industry and region, and note what visitors
+  there expect (photos or illustration, how much text before the first action, booking or calling or quoting). Each
+  draft takes a position on those expectations; the drafts differ from each other, not from the industry.
+- Every draft sets the skin and the skeleton. Besides colours, type, radii and spacing it has the Framework B blocks
+  `composition` (alignment, density, separation, card style, image shape, motion, phone budget) and `imagery` (style,
+  secondary, treatment, grain, a one-line art direction). The brief's `design.imagery` answers decide the imagery
+  block. Allowed values: the header of `scripts/design-tokens.mjs`.
+- Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette, type pair and composition; install their fonts), then:
   - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content (drafts that fail the design checks are rejected);
   - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which, then `node scripts/design-judge.mjs tally`;
   - copy the pick (or, on a tie, the draft closer to the brief) to `DESIGN.md` and record the result in its Overview.
@@ -81,17 +88,32 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   `node scripts/design-pairs.mjs render`, send the owner `design/pairs/*.png`, and record each answer with
   `node scripts/design-pairs.mjs pick <id> a|b`. If the owner doesn't answer, `defaults` records the recommended sides
   as inferred. The drafts then follow the picks in `design/intake.json`.
-- `node scripts/design-tokens.mjs`. It fails on lint errors, a missing token or a contrast pair below WCAG AA.
-- Images: owner photos first, open-licensed second, generated only for abstract texture. Every image gets an entry in `design/credits.json`.
+- `node scripts/design-tokens.mjs`. It fails on lint errors, a missing token, an unknown composition or imagery value,
+  or a contrast pair below WCAG AA, and writes `tokens.css` and `design.json`.
+- Logo (unless the owner supplied one): `node scripts/brand-kit.mjs options [--icon <Phosphor name>] [--initials AB]`
+  draws six layouts from the display font into `design/brand/options.png`. Pick one (or send the sheet to the owner)
+  and run `node scripts/brand-kit.mjs pick <n>`: logo, favicon, app icons, share image and manifest. The owner checks
+  the name in the USPTO trademark search before launch.
+- Images: owner photos first; then open-licensed photos (`scripts/images.mjs`) or generated images
+  (`scripts/generate-image.mjs`), whichever the imagery style calls for. Both apply the design's treatment so the
+  set matches. Generated images never show the business's own people, premises, products or work; photorealistic
+  ones carry a visible "Generated image" label, and all of them are listed on `/credits`. Every image gets an entry in
+  `design/credits.json`.
 
 ## 4. Content (P3)
 
 - `site.config.json`: forms (fields from the brief's purpose), navigation (one `cta` item), indexing as briefed.
 - `src/content/home.json` (and one file per page for `full` or `hybrid`, each with a `title` and `description`, added to
   `nav`): sections from the library, following the page's argument. Copy uses the owner's facts; nothing invented.
+- Sections: pick each section's `variant` (layout) for what it has to say, and its `phone` behaviour where the default
+  doesn't fit (`stack`, `swipe`, `collapse` or `hide`; defaults in `PHONE_AUTO` in `src/sections/schema.js`). The QA
+  gate fails a home page longer than the design's phone budget.
 - Images: the owner's photos first. Otherwise `node scripts/images.mjs search "<query>"`, look at the contact sheet,
   `add` the ones that fit with real alt text. A stock photo is never presented as the business's own work, customers or
-  staff; prefer photos without identifiable people.
+  staff; prefer photos without identifiable people. For a generated style, `node scripts/generate-image.mjs draft
+  "<subject>" --as <name> [--aspect 3:2]`, look at `design/generated/<name>/sheet.png`, then `use <name> <n> --alt
+  "..."`. It needs the Workers AI token (a network secret, or `WORKERS_AI_TOKEN`) and `CLOUDFLARE_ACCOUNT_ID` (docs/TOKENS.md section 5); without them, use
+  open-licensed photos and tell the owner.
 - `node scripts/check-content.mjs`.
 - With client editing on: `node scripts/editing.mjs seed` after the content changes.
 
@@ -166,5 +188,9 @@ Each of these is one ops workflow, run when the owner asks. Inputs: `ops/ops-rep
 - **Client editing off:** **site editing** with `mode: off` opens a pull request with the content back in files.
 - **Take a site off its domain without deleting it:** **site snapshot**, then **site park** (`action: undo` puts it
   back exactly).
+- **Adopt an existing site** (SPEC section 2, "Adopting an existing site"): build the new site from the starter in
+  a new repo `site-<id>` on `build/initial`, in launch mode with the old site's domain, keeping its content and URLs.
+  Write `adopt.json` and the mapping queries, run **site adopt** `prepare` with `dry_run: yes` until every row maps,
+  then for real, then `preview`. Send the owner the pull request and the preview URL; after the merge, `cutover`.
 - **Remove a site:** **site teardown**, with the owner typing `confirm: delete <id>`. Leads are exported to backups
   first.

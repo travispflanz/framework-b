@@ -1,9 +1,22 @@
 ---
-// Full-width band with the content column inside. `tone` picks the band's background from the tokens.
-interface Props { id?: string; tone?: "bg" | "surface"; labelledby?: string }
-const { id, tone = "bg", labelledby } = Astro.props;
+// Full-width band with the content column inside. `tone` picks the band's background from the tokens; the
+// composition's `separation` (DESIGN.md) decides whether bands alternate, sit between hairlines or run together.
+// `phone: "hide"` removes the section on phones (under 640 px).
+import { composition } from "./design.js";
+
+interface Props { id?: string; tone?: "bg" | "surface"; labelledby?: string; phone?: string; class?: string }
+const { id, tone = "bg", labelledby, phone, class: extra } = Astro.props;
 ---
-<section id={id || undefined} aria-labelledby={labelledby} class:list={["px-gutter py-section scroll-mt-20", tone === "surface" ? "bg-surface" : "bg-bg"]}>
+<section
+  id={id || undefined}
+  aria-labelledby={labelledby}
+  class:list={[
+    "px-gutter py-section scroll-mt-20",
+    tone === "surface" ? "bg-surface" : "bg-bg",
+    { "border-t border-line": composition.separation === "hairlines", "max-sm:hidden": phone === "hide" },
+    extra,
+  ]}
+>
   <div class="mx-auto w-full max-w-content">
     <slot />
   </div>

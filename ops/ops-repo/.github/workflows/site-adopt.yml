@@ -1,0 +1,25 @@
+# Caller: moves an existing site that wasn't built with Framework B onto it, keeping its Worker. Replace OWNER.
+# Order: prepare (on the new site's branch) → preview (check the new site) → the owner merges the new site into
+# main → cutover. rollback points Workers Builds back at the old repo.
+name: site adopt
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id (site.config.json site.id)", required: true }
+      repo: { description: "the new site's repo, if not site-<site id>", required: false, default: "" }
+      phase: { description: "prepare, preview, cutover or rollback", required: true, default: prepare, type: choice, options: [prepare, preview, cutover, rollback] }
+      branch: { description: "site branch for prepare and preview", required: false, default: build/initial }
+      dry_run: { description: "yes = only check (prepare also maps every row without writing)", required: false, default: "no", type: choice, options: ["no", "yes"] }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  adopt:
+    uses: OWNER/framework-b/.github/workflows/site-adopt.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      repo: ${{ inputs.repo }}
+      phase: ${{ inputs.phase }}
+      branch: ${{ inputs.branch }}
+      dry_run: ${{ inputs.dry_run }}
+    secrets: inherit

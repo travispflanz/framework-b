@@ -49,7 +49,7 @@ All other paths are static assets. Static responses never run the Worker, so ind
 | `EMAIL` | send_email | `cloudflare` mailer |
 | `TURNSTILE_SECRET` | secret | always |
 | `SIGNING_SECRET` | secret, 32+ characters | unsubscribe links, upload URLs |
-| `LEGACY_UNSUB_SECRET` | secret | optional: an adopted site's older unsubscribe links, signed `unsub:<email>` |
+| `LEGACY_UNSUB_SECRET` | secret | optional: an adopted site's older unsubscribe links, signed `unsub:<email>`. `legacyUnsubSecret` in `site.config.json` names a different binding, such as the adopted Worker's own secret |
 | `MAILER_URL`, `MAILER_SECRET` | secrets | `apps-script` mailer; the CRM Sheet mirror |
 | `CRM_WEBHOOK_URL`, `CRM_WEBHOOK_SECRET` | secrets | the CRM webhook mirror (the secret is optional) |
 | `RESEND_API_KEY` | secret | `resend` mailer; drips |

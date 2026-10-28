@@ -1,0 +1,16 @@
+---
+// The places of fb_area, as tags ("chips") or a plain list in columns ("columns").
+import Icon from "./Icon.astro";
+
+interface Props { places: string[]; variant: string }
+const { places, variant } = Astro.props;
+---
+{variant === "columns" ? (
+  <ul class="columns-2 gap-8 text-body text-ink md:columns-3">
+    {places.map((place) => <li class="mb-2 flex items-center gap-2"><Icon name="map-pin" class="size-4 shrink-0 text-accent" />{place}</li>)}
+  </ul>
+) : (
+  <ul class="flex flex-wrap gap-3">
+    {places.map((place) => <li class="card flex items-center gap-2 px-4 py-2 text-small text-ink"><Icon name="map-pin" class="size-4 shrink-0 text-accent" />{place}</li>)}
+  </ul>
+)}

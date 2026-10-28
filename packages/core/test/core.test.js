@@ -388,4 +388,17 @@ describe("legacy unsubscribe links", () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("<button");
   });
+
+  it("reads the legacy secret from the binding legacyUnsubSecret names", async () => {
+    const legacy = "kept-old-secret";
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(legacy), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode("unsub:old@example.com")));
+    const t = btoa(String.fromCharCode(...sig)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const adopted = createWorker({ ...structuredClone(config), legacyUnsubSecret: "UNSUB_SECRET" });
+    const ctx = createExecutionContext();
+    const res = await adopted.fetch(new Request(`${BASE}/u?e=old%40example.com&t=${t}`), { ...env, UNSUB_SECRET: legacy }, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(res.status).toBe(200);
+    expect(() => loadConfig({ ...structuredClone(config), legacyUnsubSecret: "not a name" })).toThrow(/legacyUnsubSecret/);
+  });
 });
