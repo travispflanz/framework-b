@@ -8,14 +8,15 @@
 // Phase "prepare" (default), before the pull request:
 //   1. Checks: the site is in idea mode; the domain is an active zone in this account or a one-level subdomain of
 //      one (shop.example.com in the example.com zone); no DNS record already holds the name; the Free plan's D1
-//      budget has room for two more databases. It also picks how owner notifications go out (lib/promote.mjs
+//      budget has room for one more database. It also picks how owner notifications go out (lib/promote.mjs
 //      notifyPlan): Cloudflare Email Routing only when the site owns the whole zone and its apex has no other mail
 //      provider (Email Routing takes over the apex's MX records; the owner's inbox must be a verified destination);
 //      otherwise the account's Apps Script mailer (MAILER_URL, MAILER_SECRET), which it stores on the Worker.
 //   2. Zone, only when the site owns it: Always Use HTTPS and TLS 1.2 minimum; Email Routing on (sending to the
 //      verified inbox is free: developers.cloudflare.com/email-service/, checked 2026-10-27); a proxied www record
 //      and the www → apex Single Redirect. On a shared zone these are left as they are.
-//   3. Data: the site's own D1 databases (<id>-prod, <id>-staging) with migrations; its leads and subscribers are
+//   3. Data: the site's own D1 database (<id>-prod) with migrations (previews keep the shared preview database,
+//      brought up to the same migrations); its leads and subscribers are
 //      copied from the shared idea database (INSERT OR IGNORE, so a rerun only adds what is new); its own R2
 //      bucket (<id>-uploads) with every uploaded file the leads point at. The shared rows are left in place:
 //      deleting them needs the owner's approval.
@@ -226,7 +227,7 @@ async function prepare() {
   const blocking = attached ? [] : atHost.filter((r) => ["A", "AAAA", "CNAME"].includes(r.type));
   if (blocking.length) throw new Error(`${domain} already has DNS record(s) ${blocking.map((r) => `${r.type} ${r.content}`).join(", ")}. The Custom Domain needs that name free: the owner decides whether to delete them (dash.cloudflare.com → ${z.name} → DNS → Records).`);
   const dbs = await cf(`${A}/d1/database?per_page=100`);
-  const missing = [names.db, names.stagingDb].filter((n) => !dbs.some((d) => d.name === n)).length;
+  const missing = [names.db, names.previewDb].filter((n) => !dbs.some((d) => d.name === n)).length;
   if (dbs.length + missing > 10) throw new Error(`Promote needs ${missing} more D1 database(s); the account has ${dbs.length} of the Free plan's 10`);
   const sharedUuid = await d1(SHARED_DB);
   const [{ n: leadCount }] = await query(sharedUuid, "SELECT count(*) AS n FROM leads WHERE site = ?", [id]);
@@ -282,10 +283,10 @@ async function prepare() {
 
   // Data.
   const prodUuid = await d1(names.db, { create: true });
-  const stagingUuid = await d1(names.stagingDb, { create: true });
+  const previewUuid = await d1(names.previewDb, { create: true });
   await applyMigrations(names.db, prodUuid);
-  await applyMigrations(names.stagingDb, stagingUuid);
-  done("databases", `${names.db} and ${names.stagingDb}, migrations applied`);
+  await applyMigrations(names.previewDb, previewUuid);
+  done("databases", `${names.db} created; previews keep the shared ${names.previewDb}; migrations applied to both`);
   const copied = await copyRows(sharedUuid, prodUuid);
   done("leads", `${copied.leads} lead(s) and ${copied.subs} subscriber(s) copied; ${copied.total} lead(s) in ${names.db}. The rows in ${SHARED_DB} stay until the owner approves deleting them`);
   if (!(await cf(`${A}/r2/buckets/${names.uploads}`, { allow404: true }))) await cf(`${A}/r2/buckets`, { method: "POST", body: { name: names.uploads } });
@@ -348,14 +349,14 @@ async function prepare() {
   // The site's files.
   const nextConfig = launchConfig(config, { domain, postalAddress: postal, resend: resendOn, notify: plan.notify });
   writeFileSync(configPath, JSON.stringify(nextConfig, null, 2) + "\n");
-  const nextWrangler = launchWrangler(wrangler, { id, domain, owner, db: prodUuid, stagingDb: stagingUuid, sendEmail: plan.notify === "cloudflare" });
+  const nextWrangler = launchWrangler(wrangler, { id, domain, owner, db: prodUuid, sendEmail: plan.notify === "cloudflare" });
   writeFileSync(wranglerPath, "// Launch mode, written by framework-b scripts/site/promote.mjs. Resource IDs are not secrets.\n" + JSON.stringify(nextWrangler, null, 2) + "\n");
   const decisions = join(SITE, "DECISIONS.md");
   if (existsSync(decisions)) {
     appendFileSync(decisions, [
       `| ${today} | Promoted to launch mode at https://${domain}; the workers.dev address stays as a noindex twin | Owner chose the domain | owner |`,
       `| ${today} | Owner notifications: ${plan.notify === "cloudflare" ? `from ${mail.notifyFrom} through Cloudflare Email Routing` : plan.notify === "apps-script" ? "through the account's Apps Script mailer" : "off"} (${plan.why}); lead auto-replies ${resendOn ? `from ${mail.confirmFrom} through Resend` : "off"} | Launch defaults | inferred |`,
-      `| ${today} | Own database ${names.db} (previews ${names.stagingDb}) and bucket ${names.uploads}; the idea-mode rows stay in ${SHARED_DB} until the owner approves deleting them | Launch defaults | inferred |`,
+      `| ${today} | Own database ${names.db} (previews share ${names.previewDb}, rows kept apart by site) and bucket ${names.uploads}; the idea-mode rows stay in ${SHARED_DB} until the owner approves deleting them | Launch defaults | inferred |`,
       "",
     ].join("\n"));
   }
@@ -363,7 +364,7 @@ async function prepare() {
   if (existsSync(handoff)) {
     let h = readFileSync(handoff, "utf8");
     h = h.replace(/^- Site: .*$/m, `- Site: https://${domain} (the workers.dev twin answers with noindex)`).replace(/^- Admin: https:\/\/[^/\s]+\/admin/m, `- Admin: https://${domain}/admin`);
-    h += `\n## Launch (promoted ${today})\n\n- Domain: ${domain} (zone ${z.name}, ${z.id})${ownsZone ? "; www redirects to the apex" : ""}\n- D1: \`${names.db}\` (previews \`${names.stagingDb}\`)\n- R2: \`${names.uploads}\`\n- Mail: owner notifications ${plan.notify === "cloudflare" ? `from ${mail.notifyFrom}` : plan.notify === "apps-script" ? "through the Apps Script mailer" : "off"}; auto-replies ${resendOn ? `from ${mail.confirmFrom} (Resend, ${mail.resendDomain})` : "off"}\n\n### Owner checklist (no API reaches these)\n\n${ownerChecklist(domain, z.name).map((l) => `- [ ] ${l}`).join("\n")}\n`;
+    h += `\n## Launch (promoted ${today})\n\n- Domain: ${domain} (zone ${z.name}, ${z.id})${ownsZone ? "; www redirects to the apex" : ""}\n- D1: \`${names.db}\` (previews: shared \`${names.previewDb}\`)\n- R2: \`${names.uploads}\`\n- Mail: owner notifications ${plan.notify === "cloudflare" ? `from ${mail.notifyFrom}` : plan.notify === "apps-script" ? "through the Apps Script mailer" : "off"}; auto-replies ${resendOn ? `from ${mail.confirmFrom} (Resend, ${mail.resendDomain})` : "off"}\n\n### Owner checklist (no API reaches these)\n\n${ownerChecklist(domain, z.name).map((l) => `- [ ] ${l}`).join("\n")}\n`;
     writeFileSync(handoff, h);
   }
   done("site files", "site.config.json and wrangler.jsonc in launch mode; DECISIONS.md and HANDOFF.md updated");

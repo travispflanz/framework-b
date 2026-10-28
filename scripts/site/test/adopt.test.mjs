@@ -38,17 +38,17 @@ test("mapped subscriber rows are checked, lower-cased and given this site's id",
   assert.ok(checkSubscriberRow({ email: "a@example.com", status: "maybe" }, "example").errors.length >= 2);
 });
 
-test("wrangler.jsonc keeps the Worker's name and gets the new databases", () => {
+test("wrangler.jsonc keeps the Worker's name, gets the new database, and previews use the shared one", () => {
   const w = {
     name: "site-example", routes: [{ pattern: "example.com", custom_domain: true }],
     d1_databases: [{ binding: "DB", database_name: "x", database_id: "x", migrations_dir: "core/migrations" }],
     r2_buckets: [{ binding: "UPLOADS", bucket_name: "example-uploads" }],
     previews: { d1_databases: [{ binding: "DB", database_name: "y", database_id: "y" }] },
   };
-  const out = adoptWrangler(w, { worker: "example", db: "p1", stagingDb: "s1", id: "example" });
+  const out = adoptWrangler(w, { worker: "example", db: "p1", previewDb: "s1", id: "example" });
   assert.equal(out.name, "example");
   assert.deepEqual(out.d1_databases[0], { binding: "DB", database_name: "example-prod", database_id: "p1", migrations_dir: "core/migrations" });
-  assert.deepEqual(out.previews.d1_databases[0], { binding: "DB", database_name: "example-staging", database_id: "s1" });
+  assert.deepEqual(out.previews.d1_databases[0], { binding: "DB", database_name: "fb-previews", database_id: "s1" });
   assert.deepEqual(out.routes, w.routes);
   assert.deepEqual(out.r2_buckets, w.r2_buckets);
   assert.equal(w.name, "site-example", "the input is not changed");

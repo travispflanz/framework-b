@@ -21,7 +21,7 @@ How an AI agent builds, launches and hands off a website with this framework, an
 | | Idea | Launch |
 |---|---|---|
 | Address | `<site>.<account>.workers.dev` | Own domain; `www` → apex via a Single Redirect rule |
-| D1 | Shared `fb-ideas` database, `site` column (previews: `fb-previews`) | Own `<id>-prod` + `<id>-staging` databases |
+| D1 | Shared `fb-ideas` database, `site` column (previews: `fb-previews`) | Own `<id>-prod` database; previews keep the shared `fb-previews` (sites launched before 2026-10-28 keep their `<id>-staging`) |
 | R2 uploads | Shared `fb-ideas-uploads`, prefix `<site>/` (previews: `fb-previews`) | Own `<id>-uploads` bucket |
 | Owner notification | Apps Script mailer (owner's Gmail) | Cloudflare `send_email` from `notify@<domain>` when the site owns the whole zone; otherwise the Apps Script mailer |
 | Lead auto-reply | Optional, Apps Script mailer | Resend on `mail.<domain>` |
@@ -36,9 +36,9 @@ Why ideas share resources: the Workers Free plan allows 10 D1 databases and 5 Cr
 `promote` moves an idea to launch mode (`scripts/site/promote.mjs`, run by the ops repo's `site promote` workflow; run live on a one-level subdomain and on a whole zone, 2026-10-27). It takes a domain that is an active zone in the account, or a one-level subdomain of one (Universal SSL covers one level), and a postal address (CAN-SPAM). On a subdomain of a zone the owner uses for other things, promote leaves that zone's settings, mail and `www` alone.
 
 - **prepare**, before a pull request in the site's repo:
-  1. Checks: the site is in idea mode; the zone is active; the owner's inbox is a verified Email Routing destination; the D1 budget has room for two more databases (Free plan: 10 per account, so each launch site uses 2 of them).
+  1. Checks: the site is in idea mode; the zone is active; the owner's inbox is a verified Email Routing destination; the D1 budget has room for one more database (Free plan: 10 per account, https://developers.cloudflare.com/d1/platform/limits/, checked 2026-10-28; each launch site uses 1).
   2. Zone: Always Use HTTPS, TLS 1.2 minimum, Email Routing on, a proxied `www` record and a `www` → apex Single Redirect (301, path and query kept).
-  3. Data: `<id>-prod` and `<id>-staging` databases with migrations; the site's leads and subscribers copied from `fb-ideas` with `INSERT OR IGNORE`; an `<id>-uploads` bucket with every stored upload the leads point at. The idea-mode rows stay in `fb-ideas` until the owner approves deleting them.
+  3. Data: an `<id>-prod` database with migrations (previews keep `fb-previews`, which gets the same migrations; core keeps every site's rows apart by `site`); the site's leads and subscribers copied from `fb-ideas` with `INSERT OR IGNORE`; an `<id>-uploads` bucket with every stored upload the leads point at. The idea-mode rows stay in `fb-ideas` until the owner approves deleting them.
   4. Mail: when the site owns the whole zone and its apex has no other mail provider, owner notifications go out through the `send_email` binding from `notify@<domain>` to the verified inbox, which is free on Workers Free ([Email Service](https://developers.cloudflare.com/email-service/), checked 2026-10-27). With the owner's full-access Resend key (the ops secret `RESEND_ADMIN_KEY`), it also sets up `mail.<domain>` in Resend (domain, DNS records, verification) and stores a sending-only key restricted to that domain as the Worker secret `RESEND_API_KEY`; lead auto-replies then come from `hello@mail.<domain>`. Without the key, auto-replies stay off. Otherwise (a subdomain, or an apex that already receives mail elsewhere, because Email Routing would take over its MX records) notifications keep going through the account's Apps Script mailer.
   5. Access and Turnstile: the domain's `/admin` (and `/_emdash` with editing on) join the existing Access applications, which keeps their audience tags; the domain joins the site's Turnstile widget.
   6. The domain becomes a Custom Domain of the Worker through the API ([Workers domains](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/update/), checked 2026-10-27). The deploy token needs Workers Routes for the zone; later Workers Builds deploys keep the same route, which needs no zone permission ([Workers authorization](https://developers.cloudflare.com/workers/authorization/workers/), checked 2026-10-27).
@@ -109,7 +109,7 @@ custom domains, secrets, Access applications and Turnstile widget stay as they a
   each for leads and subscribers that returns rows in core's schema (format in `scripts/site/lib/adopt.mjs`). Each
   query is checked to be a single statement with no writing keyword before it is sent, and every mapped row is
   checked before any is written.
-- `prepare` creates `<id>-prod` and `<id>-staging` with core's migrations, copies the mapped rows (`INSERT OR
+- `prepare` creates `<id>-prod` with core's migrations (previews use the shared `fb-previews`, brought up to the same migrations), copies the mapped rows (`INSERT OR
   IGNORE`), keeps or copies the uploads bucket, adds `SIGNING_SECRET` to the Worker, records the Worker's Workers
   Builds triggers in `adopt.json` and writes the new database ids into `wrangler.jsonc`.
 - `preview` uploads the branch as a preview version of the Worker (`wrangler preview`) and runs the QA gate on it,
