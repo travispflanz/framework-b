@@ -61,7 +61,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - Drips (launch sites with Resend only): add a `drips` block to `site.config.json` (forms, then emails with `after`, `subject`, `text`) and the Workflow binding to `wrangler.jsonc`: `"workflows": [{ "name": "<id>-drips", "binding": "DRIPS", "class_name": "DripWorkflow" }]`. The content check fails without the binding. Write each email from what the owner supplied; never invent offers or proof.
 - Never delete or rewrite rows in `leads` or `subscribers` without the owner's explicit approval.
 - Never buy a domain, upgrade a plan or create a paid resource without the owner's explicit approval.
-- Every form is a sign-up form. Keep the opt-in line under the submit button (`optIn.mode` "auto"), or the consent box before it ("checkbox": only a ticked box subscribes; a form's `consent` is "required" or "optional").
+- Every form is a sign-up form unless its `consent` is "none" (a plain message form that says it won't add anyone to a list; it shows no opt-in and never subscribes). Keep the opt-in line under the submit button (`optIn.mode` "auto"), or the consent box before it ("checkbox": only a ticked box subscribes; a form's `consent` is "required" or "optional").
 - `/go` redirects to `go.to` (default `/`) keeping the query string: point printed QR codes and campaign links at `/go?src=<where>`, and never remove it.
 - No invented testimonials, logos, statistics or faces. Use only what the owner supplied.
 - Keep internal links extensionless (`/contact`, not `/contact.html`).

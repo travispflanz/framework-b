@@ -75,7 +75,8 @@ function validate(form, container) {
     const f = file.files[0];
     const max = Number(file.dataset.maxBytes);
     const types = file.accept.split(",");
-    const code = f.size > max ? "file_too_large" : !types.includes(f.type) ? "file_type" : null;
+    const ext = `.${f.name.split(".").pop()}`.toLowerCase();
+    const code = f.size > max ? "file_too_large" : !types.includes(f.type) && !types.includes(ext) ? "file_type" : null;
     setError(form, "file", code);
     if (code) first = first || file;
   }
@@ -96,7 +97,7 @@ function upload(url, file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
-    xhr.setRequestHeader("content-type", file.type);
+    xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
     xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(String(xhr.status))));
     xhr.onerror = () => reject(new Error("network"));
@@ -182,7 +183,7 @@ function wire(form) {
     data.page = location.pathname;
     const fileInput = form.querySelector("[data-fb-file]");
     const file = fileInput?.files[0];
-    if (file) Object.assign(data, { file_name: file.name, file_size: file.size, file_type: file.type });
+    if (file) Object.assign(data, { file_name: file.name, file_size: file.size, file_type: file.type || "application/octet-stream" });
 
     try {
       const res = await fetch(form.action, {

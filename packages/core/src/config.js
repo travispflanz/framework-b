@@ -101,7 +101,7 @@ export function loadConfig(raw) {
     if (form.steps !== undefined && (!Array.isArray(form.steps) || form.steps.some((st) => !st || typeof st !== "object"))) errors.push(`forms.${formId}.steps must be a list of { title, intro }`);
     form.thanks = form.thanks || "/thanks";
     form.consent = form.consent || "optional";
-    if (!["required", "optional"].includes(form.consent)) errors.push(`forms.${formId}.consent must be "required" or "optional"`);
+    if (!["required", "optional", "none"].includes(form.consent)) errors.push(`forms.${formId}.consent must be "required", "optional" or "none"`);
     if (fields.some((f) => f.name === "consent")) errors.push(`forms.${formId}: field name "consent" is reserved for the opt-in box`);
   }
 

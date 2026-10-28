@@ -306,7 +306,7 @@ Checked when the Worker starts (`packages/core/src/config.js`); a bad combinatio
 | `site.logo` | The logo file (`/logo.svg`), set by the brand kit |
 | `site.phone` | Adds a Call button to the phone action bar |
 | `nav` | Menu items `{ label, href }`; one item with `"cta": true` becomes the header button and the phone action bar |
-| `forms.<id>` | `title`, `submitLabel`, `fields`, `steps` (a `{ title, intro }` heading per step), `file`, `thanks`, `consent` (`required` or `optional`, checkbox mode) (see below) |
+| `forms.<id>` | `title`, `submitLabel`, `fields`, `steps` (a `{ title, intro }` heading per step), `file`, `thanks`, `consent` (`required` or `optional` in checkbox mode; `none` for a plain message form that never subscribes anyone) (see below) |
 | `optIn.mode` | `auto` or `checkbox` |
 | `optIn.text` | The line under every submit button (auto mode) |
 | `optIn.label` | The consent box's label (checkbox mode) |
@@ -327,7 +327,8 @@ formatting and links):
 - Every form needs a required `email` field.
 - Give fields a `step` number to split the form into steps.
 - `file` is `{ "label", "hint", "maxBytes", "types" }`. The default is 10 MB, and PDF, images, text, Word and Excel
-  files are allowed.
+  files are allowed. `types` lists MIME types and may also list extensions (`".fdx"`) for files browsers report
+  without a type.
 
 ### Page content (`src/content/<page>.json`)
 

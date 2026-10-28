@@ -119,7 +119,7 @@ const groups = (options) => options.reduce((out, o) => {
         </div>
       ) : (
         <div class="grid gap-4">
-          {config.optIn.mode === "checkbox" && (
+          {config.optIn.mode === "checkbox" && form.consent !== "none" && (
             <div class="flex items-start gap-3">
               <input type="checkbox" id={fieldId("consent")} name="consent" required={form.consent === "required"} aria-describedby={`${fieldId("consent")}-err`} class="mt-1 size-5" />
               <label for={fieldId("consent")} class="text-sm" set:html={inline(config.optIn.label)} />
@@ -131,7 +131,7 @@ const groups = (options) => options.reduce((out, o) => {
             {steps.length > 1 && <button type="button" data-fb-back class="rounded-[var(--radius-control)] border border-[var(--color-field)] px-5 py-3">Back</button>}
             <button type="submit" class="rounded-[var(--radius-control)] bg-[var(--color-accent)] px-5 py-3 font-semibold text-[var(--color-accent-ink)]">{form.submitLabel || "Send"}</button>
           </div>
-          {config.optIn.mode !== "checkbox" && <p class="text-sm text-[var(--color-ink-muted)]" set:html={inline(config.optIn.text)} />}
+          {config.optIn.mode !== "checkbox" && form.consent !== "none" && <p class="text-sm text-[var(--color-ink-muted)]" set:html={inline(config.optIn.text)} />}
           {form.note && <p class="text-sm text-[var(--color-ink-muted)]" set:html={inline(form.note)} />}
         </div>
       )}

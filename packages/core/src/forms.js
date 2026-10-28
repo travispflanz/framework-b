@@ -91,10 +91,14 @@ function attribution(body) {
 function fileRequest(form, body) {
   if (!form.file.enabled || !body.file_name) return { file: null };
   const size = Number(body.file_size);
-  const type = String(body.file_type || "").toLowerCase();
+  // Browsers report no type for some files (a Final Draft .fdx, for one), so `types` may also list extensions
+  // (".fdx"); such a file is stored as application/octet-stream.
+  const ext = `.${String(body.file_name).split(".").pop()}`.toLowerCase();
+  const byExt = form.file.types.includes(ext);
+  const type = String(body.file_type || "").toLowerCase() || (byExt ? "application/octet-stream" : "");
   if (!Number.isInteger(size) || size <= 0) return { error: "file_size" };
   if (size > form.file.maxBytes) return { error: "file_too_large" };
-  if (!form.file.types.includes(type)) return { error: "file_type" };
+  if (!form.file.types.includes(type) && !byExt) return { error: "file_type" };
   return { file: { name: safeFileName(body.file_name), size, type } };
 }
 
@@ -140,9 +144,12 @@ export async function handleSubmit(request, env, ctx, config, formId) {
   const page = clip(body.page || request.headers.get("referer") || "", 500).split("?")[0];
   const attr = attribution(body);
   const file = fileReq.file;
-  const consents = !checkboxMode || ticked;
+  // consent "none": a plain message form (a contact form that promises not to add anyone to a list). It never
+  // subscribes, shows no box and no opt-in line.
+  const plain = form.consent === "none";
+  const consents = !plain && (!checkboxMode || ticked);
   // The wording the visitor agreed to, kept on the lead row; empty when a checkbox form was sent without the box.
-  const consentText = checkboxMode ? (ticked ? config.optIn.label : "") : config.optIn.text;
+  const consentText = plain ? "" : checkboxMode ? (ticked ? config.optIn.label : "") : config.optIn.text;
 
   const statements = [
     env.DB.prepare(

@@ -456,3 +456,37 @@ describe("radio and checkbox-group fields", () => {
     expect(() => loadConfig({ ...structuredClone(cfg), forms: { x: { steps: "one", fields: [{ name: "email", type: "email", required: true }] } } })).toThrow(/steps must be a list/);
   });
 });
+
+describe("plain message forms and upload types by extension", () => {
+  const cfg = structuredClone(config);
+  cfg.forms.contact.consent = "none";
+  cfg.forms.contact.file = { types: ["application/pdf", ".fdx"] };
+  const w = createWorker(cfg);
+  async function post(body) {
+    const ctx = createExecutionContext();
+    const res = await w.fetch(new Request(`${BASE}/api/submit/contact`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...ORIGIN, "cf-connecting-ip": `198.18.0.${Math.floor(Math.random() * 250)}` },
+      body: JSON.stringify({ "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX", ...body }),
+    }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    return res;
+  }
+
+  it("never subscribes on a consent: none form", async () => {
+    expect((await post({ name: "Plain", email: "plain@example.com" })).status).toBe(200);
+    expect(await env.DB.prepare("SELECT * FROM subscribers WHERE email = 'plain@example.com'").first()).toBeNull();
+    const lead = await env.DB.prepare("SELECT consent_text FROM leads WHERE email = 'plain@example.com'").first();
+    expect(lead.consent_text).toBe("");
+  });
+
+  it("accepts a typeless file by its listed extension and refuses others", async () => {
+    const ok = await (await post({ name: "S", email: "fdx@example.com", file_name: "script.fdx", file_size: 1200, file_type: "" })).json();
+    expect(ok.ok).toBe(true);
+    expect(ok.upload).toBeTruthy();
+    const row = await env.DB.prepare("SELECT upload_type FROM leads WHERE email = 'fdx@example.com'").first();
+    expect(row.upload_type).toBe("application/octet-stream");
+    const bad = await (await post({ name: "S", email: "exe@example.com", file_name: "tool.exe", file_size: 1200, file_type: "" })).json();
+    expect(bad.fields.file).toBe("file_type");
+  });
+});
