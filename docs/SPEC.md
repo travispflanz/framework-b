@@ -113,7 +113,9 @@ custom domains, secrets, Access applications and Turnstile widget stay as they a
   IGNORE`), keeps or copies the uploads bucket, adds `SIGNING_SECRET` to the Worker, records the Worker's Workers
   Builds triggers in `adopt.json` and writes the new database ids into `wrangler.jsonc`.
 - `preview` uploads the branch as a preview version of the Worker (`wrangler preview`) and runs the QA gate on it,
-  while production still runs the old code.
+  while production still runs the old code. An existing site's previews are usually behind Access already: QA goes
+  through the application named in `adopt.json` `previewsApp` (default `<id> previews`) with the same short-lived
+  service token as the preview check, after the `framework-b agent` Service Auth policy is added to it.
 - `cutover`, after the owner merges: copies new arrivals, deletes the Worker's Builds triggers and connects the new
   repo (the API documents deleting and creating triggers; whether `PATCH` can change a trigger's repo isn't
   documented, checked 2026-10-28), builds main, copies anything that reached the old database during the switch,

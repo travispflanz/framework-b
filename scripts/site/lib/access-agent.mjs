@@ -40,9 +40,22 @@ export async function attachAgentPolicy(A, appId, policy) {
   return true;
 }
 
-export async function previewsApp(A, siteId) {
+export async function previewsApp(A, siteId, name = `${siteId} previews`) {
   const apps = (await cf(`${A}/access/apps`)) || [];
-  return apps.find((a) => a.name === `${siteId} previews`) || null;
+  return apps.find((a) => a.name === name) || null;
+}
+
+// Waits until Access accepts a new service token on a URL (it refuses one for a few seconds until Access has it
+// everywhere, seen 2026-10-26), up to two minutes. Returns the seconds it took.
+export async function waitForToken(url, token, timeoutMs = 120_000) {
+  const headers = { "CF-Access-Client-Id": token.clientId, "CF-Access-Client-Secret": token.clientSecret };
+  const t0 = Date.now();
+  for (;;) {
+    const r = await fetch(`${url}/api/health`, { headers, redirect: "manual", signal: AbortSignal.timeout(15_000) }).catch(() => null);
+    if (r?.status === 200) return Math.round((Date.now() - t0) / 1000);
+    if (Date.now() - t0 > timeoutMs) throw new Error(`Access still refuses the new service token after ${timeoutMs / 1000} s (last: HTTP ${r?.status ?? "no response"}); is the "${AGENT_POLICY}" policy on the previews application?`);
+    await new Promise((res) => setTimeout(res, 3000));
+  }
 }
 
 // A short-lived service token. The secret is only in memory and only returned to the caller.

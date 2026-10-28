@@ -7,6 +7,8 @@ test("adopt.json needs the Worker, the old database and the leads query", () => 
   assert.equal(checkAdoptConfig({ worker: "example" }).length, 2);
   assert.ok(checkAdoptConfig({ worker: "w", legacyDb: "d", leadsSql: "l", uploads: "move" })[0].includes("uploads"));
   assert.deepEqual(checkAdoptConfig({ worker: "w", legacyDb: "d", leadsSql: "l", uploads: { copyFrom: "old-bucket" } }), []);
+  assert.deepEqual(checkAdoptConfig({ worker: "w", legacyDb: "d", leadsSql: "l", previewsApp: "Example staging previews" }), []);
+  assert.ok(checkAdoptConfig({ worker: "w", legacyDb: "d", leadsSql: "l", previewsApp: " " })[0].includes("previewsApp"));
 });
 
 test("mapping queries must be one read-only SELECT", () => {

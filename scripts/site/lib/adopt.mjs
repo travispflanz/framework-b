@@ -8,6 +8,8 @@ import { launchNames } from "./promote.mjs";
 //   leadsSql        a file with one SELECT over legacyDb returning rows in core's `leads` shape (LEAD_COLUMNS)
 //   subscribersSql  optional: one SELECT returning rows in core's `subscribers` shape (SUBSCRIBER_COLUMNS)
 //   uploads         "reuse" (keep the existing bucket; upload_key values stay valid) or { "copyFrom": "<bucket>" }
+//   previewsApp     optional: the name of the Access application in front of the Worker's previews, when it isn't
+//                   "<id> previews" (the preview phase checks the preview through it with a short-lived service token)
 //   legacyBuild     written by prepare: the Worker's Workers Builds triggers before the cutover, for rollback
 export const LEAD_COLUMNS = ["id", "site", "form", "email", "name", "phone", "message", "fields_json", "consent_text", "page",
   "attribution_json", "upload_key", "upload_name", "upload_type", "upload_size", "upload_status", "notified", "notify_error",
@@ -22,6 +24,7 @@ export function checkAdoptConfig(a) {
   if (!a || typeof a !== "object") return ["adopt.json must be a JSON object"];
   for (const k of ["worker", "legacyDb", "leadsSql"]) if (typeof a[k] !== "string" || !a[k].trim()) errors.push(`adopt.json: "${k}" is required`);
   if (a.subscribersSql !== undefined && typeof a.subscribersSql !== "string") errors.push('adopt.json: "subscribersSql" must be a file path');
+  if (a.previewsApp !== undefined && (typeof a.previewsApp !== "string" || !a.previewsApp.trim())) errors.push('adopt.json: "previewsApp" must be the Access application\'s name');
   const u = a.uploads ?? "reuse";
   if (!(u === "reuse" || (u && typeof u === "object" && typeof u.copyFrom === "string" && u.copyFrom))) errors.push('adopt.json: "uploads" must be "reuse" or { "copyFrom": "<bucket>" }');
   return errors;

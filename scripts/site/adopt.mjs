@@ -20,7 +20,10 @@
 //   5. Records the Worker's current Workers Builds triggers in adopt.json (legacyBuild), writes the database ids into
 //      wrangler.jsonc. The caller commits them on the site's branch.
 // Phase "preview": uploads the checkout as a preview version of the Worker (`wrangler preview`), so the new site can be
-//   checked on its preview URL while production still runs the old code. Prints the URL.
+//   checked on its preview URL while production still runs the old code. Then runs the site's QA gate on that URL
+//   through the previews' Access application (adopt.json previewsApp, default "<id> previews"): it adds the
+//   "framework-b agent" Service Auth policy to that application when missing, and QA uses a 30-minute service
+//   token that is deleted afterwards (lib/access-agent.mjs). Fails when QA fails.
 // Phase "cutover" (after the owner merges the new site into main): copies new arrivals, points the Worker's Workers
 //   Builds triggers at the new repo, builds main (which deploys the new site with the new database), copies anything
 //   that reached the old database in between, and checks the live site.
@@ -29,14 +32,15 @@
 //
 // Inputs (environment): CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID; CF_BUILDS_TOKEN and GH_SITES_TOKEN for cutover
 // and rollback. Status: untested end to end until the first adoption.
-import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { randomBytes } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cf, env, gh, log } from "./lib/api.mjs";
 import { connectBuilds, waitForBuild } from "./lib/builds.mjs";
+import { attachAgentPolicy, deleteCheckToken, ensureAgentPolicy, mintCheckToken, previewsApp, sweepCheckTokens, waitForToken } from "./lib/access-agent.mjs";
 import { launchNames } from "./lib/promote.mjs";
 import { adoptWrangler, checkAdoptConfig, checkLeadRow, checkSelect, checkSubscriberRow, keepTrigger } from "./lib/adopt.mjs";
 
@@ -193,6 +197,7 @@ async function check(url, expect) {
 const legacyUuid = await d1(adopt.legacyDb);
 if (!legacyUuid) throw new Error(`the old database ${adopt.legacyDb} isn't in the account`);
 const tag = await workerTag();
+let failed = ""; // set when a phase finishes its work but its check fails (the report is still written)
 done("worker", `${adopt.worker} found; the site keeps its name, domains, secrets and Access applications`);
 
 if (phase === "prepare") {
@@ -242,6 +247,40 @@ if (phase === "prepare") {
   if (!DRY && !url) throw new Error(`wrangler preview printed no Preview URL:\n${out.slice(-800)}`);
   done("preview", url || "(dry run)");
   if (url && process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
+  const appName = adopt.previewsApp || `${id} previews`;
+  const app = await previewsApp(A, id, appName);
+  if (!app) throw new Error(`no Access application "${appName}"; set adopt.json previewsApp to the one in front of ${adopt.worker}'s previews`);
+  if (DRY) done("access", `"${app.name}" found; QA would run through it`);
+  else {
+    const policy = await ensureAgentPolicy(A);
+    if (await attachAgentPolicy(A, app.id, policy)) done("access", `added the "${policy.name}" Service Auth policy to "${app.name}"`);
+    const swept = await sweepCheckTokens(A);
+    if (swept) log("access", `deleted ${swept} stale check token(s)`);
+    const token = await mintCheckToken(A, `${id} adopt`.replace(/[^\w .-]/g, "-"));
+    let qa;
+    try {
+      done("access", `"${app.name}" accepted the check's service token after ${await waitForToken(url, token)} s`);
+      // The token reaches QA only through its environment; QA sends it to the preview's own host only.
+      qa = spawnSync("npm", ["run", "qa", "--", "--url", url], {
+        cwd: SITE,
+        env: { ...process.env, ACCESS_CLIENT_ID: token.clientId, ACCESS_CLIENT_SECRET: token.clientSecret, CLOUDFLARE_API_TOKEN: "", CF_BUILDS_TOKEN: "", GH_SITES_TOKEN: "" },
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+      });
+    } finally {
+      await deleteCheckToken(A, token.id).catch((e) => warn(`could not delete the check token: ${e.message}`));
+    }
+    const out = `${qa.stdout || ""}${qa.stderr || ""}`;
+    mkdirSync(join(SITE, "qa-output"), { recursive: true });
+    writeFileSync(join(SITE, "qa-output", "preview-qa.log"), out);
+    const summary = out.split("\n").filter((l) => /^QA gate (passed|FAILED)/.test(l)).pop() || `QA exited with ${qa.status}`;
+    const failures = out.split("\n").filter((l) => l.startsWith("FAIL")).slice(0, 25).map((f) => f.replace(/^FAIL\s+/, ""));
+    if (qa.status === 0) done("qa", summary);
+    else {
+      for (const f of failures) warn(`QA: ${f}`);
+      failed = `QA on the preview: ${summary}`;
+    }
+  }
 } else if (phase === "cutover") {
   const prod = await d1(names.db);
   if (!prod) throw new Error(`${names.db} doesn't exist; run prepare first`);
@@ -272,7 +311,11 @@ if (phase === "prepare") {
   }
 }
 
-const report = `## Adopt ${id}: ${phase}${DRY ? " (dry run)" : ""}\n\n${lines.join("\n")}\n${warnings.length ? `\n### Warnings\n\n${warnings.map((w) => `- ${w}`).join("\n")}\n` : ""}`;
+const report = `## Adopt ${id}: ${phase}${DRY ? " (dry run)" : ""}\n\n${lines.join("\n")}\n${failed ? `\n**Failed:** ${failed}\n` : ""}${warnings.length ? `\n### Warnings\n\n${warnings.map((w) => `- ${w}`).join("\n")}\n` : ""}`;
 if (REPORT) writeFileSync(REPORT, report);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, report);
 console.log(`\n${report}`);
+if (failed) {
+  console.error(failed);
+  process.exit(1);
+}

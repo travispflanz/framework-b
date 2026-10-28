@@ -3,7 +3,8 @@
 # Access); its leads are copied into new databases and the old database is only read.
 #   phase "prepare":  new databases with the copied leads, SIGNING_SECRET, the current Builds triggers recorded;
 #                     commits wrangler.jsonc and adopt.json on `branch` of the site repo.
-#   phase "preview":  uploads `branch` as a preview version of the Worker and runs the QA gate on its URL.
+#   phase "preview":  uploads `branch` as a preview version of the Worker and runs the QA gate on its URL through
+#                     the previews' Access application (adopt.json previewsApp) with a short-lived service token.
 #                     Production keeps running the old code.
 #   phase "cutover":  after the owner merges the new site into main: Workers Builds switches to the site repo,
 #                     main deploys, anything new in the old database is copied, the live site is checked.
@@ -59,6 +60,7 @@ jobs:
           git -C site config user.name "Framework B"
           git -C site config user.email "framework-b@users.noreply.github.com"
           cd site && npm ci --no-audit --no-fund > /dev/null
+          if [ "$PHASE" = preview ]; then npx playwright install --with-deps chromium > /dev/null; fi
       - name: Adopt (${{ inputs.phase }})
         id: adopt
         env:
@@ -79,15 +81,6 @@ jobs:
           git -C site commit -q -m "Adopt: new databases and the recorded Workers Builds triggers"
           git -C site push -q origin "HEAD:${BRANCH}"
           echo "Committed wrangler.jsonc and adopt.json on ${BRANCH}" >> "$GITHUB_STEP_SUMMARY"
-      - name: QA gate on the preview
-        if: inputs.phase == 'preview' && steps.adopt.outputs.url != ''
-        env:
-          URL: ${{ steps.adopt.outputs.url }}
-        run: |
-          cd site
-          npx playwright install --with-deps chromium > /dev/null
-          npm run qa -- --url "$URL" | tee ../qa.log
-          tail -n 1 ../qa.log >> "$GITHUB_STEP_SUMMARY"
       - name: Launch QA gate on the live site
         if: inputs.phase == 'cutover' && inputs.dry_run != 'yes'
         run: |
