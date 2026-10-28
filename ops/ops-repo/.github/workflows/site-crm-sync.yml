@@ -1,5 +1,6 @@
 # Caller: copies a site's leads to its CRM mirror (the "Framework B leads" Google Sheet and/or its webhook).
-# Safe to rerun. Replace OWNER. Uses the repo secrets MAILER_URL and MAILER_SECRET for the Sheet.
+# Safe to rerun. Replace OWNER. Uses the repo secrets MAILER_URL and MAILER_SECRET for the Sheet, and, only to resend to
+# a webhook, CRM_WEBHOOK_URL and CRM_WEBHOOK_SECRET for the one site being synced.
 name: site crm sync
 on:
   workflow_dispatch:
