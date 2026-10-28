@@ -303,10 +303,11 @@ Checked when the Worker starts (`packages/core/src/config.js`); a bad combinatio
 | `turnstile.siteKey` | The spam-check widget |
 | `email.notify` | `apps-script`, `cloudflare` (needs `notifyFrom`) or `none` |
 | `email.confirm` | `apps-script`, `resend` (needs `confirmFrom`) or `none`: the auto-reply |
+| `email.confirmName`, `email.replyTo` | The auto-reply's sender name (default the site name) and reply-to address (default the owner) |
 | `site.logo` | The logo file (`/logo.svg`), set by the brand kit |
 | `site.phone` | Adds a Call button to the phone action bar |
 | `nav` | Menu items `{ label, href }`; one item with `"cta": true` becomes the header button and the phone action bar |
-| `forms.<id>` | `title`, `submitLabel`, `fields`, `steps` (a `{ title, intro }` heading per step), `file`, `thanks`, `consent` (`required` or `optional` in checkbox mode; `none` for a plain message form that never subscribes anyone) (see below) |
+| `forms.<id>` | `title`, `submitLabel`, `fields`, `confirm` (`{ subject, text }` for the auto-reply; `{first_name}` and `{name}` are filled in), `steps` (a `{ title, intro }` heading per step), `file`, `thanks`, `consent` (`required` or `optional` in checkbox mode; `none` for a plain message form that never subscribes anyone) (see below) |
 | `optIn.mode` | `auto` or `checkbox` |
 | `optIn.text` | The line under every submit button (auto mode) |
 | `optIn.label` | The consent box's label (checkbox mode) |

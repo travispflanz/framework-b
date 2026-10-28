@@ -33,8 +33,11 @@ function notifyMessage(config, form, formId, lead, origin) {
 
 function confirmMessage(config, form, lead, unsubUrl) {
   const c = form.confirm || {};
-  const subject = c.subject || `Thanks for contacting ${config.site.name}`;
-  const body = c.text || `Thanks for getting in touch. We received your message and will reply soon.\n\n${config.site.name}`;
+  // {name} and {first_name} in a form's confirm subject or text become the visitor's name ("there" when empty).
+  const name = String(lead.fields?.name || "").trim();
+  const fill = (s) => s.replace(/\{first_name\}/g, name.split(/\s+/)[0] || "there").replace(/\{name\}/g, name || "there");
+  const subject = fill(c.subject || `Thanks for contacting ${config.site.name}`);
+  const body = fill(c.text || `Thanks for getting in touch. We received your message and will reply soon.\n\n${config.site.name}`);
   const footer = ["", "--", config.site.name, ...(config.site.postalAddress ? [config.site.postalAddress] : []), `Unsubscribe: ${unsubUrl}`].join("\n");
   const text = `${body}\n${footer}`;
   // Minimal HTML: no images, no tracking, one link (see DECISIONS: plain transactional mail).
@@ -83,7 +86,7 @@ async function sendResend(env, config, msg, idempotencyKey) {
       "idempotency-key": idempotencyKey,
     },
     body: JSON.stringify({
-      from: `${config.site.name} <${config.email.confirmFrom}>`,
+      from: `${config.email.confirmName || config.site.name} <${config.email.confirmFrom}>`,
       to: [msg.to],
       reply_to: config.email.replyTo || config.site.ownerEmail,
       subject: msg.subject,

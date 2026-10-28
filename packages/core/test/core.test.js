@@ -490,3 +490,21 @@ describe("plain message forms and upload types by extension", () => {
     expect(bad.fields.file).toBe("file_type");
   });
 });
+
+describe("auto-reply wording", () => {
+  it("fills {first_name} and {name} in a form's confirm subject and text", async () => {
+    const cfg = structuredClone(config);
+    cfg.forms.contact.confirm = { subject: "We got it, {first_name}", text: "Hi {first_name},\n\nThanks, {name}." };
+    const w = createWorker(cfg);
+    const ctx = createExecutionContext();
+    await w.fetch(new Request(`${BASE}/api/submit/contact`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...ORIGIN, "cf-connecting-ip": "198.19.0.7" },
+      body: JSON.stringify({ "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX", name: "Ada Lovelace", email: "ada@example.com" }),
+    }), env, ctx);
+    await waitOnExecutionContext(ctx);
+    const payload = JSON.parse(outbound.find((o) => o.url.startsWith("https://script.google.com/")).init.body);
+    expect(payload.reply.subject).toBe("We got it, Ada");
+    expect(payload.reply.text.startsWith("Hi Ada,\n\nThanks, Ada Lovelace.")).toBe(true);
+  });
+});
