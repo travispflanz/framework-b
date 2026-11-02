@@ -1,5 +1,5 @@
 ---
-// Image credits: every image from another creator, with its licence and source, and every generated image, with the
+// Website assets (URL kept at /credits): every image from another creator, with its licence and source, and every generated image, with the
 // model that made it, from design/credits.json. CC BY and CC BY-SA require this attribution; the footer links here
 // whenever there is something to credit.
 export const prerender = true;
@@ -11,8 +11,8 @@ const all = credits.images || [];
 const items = all.filter((c) => c.source === "openverse" || c.source === "stock");
 const generated = all.filter((c) => c.source === "generated" && !c.test);
 ---
-<Base title="Image credits" noindex>
-  <h1 class="font-display text-headline text-ink">Image credits</h1>
+<Base title="Website assets" noindex>
+  <h1 class="font-display text-headline text-ink">Website assets</h1>
   {items.length === 0 && generated.length === 0 ? (
     <p class="mt-6 text-body text-ink-muted">Every image on this site belongs to us.</p>
   ) : null}
