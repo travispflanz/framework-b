@@ -131,7 +131,7 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
       <div class="mx-auto flex max-w-[var(--container-content)] flex-wrap justify-between gap-4 py-6 text-sm text-[var(--color-ink-muted)]">
         <p>© {year} {config.site.name}{config.site.postalAddress ? ` · ${config.site.postalAddress}` : ""}</p>
         {footer.legal && <p class="w-full max-w-(--container-prose)" set:html={inline(footer.legal)} />}
-        <p class="flex gap-4">{needsCredits && <a href="/credits">Image credits</a>}<a href="/privacy">Privacy</a></p>
+        <p class="flex gap-4">{needsCredits && <a href="/credits">Website assets</a>}<a href="/privacy">Privacy</a></p>
       </div>
     </footer>
     {actionBar && (
