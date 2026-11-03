@@ -474,7 +474,8 @@ What building the route on the site found that the mock didn't (2026-11-03):
   put content where research says people miss it ("Crucial information does not belong in a carousel or in any other
   horizontally scrolling container": Nielsen Norman Group, [The Illusion of
   Completeness](https://www.nngroup.com/articles/illusion-of-completeness/), checked 2026-11-03). Phone length is a
-  trade-off for the owner, not a reason to swipe content.
+  trade-off for the owner. The owner kept the strip for the services and asked for a cue that makes it obvious
+  ("Swipe cue", below).
 
 Owner's decision the same day: sideways strips stay an option, also for content such as a wall of services, and
 `PHONE_AUTO` stays as it is; each strip gets a cue that makes it obvious (next section).
@@ -509,7 +510,7 @@ Rules:
 - **Routes, not skins.** With an owner, the options are whole page skeletons on the site's real content, not font and colour swaps of one page (BUILD step 3).
 - **Build on the site, promote on the second use.** Section layouts a route needs live in that site's `src/sections/` until a second site needs them.
 - **Text over pictures is measured, not judged by eye** (QA gate, section 8).
-- **Sideways strips on phones are a choice,** for a set of like items to browse, never a way to meet the phone budget; each one carries the swipe cue and is listed by the QA gate.
+- **Sideways strips on phones are a choice** for a set of like items to browse, not just a way to shorten the page; each one carries the swipe cue and is listed by the QA gate.
 - **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders.
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.
