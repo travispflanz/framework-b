@@ -42,7 +42,7 @@ import { cf, env, gh, log } from "./lib/api.mjs";
 import { connectBuilds, waitForBuild } from "./lib/builds.mjs";
 import { attachAgentPolicy, deleteCheckToken, ensureAgentPolicy, mintCheckToken, previewsApp, sweepCheckTokens, waitForToken } from "./lib/access-agent.mjs";
 import { launchNames } from "./lib/promote.mjs";
-import { adoptWrangler, checkAdoptConfig, checkLeadRow, checkSelect, checkSubscriberRow, keepTrigger } from "./lib/adopt.mjs";
+import { adoptWrangler, checkAdoptConfig, checkLeadRow, checkSelect, checkSubscriberRow, keepTrigger, previewsAppName } from "./lib/adopt.mjs";
 
 const FRAMEWORK = resolve(join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const { stripJsonc } = await import(join(FRAMEWORK, "starter/scripts/lib/jsonc.mjs"));
@@ -247,7 +247,7 @@ if (phase === "prepare") {
   if (!DRY && !url) throw new Error(`wrangler preview printed no Preview URL:\n${out.slice(-800)}`);
   done("preview", url || "(dry run)");
   if (url && process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `url=${url}\n`);
-  const appName = adopt.previewsApp || `${id} previews`;
+  const appName = previewsAppName(id, adopt);
   const app = await previewsApp(A, id, appName);
   if (!app) throw new Error(`no Access application "${appName}"; set adopt.json previewsApp to the one in front of ${adopt.worker}'s previews`);
   if (DRY) done("access", `"${app.name}" found; QA would run through it`);

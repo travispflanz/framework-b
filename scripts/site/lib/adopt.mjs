@@ -30,6 +30,12 @@ export function checkAdoptConfig(a) {
   return errors;
 }
 
+// The Access application in front of a site's previews: adopt.json's previewsApp for an adopted site that kept its
+// own, else "<id> previews" (the name `create` gives it). Both adopt's preview phase and the preview check use it.
+export function previewsAppName(id, adopt) {
+  return (typeof adopt?.previewsApp === "string" && adopt.previewsApp.trim()) || `${id} previews`;
+}
+
 // The mapping queries run against a database that must never change, so each must be a single read-only SELECT.
 // D1's query endpoint runs whatever it is sent, so this is checked before anything is sent.
 const WRITE_WORDS = /\b(insert|update|delete|replace|drop|alter|create|attach|detach|pragma|vacuum|reindex|analyze|begin|commit|rollback|savepoint|release|load_extension)\b/i;

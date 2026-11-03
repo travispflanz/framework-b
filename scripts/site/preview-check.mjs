@@ -9,7 +9,7 @@
 // CF_BUILDS_TOKEN. The site checkout must be built (`npm run build`: QA's content checks read dist/) and have a
 // Playwright Chromium.
 //
-// 1. Makes sure the site's previews Access application admits the "framework-b agent" Service Auth policy.
+// 1. Makes sure the site's previews Access application ("<id> previews", or adopt.json previewsApp) admits the "framework-b agent" Service Auth policy.
 // 2. Waits for the branch's build of that commit; fails with the end of the build log if the build failed.
 // 3. Reads the preview URL from the build log.
 // 4. Mints a 30-minute service token, runs `npm run qa -- --url <preview>` with it, and deletes the token.
@@ -19,6 +19,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { cf, env, log } from "./lib/api.mjs";
 import { attachAgentPolicy, deleteCheckToken, ensureAgentPolicy, mintCheckToken, previewsApp, sweepCheckTokens } from "./lib/access-agent.mjs";
+import { previewsAppName } from "./lib/adopt.mjs";
 import { buildLog, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
 
 const arg = (name) => {
@@ -43,8 +44,11 @@ try {
   const tag = (await cf(`${A}/workers/scripts`)).find((s) => s.id === id)?.tag;
   if (!tag) throw new Error(`no Worker named ${id}`);
 
-  const app = await previewsApp(A, id);
-  if (!app) throw new Error(`no Access application "${id} previews"; previews would be public`);
+  // An adopted site may keep the Access application its previews already had (adopt.json previewsApp).
+  const adoptFile = join(SITE, "adopt.json");
+  const appName = previewsAppName(id, existsSync(adoptFile) ? JSON.parse(readFileSync(adoptFile, "utf8")) : null);
+  const app = await previewsApp(A, id, appName);
+  if (!app) throw new Error(`no Access application "${appName}"; previews would be public`);
   const policy = await ensureAgentPolicy(A);
   if (await attachAgentPolicy(A, app.id, policy)) log("access", `added the "${policy.name}" Service Auth policy to "${app.name}"`);
 
