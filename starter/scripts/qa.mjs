@@ -275,6 +275,14 @@ try {
         height: Math.round(el.getBoundingClientRect().height),
       })),
       actionBar: !!document.querySelector("body > div.fixed.bottom-0 a"),
+      // Links and buttons on the first screen that the fixed bar cuts in half (one showing above it, the rest under).
+      cutByBar: (() => {
+        const bar = document.querySelector("body > div.fixed.bottom-0");
+        if (!bar) return [];
+        const top = bar.getBoundingClientRect().top;
+        return [...document.querySelectorAll("main a, main button")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden")
+          .filter((e) => { const r = e.getBoundingClientRect(); return r.top < top - 1 && r.bottom > top + 1; }).map((e) => e.textContent.trim().slice(0, 30));
+      })(),
       // Sideways strips that really scroll here, and whether each has its swipe cue right after it.
       strips: [...document.querySelectorAll('[data-phone="swipe"], .strip')].filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => ({
         name: el.closest("section")?.querySelector("h1, h2")?.textContent.trim().slice(0, 40) || "section",
@@ -287,6 +295,26 @@ try {
       `${screens.toFixed(1)} screens; longest sections: ${m.sections.sort((a, b) => b.height - a.height).slice(0, 3).map((x) => `${x.name} ${(x.height / 844).toFixed(1)}`).join(", ")}`);
     check("phone: the headline is on the first screen", m.h1Visible);
     if (site.nav.some((item) => item.cta)) check("phone: the main action is in the bar at the bottom of the screen", m.actionBar);
+    if (m.actionBar) {
+      check("phone: the action bar cuts nothing in half on the first screen", m.cutByBar.length === 0, m.cutByBar.join(", "));
+      // At the very end of the page, everything must have scrolled clear of the bar (the page leaves room for it).
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(300);
+      const under = await page.evaluate(() => {
+        const bar = document.querySelector("body > div.fixed.bottom-0");
+        const top = bar.getBoundingClientRect().top;
+        const out = [];
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (!n.textContent.trim() || bar.contains(n) || !n.parentElement?.getClientRects().length) continue;
+          const r = document.createRange();
+          r.selectNodeContents(n);
+          if ([...r.getClientRects()].some((q) => q.height > 0 && q.bottom > top + 1 && q.top < innerHeight)) out.push(n.textContent.trim().slice(0, 30));
+        }
+        return out;
+      });
+      check("phone: the end of the page scrolls clear of the action bar", under.length === 0, under.slice(0, 4).join(", "));
+    }
     for (const x of m.sections) if (x.height > 844 * 1.5) console.log(`  note  phone: "${x.name}" is ${(x.height / 844).toFixed(1)} screens; consider its phone setting (collapse, hide, or swipe for a set of like items)`);
     check("phone: every sideways strip has its swipe cue", m.strips.every((x) => x.cue), m.strips.filter((x) => !x.cue).map((x) => x.name).join(", "));
     for (const x of m.strips) console.log(`  note  phone: "${x.name}" swipes sideways; keep that for a set of like items people browse`);

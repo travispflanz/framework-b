@@ -12,7 +12,7 @@ const { items, group } = Astro.props;
     <details name={group} open={i === 0} class="card group p-0">
       <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-ink [&::-webkit-details-marker]:hidden">
         <span class="font-display text-title">{item.title}</span>
-        <span class="text-accent transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+        <span class="accordion-cue" aria-hidden="true"></span>
       </summary>
       {item.body && <div class="grid gap-3 px-4 pb-4 text-body text-ink-muted">{paragraphs(item.body).map((p) => <p set:html={inline(p)} />)}</div>}
     </details>

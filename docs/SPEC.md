@@ -424,7 +424,13 @@ free first.
   can change them.
 - **Phone layout.** A fixed bottom action bar with the CTA (and a Call button when `site.phone` is set) on every page
   but the CTA's own; a row of page links under the header. The QA gate measures the home page at 390×844 and fails
-  it above the phone budget, and fails a first screen without the `<h1>` or a missing action bar.
+  it above the phone budget, and fails a first screen without the `<h1>` or a missing action bar. Since 2026-11-03 it
+  also fails a link or button the bar cuts in half on the first screen, and any text still under the bar at the very
+  end of the page. On phones, a hero action the bar already shows is left out of the hero (`HeroActions.astro`): on
+  the first adopted site the hero's second link sat half under the bar, which carried the same two links.
+- **Tap-to-open cue.** A phone accordion row (`collapse`) shows a plus in an accent-outlined square that becomes a
+  minus when open (`PhoneAccordion.astro`, styles in `sections.css`), as easy to spot as the swipe cue; the old cue was
+  a small `+` glyph.
 - **Motion, CSS only.** Hover lift and press states, a scroll-driven reveal (`animation-timeline: view()`, inside
   `@supports`), a timeline line that draws, parallax on a full-bleed hero (expressive only), and cross-document view
   transitions (`@view-transition`). All of it sits under `prefers-reduced-motion: no-preference`; the QA gate checks
