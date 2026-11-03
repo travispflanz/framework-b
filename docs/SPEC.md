@@ -535,6 +535,23 @@ photos taken off the pages were deleted although the owner wanted to keep them f
 - Unit tests: `starter/scripts/test/archive-library.test.mjs` (rights, file choice, border crop on a synthetic scan,
   the library round trip). The live LoC calls are not run in CI (rate limit); proven by hand on the first adopted site.
 
+### Focal points (2026-11-03)
+
+Why: layouts crop pictures to their own shape (a 21:9 hero band, 4:3 on phones, square cards), always about the
+centre. On the first adopted site an archive photo of a painted price sign ("Seats five cents") had its sign at the
+top of a portrait scan; every crop that fit the wide band lost the sign on phones, and every crop that fit phones lost
+it on the band.
+
+- An image field can carry `focalX` and `focalY`, shares of the width and height from 0 to 1. `Picture.astro` sets
+  `object-position` from them on the image, so every layout's crop moves toward that point; without them nothing
+  changes. They are the same two fields EmDash's media library stores ("Focal point as 0..1 fractions of width and
+  height", the image field schema in
+  [zod-generator.ts](https://github.com/emdash-cms/emdash/blob/main/packages/core/src/schema/zod-generator.ts), checked 2026-11-03), so a point an editor sets in the admin is honoured the same way.
+- `check-content.mjs` fails a focal value that isn't a number from 0 to 1. The variants test builds a page with one
+  and checks the rendered `object-position`.
+- Proven on the first adopted site: a sign, a lit marquee and faces stay in frame in the hero band at 1280 px and
+  on a 360 px phone. EmDash's own focal point picker has not been tried on a Framework B site: untested.
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
