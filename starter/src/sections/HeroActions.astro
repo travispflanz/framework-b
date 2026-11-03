@@ -1,15 +1,23 @@
 ---
 // The hero's main button and second link (fb_hero). `onDark` sets the second link on a photo.
+// On phones, an action the fixed action bar already shows (a nav item with `cta`, on any page but its own) is left
+// out of the hero: the bar has it on every screen, and a second copy in a long hero ended up half under the bar.
+import config from "../../site.config.json";
 interface Props { value: Record<string, any>; onDark?: boolean; center?: boolean }
 const { value, onDark = false, center = false } = Astro.props;
+const here = Astro.url.pathname.replace(/\/$/, "") || "/";
+const inBar = new Set((config.nav || []).filter((item: any) => item.cta).slice(0, 2).map((c: any) => c.href).filter((href: string) => href !== here));
+const primary = value.primary_cta_label && value.primary_cta_url;
+const secondary = value.secondary_cta_label && value.secondary_cta_url;
+const allInBar = [primary && value.primary_cta_url, secondary && value.secondary_cta_url].filter(Boolean).every((u) => inBar.has(u));
 ---
-{(value.primary_cta_label || value.secondary_cta_label) && (
-  <div class:list={["flex flex-wrap items-center gap-4", { "justify-center": center }]}>
-    {value.primary_cta_label && value.primary_cta_url && (
-      <a href={value.primary_cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.primary_cta_label}</a>
+{(primary || secondary) && (
+  <div class:list={["flex flex-wrap items-center gap-4", { "justify-center": center, "max-sm:hidden": allInBar }]}>
+    {primary && (
+      <a href={value.primary_cta_url} class:list={["button-primary inline-flex min-h-12 items-center justify-center no-underline", { "max-sm:hidden": inBar.has(value.primary_cta_url) }]}>{value.primary_cta_label}</a>
     )}
-    {value.secondary_cta_label && value.secondary_cta_url && (
-      <a href={value.secondary_cta_url} class:list={["inline-flex min-h-12 items-center text-label", { "text-bg": onDark }]}>{value.secondary_cta_label}</a>
+    {secondary && (
+      <a href={value.secondary_cta_url} class:list={["inline-flex min-h-12 items-center text-label", { "text-bg": onDark, "max-sm:hidden": inBar.has(value.secondary_cta_url) }]}>{value.secondary_cta_label}</a>
     )}
   </div>
 )}
