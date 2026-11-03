@@ -123,7 +123,7 @@ A site has two modes:
 - Search indexing on or off per site.
 
 **Quality gate.** It runs on every preview and on production, and it fails the change on any of these:
-- accessibility (axe, WCAG 2.2 AA);
+- accessibility (axe, WCAG 2.2 AA), including text over photos, measured against the picture behind it;
 - Lighthouse scores: accessibility, best practices and SEO must be 100; on a launched site, performance must be at
   least 90 (a borderline score is rechecked as the median of 5 runs);
 - layout at four screen widths, and console errors;

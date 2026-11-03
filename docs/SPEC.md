@@ -236,6 +236,7 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
   - brand values hard-coded in code instead of read from `site.config.json`
 - **Rendering:** Playwright at 360, 768, 1280 and 1920 px: no horizontal scroll, no console errors, computed-style checks for banned fonts and hues.
 - **Accessibility:** axe by WCAG 2.2 AA tags, plus a structural scan (landmarks, a single `<main>`, heading order).
+- **Text over pictures:** at 360 and 1280 px, every line of text that overlaps an image or a CSS background (a photo, a gradient) is measured against the picture behind it: the text is made transparent, the page screenshotted, and the 99th-percentile lightest pixel behind light text (1st-percentile darkest behind dark text) must give 4.5:1, or 3:1 for large text (24 px, or 18.5 px bold). WCAG's failure F83 checks "the area of the image that is darkest (for dark text) or lightest (for light text)" ([F83](https://www.w3.org/WAI/WCAG22/Techniques/failures/F83); ratios and large text: [Understanding 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), both checked 2026-11-03); the percentile keeps specks of grain or JPEG noise from deciding. Text shadows don't count as background, and text in fixed or sticky elements, video and the off-screen part of a sideways strip are not measured. `design-tokens.mjs` only checks DESIGN.md's colour pairs, and axe and Lighthouse didn't flag text on a picture: phone poster titles at 1.2:1 passed all 375 checks on a real site (2026-11-03). `starter/scripts/lib/image-text.mjs`; `starter/scripts/test/image-text.test.mjs` proves loose light text on a bright picture fails and the same text on a scrim passes. Its first run found the split section's `overlap` card transparent with outlined or flat cards (text on the picture at 2.72:1); that card now keeps a solid background (`card-over-image`).
 - **Lighthouse (mobile):**
   - Accessibility, Best Practices and SEO: 100
   - CLS below 0.1
@@ -453,9 +454,39 @@ free first.
   [AI Act Service Desk](https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-50), checked 2026-10-28).
   Proven against the live API on 2026-10-28 (site images workflow, three runs).
 
+### Design routes (2026-11-03)
+
+Why: until then, a site's three drafts changed fonts, colours and corner radius on one page skeleton, the autopilot
+judge picked one, and the owner never saw them (design review, 2026-10-28). Measured against 50 current sites from curated galleries (Siteinspire, Land-book, Awwwards, Framer, Minimal
+Gallery and others, captured 2026-10-28), the first adopted site had 1 image on its home page against a median of
+16 and 0 on most inner pages. The design review that day ("Framework B design review", 2026-10-28) offered the owner
+four routes, each a different skeleton modelled on named sites, mocked on the site's real copy with public-domain
+Library of Congress photographs. The owner chose one (a poster stack) on 2026-11-02, on condition that the text over
+the photos is readable. The method is in `docs/BUILD.md` step 3; the framework keeps the method, not the route.
+
+What building the route on the site found that the mock didn't (2026-11-03):
+- On phones, the hero title sat over white paper in the photo (2.2:1) and the photo posters' titles over bright
+  parts of their pictures (1.2:1). Every other check passed, which is why the QA gate now measures text over pictures.
+- A 124 px full-sentence headline tripped Impeccable's `oversized-h1` rule and its second line fell below the first
+  screen; 112 px fits.
+- The archive scans carried white and black mat borders that showed on the cards; they are cropped off.
+- Stacked, the poster wall made the home page 11.2 phone screens. Moving it into a sideways strip met the budget but
+  put content where research says people miss it ("Crucial information does not belong in a carousel or in any other
+  horizontally scrolling container": Nielsen Norman Group, [The Illusion of
+  Completeness](https://www.nngroup.com/articles/illusion-of-completeness/), checked 2026-11-03). Phone length is a
+  trade-off for the owner, not a reason to swipe content.
+
+Open: `PHONE_AUTO` still makes steps and pricing swipe by default. Changing that changes existing sites on their next
+update, so it waits for the owner's decision.
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
+- **Routes, not skins.** With an owner, the options are whole page skeletons on the site's real content, not font and colour swaps of one page (BUILD step 3).
+- **Build on the site, promote on the second use.** Section layouts a route needs live in that site's `src/sections/` until a second site needs them.
+- **Text over pictures is measured, not judged by eye** (QA gate, section 8).
+- **No content in sideways strips on phones;** a strip is for pictures that are extra.
+- **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders.
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.
 - **Performance threshold:** the research proposed 0.95. The framework keeps the 90 tripwire, because a real production build measured 94–98 run to run on identical code.
