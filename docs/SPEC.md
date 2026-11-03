@@ -456,8 +456,8 @@ free first.
 
 ### Design routes (2026-11-03)
 
-Why: the 2026-10-28 drafts changed fonts, colours and corner radius on one page skeleton, and the owner never saw
-them. Measured against 50 current sites from curated galleries (Siteinspire, Land-book, Awwwards, Framer, Minimal
+Why: until then, a site's three drafts changed fonts, colours and corner radius on one page skeleton, the autopilot
+judge picked one, and the owner never saw them (design review, 2026-10-28). Measured against 50 current sites from curated galleries (Siteinspire, Land-book, Awwwards, Framer, Minimal
 Gallery and others, captured 2026-10-28), the first adopted site had 1 image on its home page against a median of
 16 and 0 on most inner pages. The design review that day ("Framework B design review", 2026-10-28) offered the owner
 four routes, each a different skeleton modelled on named sites, mocked on the site's real copy with public-domain

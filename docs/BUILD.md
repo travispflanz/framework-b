@@ -114,8 +114,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 - Images: owner photos first; then public-domain archives (each record checked for its rights statement, scan
   borders cropped off, credited as `stock` with the record's link; by hand, there is no script), open-licensed
   photos (`scripts/images.mjs`) or generated images (`scripts/generate-image.mjs`), whichever the imagery style
-  calls for. Credits go on the Website assets page (`/credits`), never beside the image. Both apply the design's treatment so the
-  set matches. Generated images never show the business's own people, premises, products or work; photorealistic
+  calls for. Both scripts apply the design's treatment so the set matches; apply it to archive photos with
+  `node scripts/images.mjs treat <file>`. Credits go on the Website assets page (`/credits`), never beside the image. Generated images never show the business's own people, premises, products or work; photorealistic
   ones show no faces, none carries a label on the page, and all of them are listed on `/credits`. Every image gets an entry in
   `design/credits.json`.
 
