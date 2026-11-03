@@ -84,9 +84,10 @@ A site has two modes:
     both ways.
 - A logo: six layouts drawn from the design's own font (with your initials or an icon); the one you pick becomes the
   logo, favicon, app icons and share image.
-- Images: yours first; otherwise open-licensed photos from Openverse or generated images in the style you chose
-  (photo, line art, watercolour, flat illustration and more) through Cloudflare Workers AI, all given one colour
-  treatment so they match. Credits are written for you and listed on `/credits`; generated images carry no label
+- Images: yours first; otherwise public-domain photographs from the Library of Congress (master scans, borders
+  cropped, rights checked), open-licensed photos from Openverse, or generated images in the style you chose (photo,
+  line art, watercolour, flat illustration and more) through Cloudflare Workers AI, all given one colour treatment so
+  they match. Photos taken off a page are kept in the site's image library to use again. Credits are written for you and listed on `/credits`; generated images carry no label
   on the page and never show your people, premises or products.
 - Phones: a fixed action bar with your main button (and Call when you have a phone number), and long sections that
   fold or swipe, so the home page stays within a set number of screens. A section that swipes sideways shows an

@@ -236,6 +236,7 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
   - brand values hard-coded in code instead of read from `site.config.json`
 - **Rendering:** Playwright at 360, 768, 1280 and 1920 px: no horizontal scroll, no console errors, computed-style checks for banned fonts and hues.
 - **Accessibility:** axe by WCAG 2.2 AA tags, plus a structural scan (landmarks, a single `<main>`, heading order).
+- **Photos in a card set:** at 1280 px, in any list of three or more cards where some carry a photo, more than half must (a type-only card is an accent, not where the photos ran out; three of six failed the owner's eye on the first adopted site). A content page with no picture at all is listed in the report as a note, not yet a failure.
 - **Text over pictures:** at 360 and 1280 px, every line of text that overlaps an image or a CSS background (a photo, a gradient) is measured against the picture behind it: the text is made transparent, the page screenshotted, and the 99th-percentile lightest pixel behind light text (1st-percentile darkest behind dark text) must give 4.5:1, or 3:1 for large text (24 px, or 18.5 px bold). WCAG's failure F83 checks "the area of the image that is darkest (for dark text) or lightest (for light text)" ([F83](https://www.w3.org/WAI/WCAG22/Techniques/failures/F83); ratios and large text: [Understanding 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), both checked 2026-11-03); the percentile keeps specks of grain or JPEG noise from deciding. Text shadows don't count as background. Sideways flex strips are unrolled into rows first, so cards that start off screen are measured too; text in fixed or sticky elements, video and the off-screen part of a grid strip are not measured. `design-tokens.mjs` only checks DESIGN.md's colour pairs, and axe and Lighthouse didn't flag text on a picture: phone poster titles at 1.2:1 passed all 375 checks on a real site (2026-11-03). `starter/scripts/lib/image-text.mjs`; `starter/scripts/test/image-text.test.mjs` proves loose light text on a bright picture fails and the same text on a scrim passes. Its first run found the split section's `overlap` card transparent with outlined or flat cards (text on the picture at 2.72:1); that card now keeps a solid background (`card-over-image`).
 - **Lighthouse (mobile):**
   - Accessibility, Best Practices and SEO: 100
@@ -504,6 +505,30 @@ strip on screen, with an arrow head pointing the way there is more.
 - The QA gate fails a sideways strip on the phone home page without its cue, and prints a note for each one.
 - Tested in Chromium's phone emulation; untested on a real iPhone or Android phone.
 
+### Archive photos and the library (2026-11-03)
+
+Why: the first adopted site moved to Library of Congress photographs (the owner's choice: old, public-domain film
+photographs, no generated images on that site). Finding, checking, downloading and cropping them was done by hand, and
+photos taken off the pages were deleted although the owner wanted to keep them for other pages.
+
+- `images.mjs search "<subject>" --source loc` searches loc.gov photos and keeps only records whose rights
+  statement says "No known restrictions" (the Library's own wording for photographs it knows of no restrictions on;
+  every record is checked again at `add`). `add loc:<id>` downloads the master scan (the JPEG copies stop at about
+  1024 px), converts 16-bit scans to 8-bit, crops the mat, frame and edge markings (`scripts/lib/scan-borders.mjs`,
+  with a 2.5% margin; a check image shows the box, and `--crop` sets it by hand when the scan has a caption or a
+  negative number inside the frame), resizes to 2000 px, applies the design's treatment and writes the credit with
+  the photographer, the record's link and its rights statement.
+- loc.gov allows 20 API requests a minute and 150 image requests a minute, and blocks an address for an hour above
+  that ([Working within limits](https://www.loc.gov/apis/json-and-yaml/working-within-limits/), checked 2026-11-03),
+  so the script waits 3.1 s between API calls and 0.5 s between downloads. Master scans can be large (300 MB for a
+  14,119 × 10,567 px 16-bit negative); the download allows 15 minutes.
+- `--for "<slot: why>"` on `add` puts where a photo goes and why it fits in its credit, so the choice can be reviewed.
+- The library: `shelve <file>` moves a photo and its credit from the site into the site's design/library folder (refused while a
+  page still uses it); `unshelve <file>` brings it back; `library` lists the shelf and draws a contact sheet there (sheet.png).
+  Nothing there is published.
+- Unit tests: `starter/scripts/test/archive-library.test.mjs` (rights, file choice, border crop on a synthetic scan,
+  the library round trip). The live LoC calls are not run in CI (rate limit); proven by hand on the first adopted site.
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
@@ -512,6 +537,8 @@ Rules:
 - **Text over pictures is measured, not judged by eye** (QA gate, section 8).
 - **Sideways strips on phones are a choice** for a set of like items to browse, not just a way to shorten the page; each one carries the swipe cue and is listed by the QA gate.
 - **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders. The page's lists keep to the prose width, so long credit lines stay readable (they failed Impeccable's line length at 1280 px on the first adopted site, 2026-11-03).
+- **A photo taken off a page goes to the library,** never the bin.
+- **A design runs through every page.** A route, image style or phone rule isn't done until the inner pages have it too.
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.

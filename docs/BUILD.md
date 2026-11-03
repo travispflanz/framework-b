@@ -90,9 +90,11 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      each condition before changing anything, and turn it into a measurement.
   4. Build the pick on the site itself. Section layouts the route needs go in the site's own `src/sections/` (site
      changes survive framework updates); they move into the starter only when a second site needs the same thing.
-  5. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
+  5. Carry the route through every page, not just the home page: the same sections, image style and phone
+     settings, and pictures on the inner pages too (the QA report lists content pages with none).
+  6. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
      each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
-  6. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
+  7. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
 - Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette, type pair and composition; install their fonts), then:
   - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content (drafts that fail the design checks are rejected);
   - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which, then `node scripts/design-judge.mjs tally`;
@@ -113,11 +115,15 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   set), not where the photos ran out. Each photo is chosen for what its card says, as closely as the source allows.
 - Text over a picture sits on a scrim or on a part of the picture darkened for it. The QA gate measures it against
   the lightest part of the picture behind it (the darkest, for dark text), at phone and desktop width.
-- Images: owner photos first; then public-domain archives (each record checked for its rights statement, scan
-  borders cropped off, credited as `stock` with the record's link; by hand, there is no script), open-licensed
-  photos (`scripts/images.mjs`) or generated images (`scripts/generate-image.mjs`), whichever the imagery style
-  calls for. Both scripts apply the design's treatment so the set matches; apply it to archive photos with
-  `node scripts/images.mjs treat <file>`. Credits go on the Website assets page (`/credits`), never beside the image. Generated images never show the business's own people, premises, products or work; photorealistic
+- Images: owner photos first; then public-domain archives, open-licensed photos or generated images, whichever the
+  imagery style (and the owner) calls for. Library of Congress photographs: `node scripts/images.mjs search
+  "<subject>" --source loc`, look at the contact sheet, then `node scripts/images.mjs add loc:<id> --as <name> --alt
+  "..." --for "<slot: why it fits>"`. It takes only records that say "No known restrictions on publication", downloads
+  the master scan, crops the mat and edge markings (look at `design/image-candidates/<name>-crop.png`; `--crop` sets
+  the cut by hand) and writes the credit. Open-licensed photos: `search` and `add` without `--source`. Both apply the
+  design's treatment so the set matches. `--for` records where each photo goes and why, so the choice can be reviewed.
+  A photo taken off the pages goes to the library, never the bin: `node scripts/images.mjs shelve <file>` (and
+  `unshelve`, `library` for a contact sheet). Credits go on the Website assets page (`/credits`), never beside the image. Generated images never show the business's own people, premises, products or work; photorealistic
   ones show no faces, none carries a label on the page, and all of them are listed on `/credits`. Every image gets an entry in
   `design/credits.json`.
 
