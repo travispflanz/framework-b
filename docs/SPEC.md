@@ -128,7 +128,7 @@ custom domains, secrets, Access applications and Turnstile widget stay as they a
 
 `site preview check` (ops repo; inputs: site id, branch) calls the reusable `site-preview-check.yml`, which runs `scripts/site/preview-check.mjs`:
 
-1. Makes sure the site's previews Access application has the reusable "framework-b agent" Service Auth policy (include: any valid service token). `create` adds it to new sites.
+1. Makes sure the site's previews Access application (`<id> previews`, or the one named in an adopted site's `adopt.json` `previewsApp`) has the reusable "framework-b agent" Service Auth policy (include: any valid service token). `create` adds it to new sites.
 2. Waits for the Workers Builds build of the branch's head commit, and reads the preview URL from its log (`npx wrangler preview` prints `Preview URL: https://<branch>-<worker>.<subdomain>.workers.dev`, with `/` in the branch name turned into `-`).
 3. Mints an Access service token that lives 30 minutes (the API refuses less than 10: "must be greater than or equal to 10m", 2026-10-26), waits until Access accepts it, and runs the site's QA gate on the preview. A new token is refused with a redirect to the login page for a few seconds (3–4 s seen on 2026-10-26).
 4. Deletes the token, uploads the screenshots, and comments on the branch's pull request.

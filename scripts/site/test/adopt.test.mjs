@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { adoptWrangler, checkAdoptConfig, checkLeadRow, checkSelect, checkSubscriberRow, keepTrigger } from "../lib/adopt.mjs";
+import { adoptWrangler, checkAdoptConfig, checkLeadRow, checkSelect, checkSubscriberRow, keepTrigger, previewsAppName } from "../lib/adopt.mjs";
 
 test("adopt.json needs the Worker, the old database and the leads query", () => {
   assert.deepEqual(checkAdoptConfig({ worker: "example", legacyDb: "example-leads", leadsSql: "adopt/leads.sql" }), []);
@@ -9,6 +9,13 @@ test("adopt.json needs the Worker, the old database and the leads query", () => 
   assert.deepEqual(checkAdoptConfig({ worker: "w", legacyDb: "d", leadsSql: "l", uploads: { copyFrom: "old-bucket" } }), []);
   assert.deepEqual(checkAdoptConfig({ worker: "w", legacyDb: "d", leadsSql: "l", previewsApp: "Example staging previews" }), []);
   assert.ok(checkAdoptConfig({ worker: "w", legacyDb: "d", leadsSql: "l", previewsApp: " " })[0].includes("previewsApp"));
+});
+
+test("the previews Access application is adopt.json's previewsApp, else <id> previews", () => {
+  assert.equal(previewsAppName("example", null), "example previews");
+  assert.equal(previewsAppName("example", { worker: "example" }), "example previews");
+  assert.equal(previewsAppName("example", { previewsApp: "Example staging previews" }), "Example staging previews");
+  assert.equal(previewsAppName("example", { previewsApp: "  " }), "example previews");
 });
 
 test("mapping queries must be one read-only SELECT", () => {
