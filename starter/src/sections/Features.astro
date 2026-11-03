@@ -5,6 +5,7 @@ import { inline, paragraphs } from "./text.js";
 // On phones they fold into an accordion by default, so six reasons take one screen instead of three.
 import Icon from "./Icon.astro";
 import PhoneAccordion from "./PhoneAccordion.astro";
+import SwipeCue from "./SwipeCue.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { phoneOf, variantOf } from "./design.js";
@@ -62,5 +63,6 @@ const hideWide = { "max-sm:hidden": collapse };
       ))}
     </ul>
   )}
+  {phone === "swipe" && <SwipeCue />}
   {collapse && <PhoneAccordion group={`${headingId}-phone`} items={value.items.map((item) => ({ title: item.title, body: item.body }))} />}
 </Section>

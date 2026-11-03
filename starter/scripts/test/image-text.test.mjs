@@ -59,15 +59,20 @@ const PAGE = `<!doctype html><html lang="en"><head><title>Image text</title><sty
   .panel p { position: relative; margin: 0; padding: 40px; color: #f6f4f0; }
   .scrim { background: rgba(0, 0, 0, 0.62); display: inline-block; }
   .fixed { position: fixed; top: 0; left: 0; color: #f6f4f0; }
+  .strip { display: flex; gap: 10px; overflow-x: auto; width: 400px; padding: 0; margin: 0; list-style: none; }
+  .strip li { position: relative; flex: 0 0 82%; height: 200px; }
+  .strip img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .strip p { position: relative; margin: 0; padding: 20px; color: #f6f4f0; }
 </style></head><body><main>
   <div class="panel" id="bright"><img src="/bright.svg" alt=""><p id="loose">Loose light text on a bright picture</p></div>
   <div class="panel"><img src="/bright.svg" alt=""><p><span class="scrim">Light text on a scrim over a bright picture</span></p></div>
   <div class="panel"><img src="/dark.svg" alt=""><p>Light text on a dark picture</p></div>
   <p>Ordinary text beside no picture at all</p>
+  <ul class="strip">${[1, 2, 3].map((n) => `<li><img src="/bright.svg" alt=""><p>Strip card ${n} on a bright picture</p></li>`).join("")}</ul>
   <div class="fixed">A fixed bar over the first picture</div>
 </main></body></html>`;
 
-test("in a browser: loose text on a bright picture fails, the scrim and the dark picture pass, other text is skipped", async () => {
+test("in a browser: loose text on a bright picture fails (also in a sideways strip), the scrim and the dark picture pass, other text is skipped", async () => {
   const server = createServer((req, res) => {
     if (req.url === "/bright.svg") { res.setHeader("content-type", "image/svg+xml"); return res.end(svg("#e8e8e8")); }
     if (req.url === "/dark.svg") { res.setHeader("content-type", "image/svg+xml"); return res.end(svg("#1a1a1a")); }
@@ -83,12 +88,13 @@ test("in a browser: loose text on a bright picture fails, the scrim and the dark
     const scratch = await context.newPage();
     const rows = await measureImageText(page, scratch);
     const by = (t) => rows.find((r) => r.text.startsWith(t));
-    assert.equal(rows.length, 3, JSON.stringify(rows));
+    assert.equal(rows.length, 6, JSON.stringify(rows));
+    for (const n of [1, 2, 3]) assert.equal(by(`Strip card ${n}`)?.ok, false, `strip card ${n} is measured even off screen`);
     assert.equal(by("Loose").ok, false);
     assert.ok(by("Loose").ratio < 1.5);
     assert.equal(by("Light text on a scrim").ok, true);
     assert.equal(by("Light text on a dark").ok, true);
-    assert.equal(rows[0].text.startsWith("Loose"), true, "worst first");
+    assert.ok(rows[0].ratio <= rows[rows.length - 1].ratio, "worst first");
     assert.equal(by("Ordinary"), undefined);
     assert.equal(by("A fixed bar"), undefined);
 

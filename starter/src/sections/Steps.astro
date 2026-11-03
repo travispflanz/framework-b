@@ -4,6 +4,7 @@ import { inline, paragraphs } from "./text.js";
 // line that draws as you scroll when motion is on), "numerals" (large numbers, no cards). On phones the steps
 // swipe sideways by default.
 import PhoneAccordion from "./PhoneAccordion.astro";
+import SwipeCue from "./SwipeCue.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { phoneOf, variantOf } from "./design.js";
@@ -49,5 +50,6 @@ const pad = (i) => String(i + 1).padStart(2, "0");
       ))}
     </ol>
   )}
+  {phone === "swipe" && variant !== "timeline" && <SwipeCue />}
   {collapse && <PhoneAccordion group={`${headingId}-phone`} items={value.steps.map((s, i) => ({ title: `${i + 1}. ${s.title}`, body: s.body }))} />}
 </Section>

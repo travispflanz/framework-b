@@ -247,8 +247,8 @@ try {
 
   // ---------- 5b. Phones: length budget and section heights ----------
   // The home page on a 390 x 844 phone may be at most composition.phoneBudget screens long (DESIGN.md); long
-  // sections are listed so the agent can fold or hide them (each section's `phone` field), or the owner can trade
-  // length for content.
+  // sections are listed so the agent can fold, hide or swipe them (each section's `phone` field), or the owner can
+  // trade length for content. Every sideways strip must have its swipe cue (SwipeCue.astro), and each is listed.
   {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", isMobile: true, hasTouch: true });
     await auth.playwright(context);
@@ -262,6 +262,11 @@ try {
         height: Math.round(el.getBoundingClientRect().height),
       })),
       actionBar: !!document.querySelector("body > div.fixed.bottom-0 a"),
+      // Sideways strips that really scroll here, and whether each has its swipe cue right after it.
+      strips: [...document.querySelectorAll('[data-phone="swipe"], .strip')].filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => ({
+        name: el.closest("section")?.querySelector("h1, h2")?.textContent.trim().slice(0, 40) || "section",
+        cue: !!el.nextElementSibling?.classList.contains("swipe-cue"),
+      })),
       h1Visible: (() => { const h = document.querySelector("h1"); return !!h && h.getBoundingClientRect().top < 844; })(),
     }));
     const screens = m.height / 844;
@@ -269,7 +274,9 @@ try {
       `${screens.toFixed(1)} screens; longest sections: ${m.sections.sort((a, b) => b.height - a.height).slice(0, 3).map((x) => `${x.name} ${(x.height / 844).toFixed(1)}`).join(", ")}`);
     check("phone: the headline is on the first screen", m.h1Visible);
     if (site.nav.some((item) => item.cta)) check("phone: the main action is in the bar at the bottom of the screen", m.actionBar);
-    for (const x of m.sections) if (x.height > 844 * 1.5) console.log(`  note  phone: "${x.name}" is ${(x.height / 844).toFixed(1)} screens; consider its phone setting (collapse or hide; content doesn't belong in a sideways strip)`);
+    for (const x of m.sections) if (x.height > 844 * 1.5) console.log(`  note  phone: "${x.name}" is ${(x.height / 844).toFixed(1)} screens; consider its phone setting (collapse, hide, or swipe for a set of like items)`);
+    check("phone: every sideways strip has its swipe cue", m.strips.every((x) => x.cue), m.strips.filter((x) => !x.cue).map((x) => x.name).join(", "));
+    for (const x of m.strips) console.log(`  note  phone: "${x.name}" swipes sideways; keep that for a set of like items people browse`);
     await context.close();
   }
 

@@ -4,6 +4,7 @@
 // swipe, collapse or hide.
 import Icon from "./Icon.astro";
 import PhoneAccordion from "./PhoneAccordion.astro";
+import SwipeCue from "./SwipeCue.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { lines, paragraphs, inline } from "./text.js";
@@ -41,6 +42,7 @@ const collapse = phone === "collapse";
       );
     })}
   </div>
+  {phone === "swipe" && <SwipeCue />}
   {collapse && <PhoneAccordion group={`${headingId}-phone`} items={value.lists.map((l, i) => ({ title: l.title || `${value.headline} (${i + 1})`, body: lines(l.items).join("\n\n") }))} />}
   {value.note && <div class="mt-8 grid max-w-(--container-prose) gap-4 text-body text-ink-muted">{paragraphs(value.note).map((p) => <p set:html={inline(p)} />)}</div>}
 </Section>

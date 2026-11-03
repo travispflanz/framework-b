@@ -236,7 +236,7 @@ Runs on the preview (P6) and on production (P8). The build fails if any check fa
   - brand values hard-coded in code instead of read from `site.config.json`
 - **Rendering:** Playwright at 360, 768, 1280 and 1920 px: no horizontal scroll, no console errors, computed-style checks for banned fonts and hues.
 - **Accessibility:** axe by WCAG 2.2 AA tags, plus a structural scan (landmarks, a single `<main>`, heading order).
-- **Text over pictures:** at 360 and 1280 px, every line of text that overlaps an image or a CSS background (a photo, a gradient) is measured against the picture behind it: the text is made transparent, the page screenshotted, and the 99th-percentile lightest pixel behind light text (1st-percentile darkest behind dark text) must give 4.5:1, or 3:1 for large text (24 px, or 18.5 px bold). WCAG's failure F83 checks "the area of the image that is darkest (for dark text) or lightest (for light text)" ([F83](https://www.w3.org/WAI/WCAG22/Techniques/failures/F83); ratios and large text: [Understanding 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), both checked 2026-11-03); the percentile keeps specks of grain or JPEG noise from deciding. Text shadows don't count as background, and text in fixed or sticky elements, video and the off-screen part of a sideways strip are not measured. `design-tokens.mjs` only checks DESIGN.md's colour pairs, and axe and Lighthouse didn't flag text on a picture: phone poster titles at 1.2:1 passed all 375 checks on a real site (2026-11-03). `starter/scripts/lib/image-text.mjs`; `starter/scripts/test/image-text.test.mjs` proves loose light text on a bright picture fails and the same text on a scrim passes. Its first run found the split section's `overlap` card transparent with outlined or flat cards (text on the picture at 2.72:1); that card now keeps a solid background (`card-over-image`).
+- **Text over pictures:** at 360 and 1280 px, every line of text that overlaps an image or a CSS background (a photo, a gradient) is measured against the picture behind it: the text is made transparent, the page screenshotted, and the 99th-percentile lightest pixel behind light text (1st-percentile darkest behind dark text) must give 4.5:1, or 3:1 for large text (24 px, or 18.5 px bold). WCAG's failure F83 checks "the area of the image that is darkest (for dark text) or lightest (for light text)" ([F83](https://www.w3.org/WAI/WCAG22/Techniques/failures/F83); ratios and large text: [Understanding 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), both checked 2026-11-03); the percentile keeps specks of grain or JPEG noise from deciding. Text shadows don't count as background. Sideways flex strips are unrolled into rows first, so cards that start off screen are measured too; text in fixed or sticky elements, video and the off-screen part of a grid strip are not measured. `design-tokens.mjs` only checks DESIGN.md's colour pairs, and axe and Lighthouse didn't flag text on a picture: phone poster titles at 1.2:1 passed all 375 checks on a real site (2026-11-03). `starter/scripts/lib/image-text.mjs`; `starter/scripts/test/image-text.test.mjs` proves loose light text on a bright picture fails and the same text on a scrim passes. Its first run found the split section's `overlap` card transparent with outlined or flat cards (text on the picture at 2.72:1); that card now keeps a solid background (`card-over-image`).
 - **Lighthouse (mobile):**
   - Accessibility, Best Practices and SEO: 100
   - CLS below 0.1
@@ -474,10 +474,35 @@ What building the route on the site found that the mock didn't (2026-11-03):
   put content where research says people miss it ("Crucial information does not belong in a carousel or in any other
   horizontally scrolling container": Nielsen Norman Group, [The Illusion of
   Completeness](https://www.nngroup.com/articles/illusion-of-completeness/), checked 2026-11-03). Phone length is a
-  trade-off for the owner, not a reason to swipe content.
+  trade-off for the owner. The owner kept the strip for the services and asked for a cue that makes it obvious
+  ("Swipe cue", below).
 
-Open: `PHONE_AUTO` still makes steps and pricing swipe by default. Changing that changes existing sites on their next
-update, so it waits for the owner's decision.
+Owner's decision the same day: sideways strips stay an option, also for content such as a wall of services, and
+`PHONE_AUTO` stays as it is; each strip gets a cue that makes it obvious (next section).
+
+### Swipe cue (2026-11-03)
+
+Why: a sideways strip is easy to miss, and research asks for something that shows how much more there is ("use a
+scrollbar or pagination to show how much more content there is": Nielsen Norman Group, [Beware Horizontal
+Scrolling](https://www.nngroup.com/articles/horizontal-scrolling/), checked 2026-11-03). The browser's own scrollbar
+can't do it on phones: overlay scrollbars are "not shown by default but only while you are actively scrolling", and
+`scrollbar-color` gives them no track ([Chrome for Developers, Scrollbar
+styling](https://developer.chrome.com/docs/css-ui/scrollbar-styling), checked 2026-11-03); iOS lays its scrollbar
+over the content the same way ([Master.dev](https://blog.master.dev/how-to-fix-the-invisible-scrollbar-issue-in-ios),
+checked 2026-11-03). The design is the owner's: a bar in the accent colour, as long as the share of the
+strip on screen, with an arrow head pointing the way there is more.
+
+- `starter/src/sections/SwipeCue.astro` sits right after every list whose `phone` is `swipe` (features, steps except the timeline, pricing,
+  gallery, lists) and after the gallery's `strip` layout, and shows only under 640 px. The strip's own scrollbar is
+  hidden there; the strip stays focusable and labelled, and scrolls by touch, trackpad and keyboard. The cue is
+  `aria-hidden` decoration.
+- `starter/src/scripts/swipe-cue.js` sizes the bar to the visible share (at least 32 px), moves it with `transform` only
+  and flips the arrow at the end. It has no transition, so nothing animates and reduced motion needs nothing extra;
+  measured on the starter at 390 px: no animations, layout shift 0. Without JavaScript the bar sits at the start,
+  pointing right. Its colour is `accent`, which the token contract already holds at 4.5:1 against `bg` and
+  `surface`.
+- The QA gate fails a sideways strip on the phone home page without its cue, and prints a note for each one.
+- Tested in Chromium's phone emulation; untested on a real iPhone or Android phone.
 
 Rules:
 
@@ -485,7 +510,7 @@ Rules:
 - **Routes, not skins.** With an owner, the options are whole page skeletons on the site's real content, not font and colour swaps of one page (BUILD step 3).
 - **Build on the site, promote on the second use.** Section layouts a route needs live in that site's `src/sections/` until a second site needs them.
 - **Text over pictures is measured, not judged by eye** (QA gate, section 8).
-- **No content in sideways strips on phones;** a strip is for pictures that are extra.
+- **Sideways strips on phones are a choice** for a set of like items to browse, not just a way to shorten the page; each one carries the swipe cue and is listed by the QA gate.
 - **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders.
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.
