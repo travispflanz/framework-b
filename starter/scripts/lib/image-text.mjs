@@ -8,7 +8,8 @@
 //
 // How it measures, on a page already loaded and scrolled through (lazy images loaded):
 // 1. Finds every picture on the page: <img> at least 64 px each way, and every element with a CSS background image
-//    or gradient. Video is skipped (its frame changes; untested).
+//    or gradient. Video is skipped (its frame changes; untested). Sideways flex strips are unrolled first, so cards
+//    that start off screen are measured too.
 // 2. Finds every line of text that overlaps one, from the text's own line boxes (Range.getClientRects), skipping
 //    text in fixed or sticky elements and visually hidden text.
 // 3. Makes all text transparent (shadows too, so a text shadow never counts as background), hides fixed and sticky
@@ -159,6 +160,17 @@ export const _histogramsInPage = histogramsInPage; // for the unit test
  */
 export async function measureImageText(page, scratch) {
   await page.evaluate(() => document.fonts.ready);
+  // A sideways strip (flex row that scrolls) keeps most of its cards off screen. Unroll it into wrapped rows of the
+  // same card width, so every card is on the page and measured as it looks when swiped to. Grid strips stay as they
+  // are (only their visible part is measured).
+  await page.evaluate(() => {
+    for (const el of document.querySelectorAll("body *")) {
+      const cs = getComputedStyle(el);
+      if (/(auto|scroll)/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1 && cs.display.includes("flex")) {
+        for (const [k, v] of [["flex-wrap", "wrap"], ["overflow", "visible"], ["scroll-snap-type", "none"]]) el.style.setProperty(k, v, "important");
+      }
+    }
+  });
   const items = await page.evaluate(collectInPage);
   if (!items.length) return [];
   await page.addStyleTag({ content: "*, *::before, *::after { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; caret-color: transparent !important; }" });

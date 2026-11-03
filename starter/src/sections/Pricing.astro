@@ -3,6 +3,7 @@
 import Icon from "./Icon.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
+import SwipeCue from "./SwipeCue.astro";
 import { lines, paragraphs, inline } from "./text.js";
 import { phoneOf } from "./design.js";
 
@@ -34,5 +35,6 @@ const phone = phoneOf("fb_pricing", value) === "collapse" ? "stack" : phoneOf("f
       </li>
     ))}
   </ul>
+  {phone === "swipe" && <SwipeCue />}
   {value.note && paragraphs(value.note).map((p) => <p class="mt-6 max-w-(--container-prose) text-small text-ink-muted" set:html={inline(p)} />)}
 </Section>

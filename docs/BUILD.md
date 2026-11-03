@@ -125,11 +125,13 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 - `src/content/home.json` (and one file per page for `full` or `hybrid`, each with a `title` and `description`, added to
   `nav`): sections from the library, following the page's argument. Copy uses the owner's facts; nothing invented.
 - Sections: pick each section's `variant` (layout) for what it has to say, and its `phone` behaviour where the default
-  doesn't fit (`stack`, `swipe`, `collapse` or `hide`; defaults in `PHONE_AUTO` in `src/sections/schema.js`). Content
-  goes in `stack` or `collapse`; `swipe` is only for pictures that are extra, like a gallery ("Crucial information
-  does not belong in a carousel or in any other horizontally scrolling container", SPEC section 12). The QA gate fails
-  a home page longer than the design's phone budget: fold or hide a section, or take the trade-off to the owner,
-  rather than moving content into a sideways strip to fit.
+  doesn't fit (`stack`, `swipe`, `collapse` or `hide`; defaults in `PHONE_AUTO` in `src/sections/schema.js`). `swipe`
+  suits a set of like items people browse (a wall of services, a gallery); things read in order, or the one thing a
+  visitor must see, go in `stack` or `collapse` ("Crucial information does not belong in a carousel or in any other
+  horizontally scrolling container", SPEC section 12). Every swipe strip gets the swipe cue, an accent bar with an
+  arrow head under it (`starter/src/sections/SwipeCue.astro`), and the QA gate lists each one, so it is a choice, not an accident. The QA
+  gate fails a home page longer than the design's phone budget: fold or hide a section, or take the trade-off to the
+  owner.
 - Images: the owner's photos first. Otherwise `node scripts/images.mjs search "<query>"`, look at the contact sheet,
   `add` the ones that fit with real alt text. A stock photo is never presented as the business's own work, customers or
   staff; prefer photos without identifiable people. For a generated style, `node scripts/generate-image.mjs draft

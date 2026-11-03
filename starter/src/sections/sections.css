@@ -56,6 +56,24 @@ html[data-density="compact"] section.py-section { padding-block: calc(var(--spac
     columns: auto;
   }
   .phone-list[data-phone="swipe"] > * { flex: 0 0 82%; scroll-snap-align: start; margin-bottom: 0; }
+  /* The swipe cue (SwipeCue.astro) replaces the browser's scrollbar, which on phones is an overlay drawn only
+     while scrolling: a line for the whole strip, and an accent bar as long as the share on screen with an arrow
+     head pointing the way there is more. Moved with transform only, never animated. */
+  .phone-list[data-phone="swipe"], .strip { scrollbar-width: none; }
+  .phone-list[data-phone="swipe"]::-webkit-scrollbar, .strip::-webkit-scrollbar { display: none; }
+  .swipe-cue { position: relative; height: 12px; margin-top: 0.75rem; }
+  .swipe-cue::before { content: ""; position: absolute; inset-inline: 0; top: 5px; height: 2px; background-color: var(--color-line); }
+  .swipe-cue-bar {
+    position: absolute; left: 0; top: 0; height: 12px; width: 30%;
+    background-color: var(--color-accent);
+    /* a 4 px shaft and a 12 px arrow head at the leading end */
+    clip-path: polygon(0 4px, calc(100% - 11px) 4px, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, calc(100% - 11px) 8px, 0 8px);
+  }
+  .swipe-cue[data-end] .swipe-cue-bar { clip-path: polygon(100% 4px, 11px 4px, 11px 0, 0 50%, 11px 100%, 11px 8px, 100% 8px); }
+  .swipe-cue[data-idle] { visibility: hidden; }
+}
+@media (min-width: 640px) {
+  .swipe-cue { display: none; }
 }
 
 /* Motion (composition.motion). Only transform and opacity move, so nothing shifts the layout; nothing moves for

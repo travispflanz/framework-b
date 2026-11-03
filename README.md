@@ -89,7 +89,8 @@ A site has two modes:
   treatment so they match. Credits are written for you and listed on `/credits`; generated images carry no label
   on the page and never show your people, premises or products.
 - Phones: a fixed action bar with your main button (and Call when you have a phone number), and long sections that
-  swipe or fold, so the home page stays within a set number of screens.
+  fold or swipe, so the home page stays within a set number of screens. A section that swipes sideways shows an
+  accent bar with an arrow under it, so visitors can see there is more.
 - Motion that respects visitors who turn it off: reveal on scroll, smooth page transitions and button feedback, in
   CSS only.
 

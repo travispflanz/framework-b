@@ -4,6 +4,7 @@
 import Picture from "./Picture.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
+import SwipeCue from "./SwipeCue.astro";
 import { paragraphs, inline } from "./text.js";
 import { phoneOf, variantOf } from "./design.js";
 
@@ -49,5 +50,6 @@ const phone = phoneOf("fb_gallery", value) === "collapse" ? "swipe" : phoneOf("f
       ))}
     </ul>
   )}
+  {(phone === "swipe" || variant === "strip") && <SwipeCue />}
   {value.note && paragraphs(value.note).map((p) => <p class="mt-8 max-w-(--container-prose) text-small text-ink-muted" set:html={inline(p)} />)}
 </Section>

@@ -43,7 +43,8 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 - Site-specific work (names, URLs, logs) happens in the site repo and the private ops repo, never in framework-b.
 - No invented proof: testimonials, ratings, counts and logos come only from the owner, with a source.
 - The framework keeps methods, rules and checks, not a site's look. Text over pictures is measured; content stays
-  out of sideways strips on phones; credits go on the Website assets page only.
+  out of sideways strips on phones unless it is a set of like items to browse (each strip gets the swipe cue);
+  credits go on the Website assets page only.
 - Never commit secrets or test keys; never push to `main`; never buy anything or upgrade a plan without approval.
 - Don't delete or rewrite leads or subscribers without the owner's explicit approval.
 - If a gate fails, read its output, fix the cause and rerun. If the same gate fails twice for an unclear reason,
