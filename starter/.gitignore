@@ -9,3 +9,4 @@ qa-output/
 live-lead.json
 .design-tiles-restore.json
 design/generated/
+design/image-candidates/

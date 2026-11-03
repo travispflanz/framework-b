@@ -230,6 +230,19 @@ try {
         check(`structure ${path}: one <main>, one <h1>, header, footer, labelled nav, lang`,
           s.mains === 1 && s.h1s === 1 && s.header && s.footer && s.nav && s.lang, JSON.stringify(s));
         check(`structure ${path}: headings start at h1 and never skip a level`, s.firstHeading === 1 && s.skips === 0, JSON.stringify(s));
+        // Photos in a card set (SPEC section 12): where some cards in a list carry a photo, most (more than half) do; a
+        // type-only card is an accent, not where the photos ran out. Lists of fewer than three are left alone.
+        const sets = await page.evaluate(() => [...document.querySelectorAll("main ul, main ol")].map((list) => {
+          const items = [...list.children].filter((li) => li.tagName === "LI" && li.getClientRects().length);
+          const pic = (li) => [...li.querySelectorAll("img")].some((img) => { const r = img.getBoundingClientRect(); return r.width >= 64 && r.height >= 64; });
+          return { name: list.closest("section")?.querySelector("h1, h2")?.textContent.trim().slice(0, 40) || "a list", items: items.length, withPhoto: items.filter(pic).length };
+        }).filter((x) => x.items >= 3 && x.withPhoto > 0));
+        const thin = sets.filter((x) => x.withPhoto * 2 <= x.items);
+        check(`photos ${path}: card sets with photos have them on most cards`, thin.length === 0, thin.map((x) => `"${x.name}" ${x.withPhoto} of ${x.items}`).join("; "));
+        // A design runs through every page: a content page with no picture at all is listed (not yet a failure).
+        const pictures = await page.evaluate(() => [...document.querySelectorAll("main img")].filter((i) => i.getBoundingClientRect().width >= 64).length
+          + [...document.querySelectorAll("main *")].filter((e) => /url\(/.test(getComputedStyle(e).backgroundImage)).length);
+        if (!pictures && !/^\/(thanks|privacy|credits|404|not-found)/.test(path)) console.log(`  note  page ${path}: no pictures yet; the design runs through every page (docs/BUILD.md step 3)`);
       }
       // Text over a photo or gradient, measured against the picture (axe and Lighthouse can't see it). Last on the
       // page: it leaves the text transparent. scripts/lib/image-text.mjs has the method and its sources.
