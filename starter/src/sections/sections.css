@@ -8,6 +8,11 @@ section.bg-surface .card { background-color: var(--color-bg); }
 html[data-cards="outlined"] .card { background-color: transparent; border: 1px solid var(--color-line); }
 html[data-cards="flat"] .card { background-color: transparent; }
 html[data-cards="flat"] .card.p-6, html[data-cards="flat"] .card.p-8 { padding-inline: 0; }
+/* A card laid over an image (split "overlap") keeps a solid background and its padding whatever the card style:
+   transparent, its text would sit on the picture (2.7:1 in the QA gate's text-over-pictures check, 2026-11-03). */
+html .card.card-over-image { background-color: var(--color-surface); }
+html section.bg-surface .card.card-over-image { background-color: var(--color-bg); }
+html[data-cards="flat"] .card.card-over-image.p-8 { padding-inline: 2rem; }
 
 /* Image shape. */
 .media { border-radius: var(--radius-card); }

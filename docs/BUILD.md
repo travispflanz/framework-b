@@ -78,6 +78,21 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   `composition` (alignment, density, separation, card style, image shape, motion, phone budget) and `imagery` (style,
   secondary, treatment, grain, a one-line art direction). The brief's `design.imagery` answers decide the imagery
   block. Allowed values: the header of `scripts/design-tokens.mjs`.
+- With an owner, routes come before drafts (SPEC section 12, "Design routes"). A route is a whole page skeleton
+  with its own image demand and type behaviour; two routes that differ only in fonts and colours are one route.
+  1. References: capture current sites from curated galleries and from the business's own field, and measure them
+     the same way (images per page, how much of the page is image, the first screen, the phone layout). Name every
+     site you use.
+  2. Routes: three or four, each modelled on named reference sites and mocked as one page with the site's real copy
+     and images it may legally use, at desktop and phone width. Measure each like the references, and list what
+     each needs from the owner (photos, new short phrases, which are written for the owner to approve).
+  3. The owner picks one or a mix, and may add conditions ("only if the text over the photos is readable"). Research
+     each condition before changing anything, and turn it into a measurement.
+  4. Build the pick on the site itself. Section layouts the route needs go in the site's own `src/sections/` (site
+     changes survive framework updates); they move into the starter only when a second site needs the same thing.
+  5. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
+     each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
+  6. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
 - Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette, type pair and composition; install their fonts), then:
   - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content (drafts that fail the design checks are rejected);
   - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which, then `node scripts/design-judge.mjs tally`;
@@ -94,8 +109,12 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   draws six layouts from the display font into `design/brand/options.png`. Pick one (or send the sheet to the owner)
   and run `node scripts/brand-kit.mjs pick <n>`: logo, favicon, app icons, share image and manifest. The owner checks
   the name in the USPTO trademark search before launch.
-- Images: owner photos first; then open-licensed photos (`scripts/images.mjs`) or generated images
-  (`scripts/generate-image.mjs`), whichever the imagery style calls for. Both apply the design's treatment so the
+- Text over a picture sits on a scrim or on a part of the picture darkened for it. The QA gate measures it against
+  the lightest part of the picture behind it (the darkest, for dark text), at phone and desktop width.
+- Images: owner photos first; then public-domain archives (each record checked for its rights statement, scan
+  borders cropped off, credited as `stock` with the record's link; by hand, there is no script), open-licensed
+  photos (`scripts/images.mjs`) or generated images (`scripts/generate-image.mjs`), whichever the imagery style
+  calls for. Credits go on the Website assets page (`/credits`), never beside the image. Both apply the design's treatment so the
   set matches. Generated images never show the business's own people, premises, products or work; photorealistic
   ones show no faces, none carries a label on the page, and all of them are listed on `/credits`. Every image gets an entry in
   `design/credits.json`.
@@ -106,8 +125,11 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 - `src/content/home.json` (and one file per page for `full` or `hybrid`, each with a `title` and `description`, added to
   `nav`): sections from the library, following the page's argument. Copy uses the owner's facts; nothing invented.
 - Sections: pick each section's `variant` (layout) for what it has to say, and its `phone` behaviour where the default
-  doesn't fit (`stack`, `swipe`, `collapse` or `hide`; defaults in `PHONE_AUTO` in `src/sections/schema.js`). The QA
-  gate fails a home page longer than the design's phone budget.
+  doesn't fit (`stack`, `swipe`, `collapse` or `hide`; defaults in `PHONE_AUTO` in `src/sections/schema.js`). Content
+  goes in `stack` or `collapse`; `swipe` is only for pictures that are extra, like a gallery ("Crucial information
+  does not belong in a carousel or in any other horizontally scrolling container", SPEC section 12). The QA gate fails
+  a home page longer than the design's phone budget: fold or hide a section, or take the trade-off to the owner,
+  rather than moving content into a sideways strip to fit.
 - Images: the owner's photos first. Otherwise `node scripts/images.mjs search "<query>"`, look at the contact sheet,
   `add` the ones that fit with real alt text. A stock photo is never presented as the business's own work, customers or
   staff; prefer photos without identifiable people. For a generated style, `node scripts/generate-image.mjs draft

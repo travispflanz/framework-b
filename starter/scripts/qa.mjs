@@ -6,7 +6,8 @@
 //   npm run qa -- --url https://<domain> --launch    production (P8): placeholder rules + performance tripwire
 //
 // Checks: content, layout at 360/768/1280/1920 px, console errors, banned fonts, axe (WCAG 2.2 AA tags),
-// page structure, Lighthouse (mobile) accessibility / best practices / SEO = 100 and CLS < 0.1.
+// page structure, text over images (contrast against the picture behind it, at 360 and 1280 px), Lighthouse (mobile)
+// accessibility / best practices / SEO = 100 and CLS < 0.1.
 // Screenshots and a JSON report go to qa-output/.
 //
 // Previews sit behind Cloudflare Access. With ACCESS_CLIENT_ID and ACCESS_CLIENT_SECRET set (an Access service
@@ -21,6 +22,7 @@ import lighthouse from "lighthouse";
 import puppeteer from "puppeteer-core";
 import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 import { accessAuth } from "./lib/access-auth.mjs";
+import { measureImageText } from "./lib/image-text.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -229,13 +231,24 @@ try {
           s.mains === 1 && s.h1s === 1 && s.header && s.footer && s.nav && s.lang, JSON.stringify(s));
         check(`structure ${path}: headings start at h1 and never skip a level`, s.firstHeading === 1 && s.skips === 0, JSON.stringify(s));
       }
+      // Text over a photo or gradient, measured against the picture (axe and Lighthouse can't see it). Last on the
+      // page: it leaves the text transparent. scripts/lib/image-text.mjs has the method and its sources.
+      if (width === 360 || width === 1280) {
+        const scratch = await context.newPage();
+        const rows = await measureImageText(page, scratch);
+        writeFileSync(join(OUT, `image-text-${(path.slice(1) || "home").replace(/\//g, "_")}-${width}.json`), JSON.stringify(rows, null, 2));
+        const bad = rows.filter((r) => !r.ok);
+        check(`image text ${tag}: text over pictures meets WCAG contrast against the worst part of the picture behind it`, bad.length === 0,
+          bad.length ? bad.slice(0, 4).map((r) => `"${r.text.slice(0, 30)}" ${r.ratio}:1, needs ${r.needs}:1`).join("; ") : `${rows.length} over pictures${rows.length ? `, lowest ${rows[0].ratio}:1` : ""}`);
+      }
       await context.close();
     }
   }
 
   // ---------- 5b. Phones: length budget and section heights ----------
   // The home page on a 390 x 844 phone may be at most composition.phoneBudget screens long (DESIGN.md); long
-  // sections are listed so the agent can swipe, fold or hide them (each section's `phone` field).
+  // sections are listed so the agent can fold or hide them (each section's `phone` field), or the owner can trade
+  // length for content.
   {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", isMobile: true, hasTouch: true });
     await auth.playwright(context);
@@ -256,7 +269,7 @@ try {
       `${screens.toFixed(1)} screens; longest sections: ${m.sections.sort((a, b) => b.height - a.height).slice(0, 3).map((x) => `${x.name} ${(x.height / 844).toFixed(1)}`).join(", ")}`);
     check("phone: the headline is on the first screen", m.h1Visible);
     if (site.nav.some((item) => item.cta)) check("phone: the main action is in the bar at the bottom of the screen", m.actionBar);
-    for (const x of m.sections) if (x.height > 844 * 1.5) console.log(`  note  phone: "${x.name}" is ${(x.height / 844).toFixed(1)} screens; consider its phone setting (swipe, collapse or hide)`);
+    for (const x of m.sections) if (x.height > 844 * 1.5) console.log(`  note  phone: "${x.name}" is ${(x.height / 844).toFixed(1)} screens; consider its phone setting (collapse or hide; content doesn't belong in a sideways strip)`);
     await context.close();
   }
 

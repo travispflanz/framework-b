@@ -16,8 +16,11 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 3. **Design.** In the site repo on branch `build/initial`: `PRODUCT.md` (facts with sources, inferred promises
    flagged). On autopilot, write three different drafts, render them with `node scripts/design-tiles.mjs`, judge them
    with `node scripts/design-judge.mjs prepare` → answer each ballot LEFT/RIGHT → `tally`, and lock the pick as
-   `DESIGN.md`. With an owner intake, first send this-or-that pairs (`node scripts/design-pairs.mjs render`, then
-   `pick` per answer, `defaults` if silent). Then `node scripts/design-tokens.mjs`. Credit every image in `design/credits.json`.
+   `DESIGN.md`. With an owner intake, first offer routes: three or four whole page skeletons mocked on the real
+   content from measured reference sites; the owner picks one or a mix, with any conditions; build it on the site
+   (new layouts in the site's own `src/sections/`) and measure the built pages (docs/BUILD.md step 3). Then
+   this-or-that pairs where a detail is still open (`node scripts/design-pairs.mjs render`, then `pick` per
+   answer, `defaults` if silent). Then `node scripts/design-tokens.mjs`. Credit every image in `design/credits.json`.
 4. **Content.** `site.config.json` forms and navigation, `src/content/*.json` from the section library, then
    `node scripts/check-content.mjs` (and `node scripts/editing.mjs seed` with editing on).
 5. **Local gates.** In a scratch copy with Turnstile test keys (`node scripts/fill-test-placeholders.mjs --turnstile-test`):
@@ -39,6 +42,8 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
   or a credential. Decide everything else and record it as inferred.
 - Site-specific work (names, URLs, logs) happens in the site repo and the private ops repo, never in framework-b.
 - No invented proof: testimonials, ratings, counts and logos come only from the owner, with a source.
+- The framework keeps methods, rules and checks, not a site's look. Text over pictures is measured; content stays
+  out of sideways strips on phones; credits go on the Website assets page only.
 - Never commit secrets or test keys; never push to `main`; never buy anything or upgrade a plan without approval.
 - Don't delete or rewrite leads or subscribers without the owner's explicit approval.
 - If a gate fails, read its output, fix the cause and rerun. If the same gate fails twice for an unclear reason,
