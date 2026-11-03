@@ -81,7 +81,7 @@ try {
       { _type: "fb_cta", _key: "cta", variant: "band", headline: "A full-width call to action", body: "One sentence of encouragement.", cta_label: "Get in touch", cta_url: "/#contact" },
     ],
     "variants-b": [
-      { _type: "fb_hero", _key: "hero", variant: "editorial", eyebrow: "Layout test", headline: "An editorial hero", subheadline: "An asymmetric spread with a tall image.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", image: img(2) },
+      { _type: "fb_hero", _key: "hero", variant: "editorial", eyebrow: "Layout test", headline: "An editorial hero", subheadline: "An asymmetric spread with a tall image.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", image: { ...img(2), focalX: 0.25, focalY: 0.1 } },
       { _type: "fb_steps", _key: "steps", variant: "numerals", headline: "Steps as large numerals", steps, phone: "collapse" },
       { _type: "fb_features", _key: "features", variant: "list", headline: "Reasons as a compact list", items },
       { _type: "fb_gallery", _key: "gallery", variant: "strip", headline: "A strip of images", items: gallery },
@@ -120,7 +120,7 @@ try {
   const hero = readFileSync("dist/variants-a.html", "utf8");
   if (hero.includes("Generated image")) throw new Error("a generated image carries a label on the page; they are listed on /credits only");
   const b = readFileSync("dist/variants-b.html", "utf8");
-  for (const want of ["<strong>bold</strong>", "<em>italic</em>", 'href="/variants-a" class="underline', 'rel="noopener"', "What we never do", "Second Person"]) if (!b.includes(want)) throw new Error(`variants-b is missing ${want}`);
+  for (const want of ["<strong>bold</strong>", "<em>italic</em>", 'href="/variants-a" class="underline', 'rel="noopener"', "What we never do", "Second Person", "object-position: 25% 10%"]) if (!b.includes(want)) throw new Error(`variants-b is missing ${want}`);
   const c = readFileSync("dist/variants-c.html", "utf8");
   if (!readFileSync("dist/variants-a.html", "utf8").includes(">Try the survey</a>")) throw new Error("the second call to action is missing");
   for (const want of ['type="radio"', 'name="offer" value="camera"', "What you could offer", ">Things<"]) if (!c.includes(want)) throw new Error(`variants-c is missing ${want}`);

@@ -30,6 +30,8 @@ function checkFields(fields, value, where) {
       else {
         if (!/^(https?:)?\/\//.test(v.src) && !existsSync(join("src/assets/images", v.src))) errors.push(`${where}.${f.slug}: src/assets/images/${v.src} doesn't exist`);
         if (typeof v.alt !== "string" || !v.alt.trim()) errors.push(`${where}.${f.slug}: "alt" is required; describe what the image shows`);
+        // A focal point (Picture.astro): EmDash's media fields, shares of the width and height.
+        for (const k of ["focalX", "focalY"]) if (k in v && v[k] !== null && !(typeof v[k] === "number" && v[k] >= 0 && v[k] <= 1)) errors.push(`${where}.${f.slug}.${k} must be a number from 0 to 1 (a share of the image's ${k === "focalX" ? "width, from the left" : "height, from the top"})`);
       }
     }
     if (f.validation?.pattern && typeof v === "string" && !new RegExp(f.validation.pattern).test(v)) errors.push(`${where}.${f.slug} "${v}" has the wrong format`);
