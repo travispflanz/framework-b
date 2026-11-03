@@ -109,6 +109,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   draws six layouts from the display font into `design/brand/options.png`. Pick one (or send the sheet to the owner)
   and run `node scripts/brand-kit.mjs pick <n>`: logo, favicon, app icons, share image and manifest. The owner checks
   the name in the USPTO trademark search before launch.
+- In a set of cards where some carry photos, most do. A type-only card is a deliberate accent (one, or a few in a long
+  set), not where the photos ran out. Each photo is chosen for what its card says, as closely as the source allows.
 - Text over a picture sits on a scrim or on a part of the picture darkened for it. The QA gate measures it against
   the lightest part of the picture behind it (the darkest, for dark text), at phone and desktop width.
 - Images: owner photos first; then public-domain archives (each record checked for its rights statement, scan
