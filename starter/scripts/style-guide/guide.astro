@@ -40,7 +40,10 @@ const pages = Object.entries(import.meta.glob("../content/*.json", { eager: true
 const home = pages.find((p) => p.slug === "home")?.page;
 const homeHero = home?.sections?.find((s) => s._type === "fb_hero");
 const sampleBody = home?.sections?.map((s) => s.body || s.subheadline).find((t) => typeof t === "string" && t.length > 80) || homeHero?.subheadline || config.site.tagline || "";
-const levels = Object.entries(front.typography || {});
+// Phone sizes ("-mobile") are folded into each level's fluid size in tokens.css, so they're not listed separately.
+const levels = Object.entries(front.typography || {}).filter(([name]) => !name.endsWith("-mobile"));
+const displayFamily = String(front.typography?.display?.fontFamily || "");
+const faceOf = (t) => (String(t.fontFamily) === displayFamily ? "var(--font-display)" : "var(--font-body)");
 const sample = (name) => (/display|headline/.test(name) ? homeHero?.headline || config.site.name : /title|label/.test(name) ? (home?.sections?.find((s) => s.headline && s._type !== "fb_hero")?.headline || config.site.name) : sampleBody.split(/\n\s*\n/)[0].slice(0, 220));
 
 // Layout: each page's hero (its own variant, or the route's), how it ends, and the sections the site uses.
@@ -106,7 +109,7 @@ const today = new Date().toISOString().slice(0, 10);
             {levels.map(([name, t]: [string, any]) => (
               <div class="sg-level">
                 <p class="sg-label">{name} · {String(t.fontFamily).split(",")[0]} · {t.fontSize} · {t.fontWeight} · line {t.lineHeight}</p>
-                <p class:list={[{ uppercase: composition.titleCase === "upper" && /display/.test(name) }]} style={`font-family:var(--font-${/display|headline|title/.test(name) ? "display" : "body"});font-size:var(--text-${name});line-height:var(--text-${name}--line-height);font-weight:var(--text-${name}--font-weight)`}>{sample(name)}</p>
+                <p class:list={[{ uppercase: composition.titleCase === "upper" && /display/.test(name) }]} style={`font-family:${faceOf(t)};font-size:var(--text-${name});line-height:var(--text-${name}--line-height);font-weight:var(--text-${name}--font-weight)`}>{sample(name)}</p>
               </div>
             ))}
             <p class="sg-note">Page titles: {composition.titleCase === "upper" ? "uppercase" : "as written"}, aligned {composition.align}. Every page's title is checked against the home page's by the QA gate.</p>
