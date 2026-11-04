@@ -38,6 +38,16 @@ test("the stamp names the inputs that changed since the guide was rendered", () 
   const stamp = { inputs: { "DESIGN.md": hash("a"), "STYLE-GUIDE.md": hash("old") } };
   assert.deepEqual(staleInputs(stamp, inputs), ["STYLE-GUIDE.md"]);
   assert.deepEqual(staleInputs(null, inputs), ["DESIGN.md", "STYLE-GUIDE.md"]);
+  // A guide rendered before the logo was an input: fresh while there is no logo kit, stale once there is one.
+  assert.deepEqual(staleInputs({ inputs: { "DESIGN.md": hash("a"), "STYLE-GUIDE.md": hash("b") } }, { ...inputs, "design/brand/logo.json": "" }), []);
+  assert.deepEqual(staleInputs({ inputs: { "DESIGN.md": hash("a"), "STYLE-GUIDE.md": hash("b") } }, { ...inputs, "design/brand/logo.json": "{}" }), ["design/brand/logo.json"]);
+});
+
+test("code spans in the guide's prose are kept as written", () => {
+  const html = renderProse("Use `public/logo.svg` on **dark** paper; never `<b>`.", inline);
+  assert.match(html, /<code>public\/logo\.svg<\/code>/);
+  assert.match(html, /<code>&lt;b&gt;<\/code>/);
+  assert.match(html, /<strong>dark<\/strong>|<b>dark<\/b>/);
 });
 
 test("every size and print setting names its source and when it was checked", () => {

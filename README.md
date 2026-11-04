@@ -82,8 +82,12 @@ A site has two modes:
   - with you involved, it shows you this-or-that image pairs first, then the three designs to pick from;
   - after the gates pass, up to three critique rounds, each change kept only if it wins a side-by-side comparison
     both ways.
-- A logo: six layouts drawn from the design's own font (with your initials or an icon); the one you pick becomes the
-  logo, favicon, app icons and share image.
+- A logo designed for the business, not just its name in a font: a written brief (what similar businesses' logos
+  look like, the clichés to avoid, ideas only this business has), five to eight concepts, and a test sheet for each
+  (the site header, a phone, light and dark paper, one colour, on a photo, a 16 px favicon, a circle avatar, an app
+  icon and a business card). The one you pick becomes the full kit: dark, light and one-colour versions, favicons,
+  app icons, the share image, print PDFs and a social avatar, with clear space and smallest sizes in the style guide.
+  Six quick layouts from the design's font are still there for a site that doesn't need more.
 - Images: yours first; otherwise public-domain photographs from the Library of Congress (master scans, borders
   cropped, rights checked), open-licensed photos from Openverse, or generated images in the style you chose (photo,
   line art, watercolour, flat illustration and more) through Cloudflare Workers AI, all given one colour treatment so
@@ -313,7 +317,7 @@ Checked when the Worker starts (`packages/core/src/config.js`); a bad combinatio
 | `email.notify` | `apps-script`, `cloudflare` (needs `notifyFrom`) or `none` |
 | `email.confirm` | `apps-script`, `resend` (needs `confirmFrom`) or `none`: the auto-reply |
 | `email.confirmName`, `email.replyTo` | The auto-reply's sender name (default the site name) and reply-to address (default the owner) |
-| `site.logo` | The logo file (`/logo.svg`), set by the brand kit |
+| `site.logo` | The logo file (`/logo.svg`), set by `node scripts/logo.mjs pick` |
 | `site.phone` | Adds a Call button to the phone action bar |
 | `nav` | Menu items `{ label, href }`; one or two items with `"cta": true` become the header buttons and the phone action bar |
 | `forms.<id>` | `title`, `submitLabel`, `fields`, `confirm` (`{ subject, text }` for the auto-reply; `{first_name}` and `{name}` are filled in), `steps` (a `{ title, intro }` heading per step), `file`, `thanks`, `consent` (`required` or `optional` in checkbox mode; `none` for a plain message form that never subscribes anyone) (see below) |
