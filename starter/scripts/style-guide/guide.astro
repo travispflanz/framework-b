@@ -109,17 +109,17 @@ const today = new Date().toISOString().slice(0, 10);
             {levels.map(([name, t]: [string, any]) => (
               <div class="sg-level">
                 <p class="sg-label">{name} · {String(t.fontFamily).split(",")[0]} · {t.fontSize} · {t.fontWeight} · line {t.lineHeight}</p>
-                <p class:list={[{ uppercase: composition.titleCase === "upper" && /display/.test(name) }]} style={`font-family:${faceOf(t)};font-size:var(--text-${name});line-height:var(--text-${name}--line-height);font-weight:var(--text-${name}--font-weight)`}>{sample(name)}</p>
+                <p class:list={[{ uppercase: composition.titleCase === "upper" && /display/.test(name) }]} style={`font-family:${faceOf(t)};font-size:min(var(--text-${name}), 1.1in);line-height:var(--text-${name}--line-height);font-weight:var(--text-${name}--font-weight)`}>{sample(name)}</p>
               </div>
             ))}
-            <p class="sg-note">Page titles: {composition.titleCase === "upper" ? "uppercase" : "as written"}, aligned {composition.align}. Every page's title is checked against the home page's by the QA gate.</p>
+            <p class="sg-note">Specimens larger than 1.1 in are shown at 1.1 in; the label gives the real size. Page titles: {composition.titleCase === "upper" ? "uppercase" : "as written"}, aligned {composition.align}. Every page's title is checked against the home page's by the QA gate.</p>
           </div>
         )}
 
         {s.heading === "Photography" && (
           <>
             <p class="sg-note">Style: {imagery.style}{imagery.secondary ? `, with ${imagery.secondary}` : ""}. Treatment: {imagery.treatment}{imagery.grain ? ", with film grain" : ""}. Sources now on the site: {Object.entries(bySource).map(([k, n]) => `${k} ${n}`).join(", ")}.</p>
-            <div class="sg-photos">{photos.map((p) => <Picture image={{ src: p.src, alt: p.alt }} sizes="240px" class="sg-photo" />)}</div>
+            <div class="sg-photos">{photos.map((p) => <Picture image={{ src: p.src, alt: p.alt }} sizes="240px" class="sg-photo" eager />)}</div>
           </>
         )}
 
@@ -169,11 +169,13 @@ const today = new Date().toISOString().slice(0, 10);
 </Base>
 
 <style is:global>
-  /* The guide prints on US Letter; the site's header, footer and phone bar are left out. */
-  @page { size: Letter; margin: 0.5in; }
+  /* The guide prints on US Letter in the site's own page colour, edge to edge; the site's header, footer and phone
+     bar are left out. */
+  @page { size: Letter; margin: 0; }
+  html, body { background: var(--color-bg); }
   body > header, body > footer, body > div.fixed, body > nav { display: none !important; }
-  .sg { max-width: 7.3in; margin: 0 auto; padding: 0.25in 0.1in; color: var(--color-ink); background: var(--color-bg); font-family: var(--font-body); }
-  .sg-cover { min-height: 9in; display: flex; flex-direction: column; justify-content: center; gap: 1rem; }
+  .sg { max-width: 8.5in; margin: 0 auto; padding: 0 0.6in; color: var(--color-ink); background: var(--color-bg); font-family: var(--font-body); }
+  .sg-cover { min-height: 11in; box-sizing: border-box; padding: 0.6in 0; display: flex; flex-direction: column; justify-content: center; gap: 1rem; }
   .sg-logo { max-width: 3in; max-height: 1.2in; object-fit: contain; object-position: left; }
   .sg-name { font-family: var(--font-display); font-size: var(--text-headline); }
   .sg-h1 { font-family: var(--font-display); font-size: var(--text-display); line-height: var(--text-display--line-height); font-weight: var(--text-display--font-weight); }
@@ -182,7 +184,7 @@ const today = new Date().toISOString().slice(0, 10);
   .sg-note { margin: 0.75rem 0; }
   .sg-label { font-size: var(--text-label); font-weight: var(--text-label--font-weight); color: var(--color-ink-muted); margin: 1rem 0 0.25rem; }
   .sg-toc { margin-top: 1.5rem; padding-left: 1.2rem; font-size: var(--text-small); color: var(--color-ink-muted); }
-  .sg-section { break-before: page; padding-top: 0.25in; }
+  .sg-section { break-before: page; padding-block: 0.6in 0.4in; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
   .sg-prose { font-size: var(--text-small); line-height: 1.55; max-width: 6.5in; }
   .sg-prose p, .sg-prose ul { margin: 0 0 0.6rem; }
   .sg-prose ul { padding-left: 1.2rem; list-style: disc; }

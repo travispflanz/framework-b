@@ -37,9 +37,18 @@ export function renderProse(md, inline) {
   const blocks = String(md || "").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
   return blocks.map((b) => {
     if (b.startsWith("### ")) return `<h3>${inline(b.slice(4))}</h3>`;
-    const rows = b.split("\n");
-    if (rows.every((r) => /^-\s+/.test(r))) return `<ul>${rows.map((r) => `<li>${inline(r.replace(/^-\s+/, ""))}</li>`).join("")}</ul>`;
-    return `<p>${inline(rows.join(" "))}</p>`;
+    // A block may start with a sentence and go on into a list ("They choose from three heroes:" then "- ..." lines).
+    const out = [];
+    let para = [], list = [];
+    const flushPara = () => { if (para.length) out.push(`<p>${inline(para.join(" "))}</p>`); para = []; };
+    const flushList = () => { if (list.length) out.push(`<ul>${list.map((r) => `<li>${inline(r)}</li>`).join("")}</ul>`); list = []; };
+    for (const row of b.split("\n")) {
+      if (/^-\s+/.test(row)) { flushPara(); list.push(row.replace(/^-\s+/, "")); }
+      else { flushList(); para.push(row); }
+    }
+    flushPara();
+    flushList();
+    return out.join("");
   }).join("\n");
 }
 

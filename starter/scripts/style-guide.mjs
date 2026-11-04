@@ -106,6 +106,7 @@ try {
     }
   }, shots);
   await guidePage.evaluate(async () => {
+    document.querySelectorAll('img[loading="lazy"]').forEach((img) => { img.loading = "eager"; });
     await document.fonts.ready;
     await Promise.all([...document.images].map((img) => Promise.race([img.decode().catch(() => {}), new Promise((r) => setTimeout(r, 8000))])));
   });

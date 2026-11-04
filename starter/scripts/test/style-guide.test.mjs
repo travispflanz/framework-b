@@ -30,6 +30,7 @@ test("prose keeps to paragraphs, lists, subheadings and the site's inline format
   assert.match(html, /<strong>one letter height<\/strong>/);
   assert.match(html, /<ul><li>Never stretch it<\/li><li>Never outline it<\/li><\/ul>/);
   assert.match(html, /&lt;script&gt;/);
+  assert.equal(renderProse("Three heroes:\n- One\n- Two", inline), "<p>Three heroes:</p><ul><li>One</li><li>Two</li></ul>", "a sentence that goes on into a list");
 });
 
 test("the stamp names the inputs that changed since the guide was rendered", () => {
