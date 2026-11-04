@@ -28,6 +28,8 @@ import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/l
 import { accessAuth } from "./lib/access-auth.mjs";
 import { measureImageText } from "./lib/image-text.mjs";
 import { bareBanners, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
+import { unwritten } from "./lib/style-guide.mjs";
+import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -94,6 +96,18 @@ if (existsSync("scripts/design-tokens.mjs")) {
 if (existsSync("scripts/check-content.mjs") && existsSync("src/content")) {
   const r = runs(["scripts/check-content.mjs"]);
   check("content: page sections match the section schema", r.ok, r.ok ? "" : r.out);
+}
+// The style guide (SPEC section 12): rendered from DESIGN.md and STYLE-GUIDE.md. Once it has been rendered, a guide
+// older than either fails, so it stays the description of the site as it is.
+if (existsSync("STYLE-GUIDE.md")) {
+  const stamp = existsSync(STAMP) ? JSON.parse(readFileSync(STAMP, "utf8")) : null;
+  const todo = unwritten(readFileSync("STYLE-GUIDE.md", "utf8"));
+  if (!stamp) console.log("  note  style guide: not rendered yet (write STYLE-GUIDE.md, then node scripts/style-guide.mjs; docs/BUILD.md step 3)");
+  else {
+    const changed = staleInputs(stamp, readInputs());
+    check("style guide: rendered from the current DESIGN.md and STYLE-GUIDE.md", changed.length === 0, changed.length ? `${changed.join(" and ")} changed since; run node scripts/style-guide.mjs` : "");
+    if (todo.length) console.log(`  note  style guide: unwritten sections: ${todo.join(", ")}`);
+  }
 }
 
 // Copy rules, over the built pages and the page content (which, with editing on, isn't in the static build).

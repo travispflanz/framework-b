@@ -186,3 +186,16 @@ test("a seeded file is added once when missing, then left to the site", () => {
   assert.equal(readFileSync(join(site, "design/credits.json"), "utf8"), mine, "the site's ledger is untouched");
   assert.doesNotMatch(r.out, /design\/credits\.json/);
 });
+
+test("the style guide template is seeded once; the site's written guide is never touched", () => {
+  const { fw, site } = setup();
+  release(fw, { "starter/STYLE-GUIDE.md": "# Style guide\n\n## Brand\n\nTo be written once the design is chosen.\n" });
+  let r = update(fw, site);
+  assert.equal(r.code, 0, r.out);
+  assert.match(readFileSync(join(site, "STYLE-GUIDE.md"), "utf8"), /To be written/, "added when the site had none");
+  write(site, { "STYLE-GUIDE.md": "# Style guide\n\n## Brand\n\nFor people who make films.\n" });
+  release(fw, { "starter/STYLE-GUIDE.md": "# Style guide\n\n## Brand\n\nA newer template.\n" });
+  r = update(fw, site);
+  assert.equal(r.code, 0, r.out);
+  assert.match(readFileSync(join(site, "STYLE-GUIDE.md"), "utf8"), /For people who make films/, "the site's guide is untouched");
+});

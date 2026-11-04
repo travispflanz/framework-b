@@ -95,23 +95,32 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      section content pages end on (`composition.titleCase`, `composition.heroes`, `composition.closing`), and in the
      Overview its moves (how titles sit, how type meets a picture, the card style, the rhythm of pictures down a
      page), so a page added later, by anyone, gets them. Variety comes from the family; the language stays the same.
-  4. Build the pick on the site itself. Section layouts the route needs go in the site's own `src/sections/` (site
+  4. Build the pick on the home page of the site itself. Section layouts the route needs go in the site's own `src/sections/` (site
      changes survive framework updates); they move into the starter only when a second site needs the same thing.
-  5. Carry the route through every page, not just the home page: the same title treatment, sections, image style
+  5. Style guide, before the other pages: write `STYLE-GUIDE.md` from DESIGN.md, PRODUCT.md, the owner's decisions
+     and the built home page (every heading in the starter's template; plain words and the owner's own sentences),
+     then `node scripts/style-guide.mjs`. It renders the guide with the site's real colours and contrast, type scale,
+     components, hero layouts and page flow, the first screen of every page, and the social and print sizes with
+     their sources, into `design/style-guide/style-guide.pdf`. Send it to the owner. Every inner page, post, email and
+     print piece is made from it, and it is rendered again whenever DESIGN.md or STYLE-GUIDE.md changes (the QA gate
+     fails a guide older than either).
+  6. Carry the route through every page, not just the home page: the same title treatment, sections, image style
      and phone settings, and pictures on the inner pages too (the QA report lists content pages with none). The home
      page may be louder; it may not speak a different language (SPEC section 12, "One design language"). Flow is the whole
      page, not the hero: the content check holds every hero to the family and every content page's ending to
      `composition.closing`; the QA gate fails a page title unlike the home page's, a bare photo banner and a page that
      runs longer without a picture than the home page does, and draws `qa-output/site-sheet-1280.png` and `site-sheet-360.png`. Look at the sheets before the
      owner does.
-  6. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
+  7. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
      each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
-  7. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
+  8. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
 - Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette, type pair and composition; install their fonts), then:
   - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content (drafts that fail the design checks are rejected);
   - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which, then `node scripts/design-judge.mjs tally`;
   - copy the pick (or, on a tie, the draft closer to the brief) to `DESIGN.md` and record the result in its Overview.
   With an owner intake, the owner picks from `design/tiles/index.html` instead.
+- With or without an owner, the style guide (step 5 of the route method above) comes once the home page is built
+  and before the other pages.
 - With an owner intake, before the drafts: this-or-that (P2.5). Write 4–6 pairs in `design/pairs.json` (each changes
   one thing: display type, palette, imagery, density or shape; format at the top of `scripts/design-pairs.mjs`), run
   `node scripts/design-pairs.mjs render`, send the owner `design/pairs/*.png`, and record each answer with

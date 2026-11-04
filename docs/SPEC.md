@@ -613,6 +613,45 @@ What's built:
 - Unit test in `starter/scripts/test/cohesion.test.mjs`. The half-screen margin is a first setting: untested on
   sites other than the first adopted one.
 
+### Style guide (2026-11-04)
+
+Why: the owner of the first adopted site asked for "an in depth ... Style Guide to work from once the 'general'
+homepage layout for the website/idea is determined", to "help decide all other pages, print, social, etc design
+basics". Until then the decisions lived in DESIGN.md (tokens a machine reads), DECISIONS.md and the pages
+themselves; nothing a designer, a printer or the next agent could open and follow.
+
+Evidence:
+- Nielsen Norman Group, [Design Systems 101](https://www.nngroup.com/articles/design-systems-101/) and [Design
+  Systems vs. Style Guides](https://www.nngroup.com/articles/design-systems-vs-style-guides/) (checked 2026-11-04):
+  style guides cover branding (colours, typography, logos, print media), content (tone of voice) and visual and
+  interaction standards; front-end style guides are "rarely static" but living collections tied to the code.
+- Vistaprint, [How to Create a Brand Style Guide](https://www.vistaprint.com/hub/how-to-create-a-brand-style-guide)
+  (checked 2026-11-04): a guide needs print and digital specifications ("color values, file types, minimum logo
+  sizes, spacing requirements, recommended image resolutions and bleed settings for print"), and "a clear two to
+  five-page brand style guide can be incredibly effective".
+- Brand guideline templates agree on the sections: brand story, logo, colour, typography, imagery, voice and tone
+  shown "with real sentences rather than adjectives" ([Redokun](https://redokun.com/blog/brand-guidelines-template),
+  checked 2026-11-04).
+
+What's built:
+- `STYLE-GUIDE.md` in every site (site-owned; the starter's template is seeded into an existing site once by
+  **site update** and never touched again). Ten sections: Brand, Logo, Colour, Type, Photography, Layout and page
+  flow, Components, Voice, Beyond the website, Do and don't. `check-content.mjs` fails a guide missing one.
+- `node scripts/style-guide.mjs` builds the site with a temporary guide page (`scripts/style-guide/guide.astro`, the
+  same way the style tiles are built) and prints `design/style-guide/style-guide.pdf` (US Letter, a section a page)
+  and `style-guide.png`. Besides the written sections it shows the site's real colours with HEX, RGB and the contrast
+  of every text pair, each type level set in the site's own words, the logo and brand-kit files, a sample of the
+  site's photographs and their sources, the composition, the hero family and how every page ends, the sections in
+  use, the first screen of every page at 1280 and 390 px, live buttons, a card and a form field, and the owner's
+  wording. Print colours are left to the printer's own profile, as the printers ask.
+- Beyond the website: share image, Instagram posts, Stories, the Facebook, LinkedIn, X and YouTube profile and cover
+  images, a US business card and a flyer, each with its source and check date (`SPECS` in
+  `scripts/lib/style-guide.mjs`). Ready-made social and print templates are not built yet.
+- `design/style-guide/stamp.json` records a hash of DESIGN.md and STYLE-GUIDE.md. Once a guide has been rendered, the
+  QA gate fails when either has changed since, so the guide stays the description of the site as it is.
+- Tests: `starter/scripts/test/style-guide.test.mjs`, the update test for the seeded template, and a starter CI step
+  that renders the template. With client editing on, the guide is untested.
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
@@ -623,6 +662,7 @@ Rules:
 - **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders. The page's lists keep to the prose width, so long credit lines stay readable (they failed Impeccable's line length at 1280 px on the first adopted site, 2026-11-03).
 - **A photo taken off a page goes to the library,** never the bin.
 - **A design runs through every page.** A route, image style or phone rule isn't done until the inner pages have it too.
+- **A style guide before the other pages.** Once the home page carries the route, its style guide is written and rendered, and every other page, post and print piece is made from it (owner's decision, 2026-11-04).
 - **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
