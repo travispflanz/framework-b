@@ -7,10 +7,11 @@
 //
 // Checks: content, layout at 360/768/1280/1920 px, console errors, banned fonts, axe (WCAG 2.2 AA tags),
 // page structure, text over images (contrast against the picture behind it, at 360 and 1280 px), one design language
-// (every page title in the home page's treatment, no bare photo banner; scripts/lib/cohesion.mjs), Lighthouse (mobile)
+// (every page title in the home page's treatment, no bare photo banner, pictures at the home page's rhythm;
+// scripts/lib/cohesion.mjs), Lighthouse (mobile)
 // accessibility / best practices / SEO = 100 and CLS < 0.1.
 // Screenshots, the site sheets (site-sheet-1280.png, site-sheet-360.png: the first screen of every page) and a JSON
-// report go to qa-output/. `--mixed-pages` turns the title check into notes, for a test site whose pages mix hero
+// report go to qa-output/. `--mixed-pages` turns the title and rhythm checks into notes, for a test site whose pages mix hero
 // layouts on purpose (scripts/test/variants.mjs).
 //
 // Previews sit behind Cloudflare Access. With ACCESS_CLIENT_ID and ACCESS_CLIENT_SECRET set (an Access service
@@ -26,7 +27,7 @@ import puppeteer from "puppeteer-core";
 import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 import { accessAuth } from "./lib/access-auth.mjs";
 import { measureImageText } from "./lib/image-text.mjs";
-import { bareBanners, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
+import { bareBanners, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -175,6 +176,7 @@ try {
   browser = await launchBrowser();
 
   const titles = {};
+  const rhythm = {};
   for (const path of pages) {
     for (const width of WIDTHS) {
       // Reduced motion: checks and screenshots see every element in its final state, whatever the scroll position
@@ -252,6 +254,7 @@ try {
         // One design language (SPEC section 12): the title's treatment, compared across pages after the loop, and no
         // bare photo banner (a wide photo goes with the title or with text beside it).
         titles[path] = await titleStyle(page);
+        rhythm[path] = await pictureRhythm(page);
         const banners = await bareBanners(page);
         check(`layout ${path}: no bare photo banner (a wide photo carries text or sits beside it)`, banners.length === 0, banners.join("; "));
       }
@@ -276,6 +279,10 @@ try {
   if (MIXED) for (const m of mismatch) console.log(`  note  title ${m}`);
   else check("design: every page title has the home page's treatment (face, weight, case, alignment)", mismatch.length === 0, mismatch.join("; "));
   if (!composition.heroes) console.log("  note  design: composition.heroes isn't set in DESIGN.md, so the hero of a page added later isn't fixed (docs/BUILD.md step 3)");
+  // Page flow: the home page sets how often a picture comes; no page with pictures runs much longer without one.
+  const breaks = rhythmBreaks(rhythm, "/");
+  if (MIXED) for (const b of breaks) console.log(`  note  rhythm ${b}`);
+  else check("design: no page runs longer without a picture than the home page (plus half a screen)", breaks.length === 0, breaks.join("; "));
   for (const [width, screen] of [[1280, 900], [360, 780]]) {
     const file = await siteSheet({ out: OUT, pages: [...pages].sort((a, b) => (a === "/" ? -1 : b === "/" ? 1 : a.localeCompare(b))), width, screen, file: join(OUT, `site-sheet-${width}.png`) });
     if (file) console.log(`  sheet ${file}: the first screen of every page, to review the site as a whole`);

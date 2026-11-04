@@ -17,10 +17,11 @@ interface Props { value: Record<string, any>; blockKey?: string }
 const { value } = Astro.props;
 const points = lines(value.points).slice(0, 4);
 const hasImage = !!value.image?.src;
-// The route sets the hero (composition.heroes in DESIGN.md): one layout for the home page, one for every other page,
-// so a page added later looks like the rest. A hero with no picture falls back to a statement, in the same title
-// treatment (composition.titleCase and composition.align), so the page title reads the same on every page.
-const route = composition.heroes ? (Astro.url.pathname.replace(/\/$/, "") === "" ? composition.heroes.home : composition.heroes.page) : undefined;
+// The route sets the hero (composition.heroes in DESIGN.md): one layout for the home page and a family for every
+// other page (a page picks one with `variant`; without one it gets the first), so a page added later looks like the
+// rest. A hero with no picture falls back to a statement, in the same title treatment (composition.titleCase and
+// composition.align), so the page title reads the same on every page.
+const route = composition.heroes ? (Astro.url.pathname.replace(/\/$/, "") === "" ? composition.heroes.home : [].concat(composition.heroes.page)[0]) : undefined;
 const chosen = VARIANTS.fb_hero.includes(value.variant) ? value.variant : route || variantOf("fb_hero", value);
 const variant = hasImage ? chosen : chosen === "bento" ? "bento" : "statement";
 const center = composition.align === "center";
