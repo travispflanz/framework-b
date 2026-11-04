@@ -1,0 +1,219 @@
+---
+// The style guide page: STYLE-GUIDE.md together with the site's real colours, type, components, hero layouts, page
+// flow and pages (docs/SPEC.md section 12, "Style guide"). scripts/style-guide.mjs adds this page to the site only
+// while it builds the guide (into a scratch folder), prints it to design/style-guide/style-guide.pdf and removes it;
+// it never ships. Figures marked data-shot are filled with the first screen of each page by the script.
+export const prerender = true;
+import { parse } from "yaml";
+// Bundled as text: editing sites prerender inside the Workers runtime, which has no filesystem.
+import design from "../../DESIGN.md?raw";
+import guideText from "../../STYLE-GUIDE.md?raw";
+import Base from "../layouts/Base.astro";
+import Picture from "../sections/Picture.astro";
+import config from "../../site.config.json";
+import credits from "../../design/credits.json";
+import { inline } from "../sections/text.js";
+import { composition, imagery } from "../sections/design.js";
+import { VARIANTS } from "../sections/schema.js";
+import { parseGuide, renderProse, SPECS } from "../../scripts/lib/style-guide.mjs";
+
+const product = Object.values(import.meta.glob("../../PRODUCT.md", { query: "?raw", import: "default", eager: true }))[0] || "";
+const front = parse(design.match(/^---\n([\s\S]*?)\n---/)?.[1] || "") || {};
+const guide = parseGuide(guideText);
+const prose = Object.fromEntries(guide.sections.map((s) => [s.heading, renderProse(s.body, inline)]));
+const publicFiles = Object.keys(import.meta.glob("../../public/*.{svg,png,ico}")).map((f) => f.split("/").pop());
+const has = (name) => publicFiles.includes(name);
+const logo = config.site.logo || (has("logo.svg") ? "/logo.svg" : null);
+
+// Colours, and the contrast of every pair the site sets text in (WCAG 2.2: 4.5:1 for text, 3:1 for large text).
+const colors = Object.entries(front.colors || {}).filter(([, v]) => /^#[0-9a-f]{6}$/i.test(String(v)));
+const hex = Object.fromEntries(colors);
+const lum = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(", ");
+const PAIRS = [["ink", "bg"], ["ink", "surface"], ["ink-muted", "bg"], ["ink-muted", "surface"], ["accent", "bg"], ["accent", "surface"], ["accent-ink", "accent"], ["highlight-ink", "highlight"], ["error", "bg"],
+  ["inverse-ink", "inverse-bg"], ["inverse-ink-muted", "inverse-bg"], ["inverse-accent", "inverse-bg"], ["poster-red-ink", "poster-red"]];
+const pairs = PAIRS.filter(([f, b]) => hex[f] && hex[b]).map(([f, b]) => ({ f, b, r: ratio(hex[f], hex[b]) }));
+
+// Type: every level in DESIGN.md, set in the site's own words.
+const pages = Object.entries(import.meta.glob("../content/*.json", { eager: true, import: "default" })).map(([f, d]: [string, any]) => ({ slug: f.split("/").pop().replace(/\.json$/, ""), page: d }));
+const home = pages.find((p) => p.slug === "home")?.page;
+const homeHero = home?.sections?.find((s) => s._type === "fb_hero");
+const sampleBody = home?.sections?.map((s) => s.body || s.subheadline).find((t) => typeof t === "string" && t.length > 80) || homeHero?.subheadline || config.site.tagline || "";
+// Phone sizes ("-mobile") are folded into each level's fluid size in tokens.css, so they're not listed separately.
+const levels = Object.entries(front.typography || {}).filter(([name]) => !name.endsWith("-mobile"));
+const displayFamily = String(front.typography?.display?.fontFamily || "");
+const faceOf = (t) => (String(t.fontFamily) === displayFamily ? "var(--font-display)" : "var(--font-body)");
+const sample = (name) => (/display|headline/.test(name) ? homeHero?.headline || config.site.name : /title|label/.test(name) ? (home?.sections?.find((s) => s.headline && s._type !== "fb_hero")?.headline || config.site.name) : sampleBody.split(/\n\s*\n/)[0].slice(0, 220));
+
+// Layout: each page's hero (its own variant, or the route's), how it ends, and the sections the site uses.
+const heroes = composition.heroes;
+const family = heroes ? [].concat(heroes.page) : [];
+const rows = pages.filter((p) => p.slug !== "not-found").map(({ slug, page }) => {
+  const s = page.sections || [];
+  const hero = s.find((x) => x._type === "fb_hero") || {};
+  const chosen = VARIANTS.fb_hero.includes(hero.variant) ? hero.variant : heroes ? (slug === "home" ? heroes.home : family[0]) : VARIANTS.fb_hero[0];
+  return { path: slug === "home" ? "/" : `/${slug}`, hero: hero.image?.src ? chosen : "statement (no picture)", sections: s.length, ends: s.at(-1)?._type || "", form: s.some((x) => x._type === "fb_form"), noindex: !!page.noindex };
+}).sort((a, b) => (a.path === "/" ? -1 : b.path === "/" ? 1 : a.path.localeCompare(b.path)));
+const vocabulary = Object.entries(pages.flatMap(({ page }) => (page.sections || []).map((s) => `${s._type.replace(/^fb_/, "")}${s.variant ? ` · ${s.variant}` : ""}`)).reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]);
+const shots = rows.filter((r) => !r.noindex).map((r) => r.path);
+
+// Photography: the site's own credited pictures, a few of each kind.
+const photos = (credits.images || []).filter((c) => c.file?.startsWith("src/assets/images/") && !c.test).slice(0, 9).map((c) => ({ src: c.file.split("/").pop(), alt: c.alt || "", source: c.source, archive: c.archive }));
+const bySource = (credits.images || []).filter((c) => !c.test).reduce((m, c) => ((m[c.archive || c.source] = (m[c.archive || c.source] || 0) + 1), m), {});
+const ownerWords = (product.split(/^## Owner's wording\s*$/m)[1] || "").split(/^## /m)[0].split("\n").filter((l) => /^[-*]\s+/.test(l)).map((l) => l.replace(/^[-*]\s+/, "").trim()).slice(0, 8);
+const titles = rows.map((r) => pages.find((p) => (p.slug === "home" ? "/" : `/${p.slug}`) === r.path)?.page.sections?.find((s) => s._type === "fb_hero")?.headline).filter(Boolean);
+const today = new Date().toISOString().slice(0, 10);
+---
+<Base title={`Style guide`} noindex bleed>
+  <div class="sg">
+    <section class="sg-cover">
+      {logo ? <img src={logo} alt={config.site.name} class="sg-logo" /> : <p class="sg-name">{config.site.name}</p>}
+      <h1 class="sg-h1">{guide.title}</h1>
+      <p class="sg-meta">{config.site.name} · {config.site.canonicalHost} · {today}</p>
+      <p class="sg-meta">Rendered from DESIGN.md, STYLE-GUIDE.md and the built site by scripts/style-guide.mjs. The colours, type, components and pages shown here are the site's own.</p>
+      <ol class="sg-toc">{guide.sections.map((s) => <li>{s.heading}</li>)}</ol>
+    </section>
+
+    {guide.sections.map((s) => (
+      <section class="sg-section">
+        <h2 class="sg-h2">{s.heading}</h2>
+        <div class="sg-prose" set:html={prose[s.heading]} />
+
+        {s.heading === "Logo" && (
+          <div class="sg-grid">
+            {logo && <figure class="sg-tile" style="background:var(--color-bg)"><img src={logo} alt="" /><figcaption>On the page colour</figcaption></figure>}
+            {logo && <figure class="sg-tile" style="background:var(--color-surface)"><img src={logo} alt="" /><figcaption>On the surface colour</figcaption></figure>}
+            {has("icon-512.png") && <figure class="sg-tile"><img src="/icon-512.png" alt="" style="max-height:96px" /><figcaption>App icon (icon-512.png)</figcaption></figure>}
+            {has("og.png") && <figure class="sg-tile sg-wide"><img src="/og.png" alt="" /><figcaption>Share image (og.png, 1200 × 630)</figcaption></figure>}
+          </div>
+        )}
+
+        {s.heading === "Colour" && (
+          <>
+            <ul class="sg-swatches" role="list">
+              {colors.map(([name, value]) => (
+                <li><span class="sg-chip" style={`background:${value}`}></span><strong>{name}</strong><span>{String(value).toUpperCase()}</span><span>RGB {rgb(String(value))}</span></li>
+              ))}
+            </ul>
+            <table class="sg-table">
+              <thead><tr><th>Text</th><th>On</th><th>Contrast</th><th>Use</th></tr></thead>
+              <tbody>{pairs.map((p) => <tr><td>{p.f}</td><td>{p.b}</td><td>{p.r.toFixed(2)}:1</td><td>{p.r >= 4.5 ? "any text" : p.r >= 3 ? "large text only" : "not for text"}</td></tr>)}</tbody>
+            </table>
+            <p class="sg-note">The values are sRGB, the source of truth. For print, give them to the printer and let them convert with their own profile.</p>
+          </>
+        )}
+
+        {s.heading === "Type" && (
+          <div class="sg-type">
+            {levels.map(([name, t]: [string, any]) => (
+              <div class="sg-level">
+                <p class="sg-label">{name} · {String(t.fontFamily).split(",")[0]} · {t.fontSize} · {t.fontWeight} · line {t.lineHeight}</p>
+                <p class:list={[{ uppercase: composition.titleCase === "upper" && /display/.test(name) }]} style={`font-family:${faceOf(t)};font-size:min(var(--text-${name}), 1.1in);line-height:var(--text-${name}--line-height);font-weight:var(--text-${name}--font-weight)`}>{sample(name)}</p>
+              </div>
+            ))}
+            <p class="sg-note">Specimens larger than 1.1 in are shown at 1.1 in; the label gives the real size. Page titles: {composition.titleCase === "upper" ? "uppercase" : "as written"}, aligned {composition.align}. Every page's title is checked against the home page's by the QA gate.</p>
+          </div>
+        )}
+
+        {s.heading === "Photography" && (
+          <>
+            <p class="sg-note">Style: {imagery.style}{imagery.secondary ? `, with ${imagery.secondary}` : ""}. Treatment: {imagery.treatment}{imagery.grain ? ", with film grain" : ""}. Sources now on the site: {Object.entries(bySource).map(([k, n]) => `${k} ${n}`).join(", ")}.</p>
+            <div class="sg-photos">{photos.map((p) => <Picture image={{ src: p.src, alt: p.alt }} sizes="240px" class="sg-photo" eager />)}</div>
+          </>
+        )}
+
+        {s.heading === "Layout and page flow" && (
+          <>
+            <p class="sg-note">Home hero: {heroes?.home || VARIANTS.fb_hero[0]}. The other pages choose from: {family.length ? family.join(", ") : VARIANTS.fb_hero[0]}. Content pages end on: {composition.closing || "(not set)"}. Alignment {composition.align}, density {composition.density}, separation {composition.separation}, cards {composition.cards}, images {composition.imageShape}, motion {composition.motion}, phone budget {composition.phoneBudget} screens.</p>
+            <table class="sg-table">
+              <thead><tr><th>Page</th><th>Hero</th><th>Sections</th><th>Ends on</th></tr></thead>
+              <tbody>{rows.map((r) => <tr><td>{r.path}</td><td>{r.hero}</td><td>{r.sections}</td><td>{r.form ? "the form" : r.ends.replace(/^fb_/, "")}</td></tr>)}</tbody>
+            </table>
+            <p class="sg-label">Sections in use</p>
+            <p class="sg-note">{vocabulary.map(([k, n]) => `${k} (${n})`).join(" · ")}</p>
+            <div class="sg-shots">
+              {shots.map((p) => (
+                <figure class="sg-shot"><div class="sg-shot-pair"><span data-shot={p} data-width="1280"></span><span data-shot={p} data-width="390"></span></div><figcaption>{p}</figcaption></figure>
+              ))}
+            </div>
+          </>
+        )}
+
+        {s.heading === "Components" && (
+          <div class="sg-components">
+            <div><a href="#" class="button-primary">Primary action</a></div>
+            <div><a href="#" class="underline underline-offset-2 text-accent">A link in running text</a></div>
+            <div class="card p-6"><p class="font-display text-title text-ink">A card</p><p class="text-body text-ink-muted">Cards are {composition.cards}; images are {composition.imageShape}.</p></div>
+            <label class="sg-field"><span class="text-small text-ink">A form field</span><input type="text" placeholder="Your name" /></label>
+          </div>
+        )}
+
+        {s.heading === "Voice" && (
+          <>
+            {ownerWords.length > 0 && <><p class="sg-label">In the owner's words</p><ul class="sg-quotes">{ownerWords.map((w) => <li set:html={inline(w)} />)}</ul></>}
+            <p class="sg-label">Page titles on the site now</p>
+            <ul class="sg-quotes">{titles.map((t) => <li>{t}</li>)}</ul>
+          </>
+        )}
+
+        {s.heading === "Beyond the website" && (
+          <table class="sg-table sg-specs">
+            <thead><tr><th>Use</th><th>Size and settings</th><th>Source (checked)</th></tr></thead>
+            <tbody>{SPECS.map((x) => <tr><td>{x.use}</td><td>{x.spec}</td><td><a href={x.url}>{x.source}</a> ({x.checked})</td></tr>)}</tbody>
+          </table>
+        )}
+      </section>
+    ))}
+  </div>
+</Base>
+
+<style is:global>
+  /* The guide prints on US Letter in the site's own page colour, edge to edge; the site's header, footer and phone
+     bar are left out. */
+  @page { size: Letter; margin: 0; }
+  html, body { background: var(--color-bg); }
+  body > header, body > footer, body > div.fixed, body > nav { display: none !important; }
+  .sg { max-width: 8.5in; margin: 0 auto; padding: 0 0.6in; color: var(--color-ink); background: var(--color-bg); font-family: var(--font-body); }
+  .sg-cover { min-height: 11in; box-sizing: border-box; padding: 0.6in 0; display: flex; flex-direction: column; justify-content: center; gap: 1rem; }
+  .sg-logo { max-width: 3in; max-height: 1.2in; object-fit: contain; object-position: left; }
+  .sg-name { font-family: var(--font-display); font-size: var(--text-headline); }
+  .sg-h1 { font-family: var(--font-display); font-size: var(--text-display); line-height: var(--text-display--line-height); font-weight: var(--text-display--font-weight); }
+  .sg-h2 { font-family: var(--font-display); font-size: var(--text-headline); line-height: var(--text-headline--line-height); font-weight: var(--text-headline--font-weight); margin-bottom: 1rem; }
+  .sg-meta, .sg-note { color: var(--color-ink-muted); font-size: var(--text-small); line-height: var(--text-small--line-height); }
+  .sg-note { margin: 0.75rem 0; }
+  .sg-label { font-size: var(--text-label); font-weight: var(--text-label--font-weight); color: var(--color-ink-muted); margin: 1rem 0 0.25rem; }
+  .sg-toc { margin-top: 1.5rem; padding-left: 1.2rem; font-size: var(--text-small); color: var(--color-ink-muted); }
+  .sg-section { break-before: page; padding-block: 0.6in 0.4in; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .sg-prose { font-size: var(--text-small); line-height: 1.55; max-width: 6.5in; }
+  .sg-prose p, .sg-prose ul { margin: 0 0 0.6rem; }
+  .sg-prose ul { padding-left: 1.2rem; list-style: disc; }
+  .sg-prose h3 { font-family: var(--font-display); font-size: var(--text-title); margin: 1rem 0 0.4rem; }
+  .sg-prose a, .sg-specs a { text-decoration: underline; }
+  .sg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+  .sg-tile { border: 1px solid var(--color-line); padding: 0.75rem; display: grid; gap: 0.5rem; justify-items: start; break-inside: avoid; }
+  .sg-tile img { max-height: 1in; max-width: 100%; }
+  .sg-wide { grid-column: 1 / -1; }
+  .sg-wide img { max-height: none; }
+  .sg-tile figcaption, .sg-shot figcaption { font-size: var(--text-label); color: var(--color-ink-muted); }
+  .sg-swatches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: 1rem 0; list-style: none; padding: 0; }
+  .sg-swatches li { display: grid; gap: 0.1rem; font-size: var(--text-label); break-inside: avoid; }
+  .sg-chip { display: block; height: 0.6in; border: 1px solid var(--color-line); }
+  .sg-table { width: 100%; border-collapse: collapse; font-size: var(--text-label); margin: 0.75rem 0; }
+  .sg-table th, .sg-table td { text-align: left; border-bottom: 1px solid var(--color-line); padding: 0.3rem 0.4rem 0.3rem 0; vertical-align: top; }
+  .sg-table tr { break-inside: avoid; }
+  .sg-type { display: grid; gap: 0.6rem; margin-top: 1rem; }
+  .sg-level { break-inside: avoid; border-bottom: 1px solid var(--color-line); padding-bottom: 0.5rem; overflow: hidden; }
+  .sg-photos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
+  .sg-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; break-inside: avoid; }
+  .sg-shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+  .sg-shot { break-inside: avoid; display: grid; gap: 0.25rem; }
+  .sg-shot-pair { display: grid; grid-template-columns: 3fr 1fr; gap: 0.25rem; align-items: start; }
+  .sg-shot-pair img { width: 100%; border: 1px solid var(--color-line); }
+  .sg-components { display: grid; gap: 1rem; margin-top: 1rem; max-width: 4in; }
+  .sg-field { display: grid; gap: 0.3rem; }
+  .sg-field input { border: 1px solid var(--color-field); padding: 0.6rem 0.75rem; background: var(--color-bg); color: var(--color-ink); border-radius: var(--radius-control); }
+  .sg-quotes { padding-left: 1.2rem; list-style: disc; font-size: var(--text-small); line-height: 1.5; }
+  .sg-level p.uppercase { text-transform: uppercase; }
+  .sg-level p[class*="text-display"] { overflow-wrap: anywhere; }
+</style>

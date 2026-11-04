@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SECTIONS } from "../src/sections/schema.js";
 import { stripJsonc } from "./lib/jsonc.mjs";
+import { missingSections } from "./lib/style-guide.mjs";
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
 const design = existsSync("src/styles/design.json") ? JSON.parse(readFileSync("src/styles/design.json", "utf8")) : {};
@@ -122,6 +123,12 @@ for (const c of ledger) {
   // Generated images are illustrative only: never the business's own people, premises, products, work or results.
   if (c.source === "generated" && c.abstract !== true && c.illustrative !== true) errors.push(`${where}: a generated image must be marked "illustrative": true (or "abstract": true); it may never show the business's own people, premises, products, work or results`);
   if (typeof c.alt !== "string") errors.push(`${where}: "alt" is required ("" for a decorative image)`);
+}
+
+// The style guide (SPEC section 12, "Style guide"): every section heading, so the rendered guide is complete.
+if (existsSync("STYLE-GUIDE.md")) {
+  const missing = missingSections(readFileSync("STYLE-GUIDE.md", "utf8"));
+  if (missing.length) errors.push(`STYLE-GUIDE.md is missing sections: ${missing.join(", ")} (the starter's STYLE-GUIDE.md has them all)`);
 }
 
 // Drips (core src/drips.js) need their Workflow binding; without it, leads would silently get no emails.

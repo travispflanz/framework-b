@@ -85,6 +85,14 @@ jobs:
         if: matrix.editing == 'off'
         run: node scripts/test/variants.mjs
         working-directory: starter
+      - name: Style guide (the template renders to a PDF with every section, its swatches and a stamp)
+        if: matrix.editing == 'off'
+        run: |
+          node scripts/style-guide.mjs --out "$RUNNER_TEMP/guide"
+          test -s "$RUNNER_TEMP/guide/style-guide.pdf" && test -s "$RUNNER_TEMP/guide/style-guide.png"
+          jq -e '.inputs["DESIGN.md"] and .inputs["STYLE-GUIDE.md"] and (.unwritten | length == 10)' "$RUNNER_TEMP/guide/stamp.json"
+          test ! -e src/pages/style-guide.astro
+        working-directory: starter
       - name: Brand kit (six logo layouts, then the pick's logo, icons and share image)
         if: matrix.editing == 'off'
         run: node scripts/test/brand-kit.mjs

@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 export const SITE_OWNED = [
   /^site\.config\.json$/,
   /^wrangler\.jsonc$/,
-  /^(DESIGN|PRODUCT|DECISIONS|HANDOFF|SECRETS|README)\.md$/,
+  /^(DESIGN|PRODUCT|DECISIONS|HANDOFF|SECRETS|README|STYLE-GUIDE)\.md$/,
   /^src\/content\//,
   /^public\//,
   /^\.githooks\//,
@@ -23,7 +23,7 @@ export const SITE_OWNED = [
   /^design\//,
 ];
 // Seeded: added to a site that doesn't have them yet, then site-owned (the site edits them; updates never touch them).
-export const SEEDED = [/^design\/credits\.json$/];
+export const SEEDED = [/^design\/credits\.json$/, /^STYLE-GUIDE\.md$/];
 export const GENERATED = [/^src\/styles\/tokens\.css$/, /^src\/styles\/fonts\.js$/, /^src\/styles\/design\.json$/, /^seed\//, /^package-lock\.json$/];
 const IGNORED = [/(^|\/)(node_modules|dist|\.astro|\.wrangler|qa-output)\//, /^core\//, /^\.dev\.vars$/];
 // The overlay targets: with editing on, these come from starter/editing/<path>.
