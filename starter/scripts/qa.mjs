@@ -221,10 +221,12 @@ try {
       check(`page ${tag}: no banned fonts without a DESIGN.md reason`, banned.length === 0, banned.join(", "));
       // Lazy images below the fold load only when scrolled to; load them all so the full-page screenshot (used by the
       // critique rounds and by people reviewing) shows every image.
+      // decode() settles once a picture is loaded and ready to paint; waiting for "load" alone left the photo panels
+      // below the fold empty in the full-page screenshot (mean brightness 8 against 121 with decode(), first adopted
+      // site, 2026-11-04).
       await page.evaluate(async () => {
-        const imgs = [...document.querySelectorAll('img[loading="lazy"]')];
-        imgs.forEach((img) => { img.loading = "eager"; });
-        await Promise.all(imgs.map((img) => (img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; setTimeout(r, 5000); }))));
+        document.querySelectorAll('img[loading="lazy"]').forEach((img) => { img.loading = "eager"; });
+        await Promise.all([...document.images].map((img) => Promise.race([img.decode().catch(() => {}), new Promise((r) => setTimeout(r, 8000))])));
       });
       await page.screenshot({ path: join(OUT, `${(path.slice(1) || "home").replace(/\//g, "_")}-${width}.png`), fullPage: true });
 

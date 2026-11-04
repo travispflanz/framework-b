@@ -89,7 +89,10 @@ try {
     const page = await browser.newPage({ viewport: { width, height: width > 500 ? 800 : 844 }, reducedMotion: "reduce", deviceScaleFactor: 1 });
     const res = await page.goto(`${base}${path}`, { waitUntil: "load" });
     if (res?.ok()) {
-      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await Promise.all([...document.images].map((img) => Promise.race([img.decode().catch(() => {}), new Promise((r) => setTimeout(r, 8000))])));
+      });
       const png = await page.screenshot();
       const jpg = await sharp(png).resize({ width: width > 500 ? 800 : 260 }).jpeg({ quality: 72 }).toBuffer();
       shots[`${path}@${width}`] = `data:image/jpeg;base64,${jpg.toString("base64")}`;
@@ -104,7 +107,7 @@ try {
   }, shots);
   await guidePage.evaluate(async () => {
     await document.fonts.ready;
-    await Promise.all([...document.images].map((img) => (img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; }))));
+    await Promise.all([...document.images].map((img) => Promise.race([img.decode().catch(() => {}), new Promise((r) => setTimeout(r, 8000))])));
   });
   mkdirSync(OUT, { recursive: true });
   await guidePage.pdf({ path: join(OUT, "style-guide.pdf"), format: "Letter", printBackground: true, preferCSSPageSize: true });
