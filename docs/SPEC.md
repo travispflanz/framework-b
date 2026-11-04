@@ -651,6 +651,13 @@ What's built:
   QA gate fails when either has changed since, so the guide stays the description of the site as it is.
 - Tests: `starter/scripts/test/style-guide.test.mjs`, the update test for the seeded template, and a starter CI step
   that renders the template. With client editing on, the guide is untested.
+- Found while building it: the QA gate's full-page screenshots (for people reviewing and for the critique rounds)
+  showed photo panels below the fold as empty boxes, because waiting for an image's load event doesn't mean it is
+  ready to paint. Screenshots now wait for every picture's `decode()`; the same panel measured a mean brightness of 8
+  before and 121 after (first adopted site, 2026-11-04). The text-over-pictures measurement was not affected: it
+  scrolls the page first.
+- Proven on the first adopted site: its guide renders to 20 pages with its real colours, type, components, photographs
+  and 16 page screens.
 
 Rules:
 
