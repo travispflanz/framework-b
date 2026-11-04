@@ -75,7 +75,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   there expect (photos or illustration, how much text before the first action, booking or calling or quoting). Each
   draft takes a position on those expectations; the drafts differ from each other, not from the industry.
 - Every draft sets the skin and the skeleton. Besides colours, type, radii and spacing it has the Framework B blocks
-  `composition` (alignment, density, separation, card style, image shape, motion, phone budget) and `imagery` (style,
+  `composition` (alignment, density, separation, card style, image shape, motion, phone budget, title case, and the
+  hero layouts for the home page and for every other page) and `imagery` (style,
   secondary, treatment, grain, a one-line art direction). The brief's `design.imagery` answers decide the imagery
   block. Allowed values: the header of `scripts/design-tokens.mjs`.
 - With an owner, routes come before drafts (SPEC section 12, "Design routes"). A route is a whole page skeleton
@@ -83,15 +84,23 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   1. References: capture current sites from curated galleries and from the business's own field, and measure them
      the same way (images per page, how much of the page is image, the first screen, the phone layout). Name every
      site you use.
-  2. Routes: three or four, each modelled on named reference sites and mocked as one page with the site's real copy
-     and images it may legally use, at desktop and phone width. Measure each like the references, and list what
-     each needs from the owner (photos, new short phrases, which are written for the owner to approve).
+  2. Routes: three or four, each modelled on named reference sites and mocked as a page family with the site's real
+     copy and images it may legally use, at desktop and phone width: the home page and one inner page (a content
+     page, and the form page too if the site has one). Look at how each reference carries its home page onto its
+     inner pages, and do the same. Measure each like the references, and list what each needs from the owner
+     (photos, new short phrases, which are written for the owner to approve).
   3. The owner picks one or a mix, and may add conditions ("only if the text over the photos is readable"). Research
-     each condition before changing anything, and turn it into a measurement.
+     each condition before changing anything, and turn it into a measurement. Record the pick in `DESIGN.md`: the
+     route's title case and hero layouts (`composition.titleCase`, `composition.heroes`), and in the Overview its
+     moves (how titles sit, how type meets a picture, the card style), so a page added later, by anyone, gets them.
   4. Build the pick on the site itself. Section layouts the route needs go in the site's own `src/sections/` (site
      changes survive framework updates); they move into the starter only when a second site needs the same thing.
-  5. Carry the route through every page, not just the home page: the same sections, image style and phone
-     settings, and pictures on the inner pages too (the QA report lists content pages with none).
+  5. Carry the route through every page, not just the home page: the same title treatment, sections, image style
+     and phone settings, and pictures on the inner pages too (the QA report lists content pages with none). The home
+     page may be louder; it may not speak a different language (SPEC section 12, "One design language"). The content
+     check holds every hero to `composition.heroes`; the QA gate fails a page title unlike the home page's and a bare
+     photo banner, and draws `qa-output/site-sheet-1280.png` and `site-sheet-360.png`. Look at the sheets before the
+     owner does.
   6. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
      each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
   7. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
@@ -181,7 +190,8 @@ Fix and push until it passes. A site older than this check needs **site update**
 ## 7. Owner approval
 
 Send the owner one message: the pull request link, the preview URL (they sign in with their email at the Access
-prompt), what was inferred and needs a yes, and any brief warnings. Merging the pull request is the approval;
+prompt), the two site sheets from the QA gate (every page's first screen at desktop and phone width), what was
+inferred and needs a yes, and any brief warnings. Merging the pull request is the approval;
 `main` deploys production.
 
 ## 8. Production (P8, idea mode)

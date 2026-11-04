@@ -16,7 +16,10 @@
 // original look). They are written to src/styles/design.json, which Base.astro and the sections read:
 //   composition: align (left|center), density (airy|compact), separation (bands|hairlines|none),
 //                cards (filled|outlined|flat), imageShape (rounded|square|full-bleed), motion (none|subtle|expressive),
-//                phoneBudget (screens, the home page's maximum length on a 390 x 844 phone; the QA gate checks it)
+//                phoneBudget (screens, the home page's maximum length on a 390 x 844 phone; the QA gate checks it),
+//                titleCase (as-written|upper: every page's <h1>), heroes ({ home, page }: the hero layout of the home
+//                page and of every other page, each one of this site's fb_hero variants in src/sections/schema.js; a
+//                hero without a variant takes the route's, and scripts/check-content.mjs holds every page to it)
 //   imagery:     style (see IMAGERY_STYLES), secondary (optional), treatment (none|duotone|tint|warm|cool|mono),
 //                grain (true|false), prompt (one line of art direction reused for every generated image)
 // Extra tokens are allowed and exported too. Components (button-primary, button-secondary, ...) become classes
@@ -24,6 +27,8 @@
 // `npm i @fontsource-variable/figtree`; the script imports the variable package when present.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { parse } from "yaml";
 
 const CHECK = process.argv.includes("--check");
@@ -79,7 +84,7 @@ const COMPOSITION = {
   imageShape: ["rounded", "square", "full-bleed"],
   motion: ["none", "subtle", "expressive"],
 };
-const COMPOSITION_DEFAULTS = { align: "left", density: "airy", separation: "bands", cards: "filled", imageShape: "rounded", motion: "none", phoneBudget: 6 };
+const COMPOSITION_DEFAULTS = { align: "left", density: "airy", separation: "bands", cards: "filled", imageShape: "rounded", motion: "none", phoneBudget: 6, titleCase: "as-written" };
 const IMAGERY_STYLES = ["owner-photo", "documentary-stock", "photoreal-generated", "line-art", "flat-illustration", "watercolor", "3d", "isometric", "collage", "cartoon", "abstract", "icon-led"];
 const TREATMENTS = ["none", "duotone", "tint", "warm", "cool", "mono"];
 const composition = { ...COMPOSITION_DEFAULTS, ...(tokens.composition || {}) };
@@ -88,6 +93,16 @@ for (const [k, allowed] of Object.entries(COMPOSITION)) {
 }
 if (!(Number(composition.phoneBudget) >= 2 && Number(composition.phoneBudget) <= 20)) throw new Error("composition.phoneBudget must be a number of screens from 2 to 20");
 composition.phoneBudget = Number(composition.phoneBudget);
+// One design language (SPEC section 12): the title treatment and the hero layouts are part of the route, so every
+// page, including the ones added later, gets them from here rather than from whoever writes the page.
+if (!["as-written", "upper"].includes(composition.titleCase)) throw new Error(`composition.titleCase must be as-written or upper (got ${composition.titleCase})`);
+if (composition.heroes !== undefined) {
+  const { VARIANTS } = await import(pathToFileURL(join(process.cwd(), "src/sections/schema.js")).href);
+  const heroes = composition.heroes;
+  if (typeof heroes !== "object" || !heroes.home || !heroes.page) throw new Error("composition.heroes needs home and page, for example { home: split, page: split }");
+  for (const k of ["home", "page"]) if (!VARIANTS.fb_hero.includes(heroes[k])) throw new Error(`composition.heroes.${k} must be one of this site's hero layouts: ${VARIANTS.fb_hero.join(", ")} (got ${heroes[k]})`);
+  composition.heroes = { home: heroes.home, page: heroes.page };
+}
 const imagery = { style: "owner-photo", treatment: "none", grain: false, prompt: "", ...(tokens.imagery || {}) };
 for (const k of ["style", "secondary"]) if (imagery[k] !== undefined && !IMAGERY_STYLES.includes(imagery[k])) throw new Error(`imagery.${k} must be one of ${IMAGERY_STYLES.join(", ")}`);
 if (!TREATMENTS.includes(imagery.treatment)) throw new Error(`imagery.treatment must be one of ${TREATMENTS.join(", ")}`);
