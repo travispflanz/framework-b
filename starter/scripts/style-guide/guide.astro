@@ -61,7 +61,7 @@ const shots = rows.filter((r) => !r.noindex).map((r) => r.path);
 // Photography: the site's own credited pictures, a few of each kind.
 const photos = (credits.images || []).filter((c) => c.file?.startsWith("src/assets/images/") && !c.test).slice(0, 9).map((c) => ({ src: c.file.split("/").pop(), alt: c.alt || "", source: c.source, archive: c.archive }));
 const bySource = (credits.images || []).filter((c) => !c.test).reduce((m, c) => ((m[c.archive || c.source] = (m[c.archive || c.source] || 0) + 1), m), {});
-const ownerWords = (product.split(/^## Owner's wording\s*$/m)[1] || "").split(/^## /m)[0].split("\n").map((l) => l.replace(/^[-*]\s+/, "").trim()).filter(Boolean).slice(0, 8);
+const ownerWords = (product.split(/^## Owner's wording\s*$/m)[1] || "").split(/^## /m)[0].split("\n").filter((l) => /^[-*]\s+/.test(l)).map((l) => l.replace(/^[-*]\s+/, "").trim()).slice(0, 8);
 const titles = rows.map((r) => pages.find((p) => (p.slug === "home" ? "/" : `/${p.slug}`) === r.path)?.page.sections?.find((s) => s._type === "fb_hero")?.headline).filter(Boolean);
 const today = new Date().toISOString().slice(0, 10);
 ---
