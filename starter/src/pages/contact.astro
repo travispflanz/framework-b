@@ -2,6 +2,7 @@
 // The contact page: the contact form under a heading. src/content/contact.json, when present, replaces it with
 // sections like any other page (a hero, then a form section).
 import Base from "../layouts/Base.astro";
+import PageTitle from "../components/PageTitle.astro";
 import Form from "../components/Form.astro";
 import Sections from "../sections/Sections.astro";
 const custom = Object.values(import.meta.glob<{ default: any }>("../content/contact.json", { eager: true }))[0]?.default;
@@ -12,7 +13,7 @@ const custom = Object.values(import.meta.glob<{ default: any }>("../content/cont
 </Base>
 ) : (
 <Base title="Contact">
-  <h1 class="mb-8 text-3xl font-bold">Contact</h1>
+  <PageTitle class="mb-8">Contact</PageTitle>
   <Form id="contact" />
 </Base>
 )}

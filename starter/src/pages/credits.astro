@@ -4,6 +4,7 @@
 // whenever there is something to credit.
 export const prerender = true;
 import Base from "../layouts/Base.astro";
+import PageTitle from "../components/PageTitle.astro";
 import credits from "../../design/credits.json";
 
 const LICENSE_URL = { "cc0": "https://creativecommons.org/publicdomain/zero/1.0/", "pdm": "https://creativecommons.org/publicdomain/mark/1.0/" };
@@ -12,7 +13,7 @@ const items = all.filter((c) => c.source === "openverse" || c.source === "stock"
 const generated = all.filter((c) => c.source === "generated" && !c.test);
 ---
 <Base title="Website assets" noindex>
-  <h1 class="font-display text-headline text-ink">Website assets</h1>
+  <PageTitle>Website assets</PageTitle>
   {items.length === 0 && generated.length === 0 ? (
     <p class="mt-6 text-body text-ink-muted">Every image on this site belongs to us.</p>
   ) : null}

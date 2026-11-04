@@ -116,7 +116,7 @@ try {
 
   run("node", ["scripts/check-content.mjs"]);
   run("npm", ["run", "build"]);
-  run("node", ["scripts/qa.mjs"]);
+  run("node", ["scripts/qa.mjs", "--mixed-pages"]); // the test pages mix hero layouts on purpose
   const hero = readFileSync("dist/variants-a.html", "utf8");
   if (hero.includes("Generated image")) throw new Error("a generated image carries a label on the page; they are listed on /credits only");
   const b = readFileSync("dist/variants-b.html", "utf8");

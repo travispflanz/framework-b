@@ -552,6 +552,48 @@ it on the band.
 - Proven on the first adopted site: a sign, a lit marquee and faces stay in frame in the hero band at 1280 px and
   on a 360 px phone. EmDash's own focal point picker has not been tried on a Framework B site: untested.
 
+### One design language (2026-11-04)
+
+Why: the first adopted site's home page carried its route (a poster stack) and its inner pages didn't. The owner:
+the inner pages "kinda feel separate from the home"; "a large plain image taking up full width space on the screen is
+not a modern design"; and the consistency "needs to be a part of framework b overall". Measured on that site's live
+pages at 1280 px: the home title was 112 px, uppercase, left-aligned and set on the photo; every inner title was 84 px,
+as written, centred, over a bare 1216 × 521 px photo band with no text on it or beside it. The route had been mocked
+and chosen as a home page only, and nothing held the inner pages to it. Each page passed every check on its own.
+
+Evidence:
+- Nielsen Norman Group, [Maintain Consistency and Adhere to Standards (Usability Heuristic
+  #4)](https://www.nngroup.com/articles/consistency-and-standards/) (checked 2026-11-04): images should all be "given
+  a similar visual treatment", and elements such as headings stay the same across a site's different types of page.
+- Design systems separate the home page's hero from a smaller "secondary" hero that starts every other page, built
+  from the same parts: Morningstar's [Secondary Hero](https://design.morningstar.com/systems/marketing/business-website/components/hero?tab=Secondary+Hero)
+  (the image at 4:3 beside the text, or a slot beside it; checked 2026-11-04) and HugoBlox's
+  [Hero block](https://hugoblox.com/blocks/hero) ("compact" for "utility/secondary heroes"; text with media full
+  width below is for "wide product screenshots"; checked 2026-11-04).
+- Sites in the test site's own field, captured 2026-11-04 (home page and About page, 1280 and 390 px): NEON
+  (neonrated.com) sets its home title in a 160 px uppercase condensed face on a full-bleed photo, and its About title
+  in the same face at 190 px, type only; Film Independent (filmindependent.org) keeps its uppercase condensed titles
+  on the About page and sets its mission statement in them; Sundance Institute (sundance.org) sets its About title
+  beside a black and white photo cut on a diagonal. None of the three puts a bare photo band under a title.
+
+What's built:
+- `composition.titleCase` (as-written or upper) and `composition.heroes` (`home` and `page`, each one of the site's
+  hero layouts) in DESIGN.md, checked by `design-tokens.mjs`. A hero without a `variant` takes the route's layout;
+  `check-content.mjs` fails a hero that sets another one (a hero with no picture may be a statement).
+- The statement hero takes no picture (`check-content.mjs` says which layout to use instead), and its title follows
+  `composition.align` instead of always centring.
+- Pages the framework generates (contact, privacy, thanks, 404, website assets) set their title with
+  `PageTitle.astro`, in the same treatment.
+- QA gate (`scripts/lib/cohesion.mjs`): every page title in the home page's face, weight, case and alignment (size
+  may differ); no bare photo banner at 1280 px (a photo at least 60% of the window wide and 30% of its height, with no
+  text over it and none beside it); `site-sheet-1280.png` and `site-sheet-360.png`, the first screen of every page side
+  by side. `--mixed-pages` turns the title check into notes for the layout test, whose pages mix heroes on purpose.
+- The route method (`docs/BUILD.md` step 3): routes are mocked as a page family (the home page and an inner page) and
+  recorded in DESIGN.md; the owner gets the site sheets with every preview.
+- Unit tests: `starter/scripts/test/cohesion.test.mjs` (the title comparison, the banner check in a real browser,
+  the sheet). The thresholds (60% and 30%) are a first setting, chosen so a split layout's photo and a gallery pass and
+  the first adopted site's band fails; they have not been tried on other sites yet: untested.
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
@@ -562,6 +604,7 @@ Rules:
 - **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders. The page's lists keep to the prose width, so long credit lines stay readable (they failed Impeccable's line length at 1280 px on the first adopted site, 2026-11-03).
 - **A photo taken off a page goes to the library,** never the bin.
 - **A design runs through every page.** A route, image style or phone rule isn't done until the inner pages have it too.
+- **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. A photo goes with the title or with text beside it, never in a bare band (owner's decision, 2026-11-04).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.

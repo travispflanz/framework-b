@@ -6,7 +6,12 @@
     "cards": "filled",
     "imageShape": "rounded",
     "motion": "none",
-    "phoneBudget": 6
+    "phoneBudget": 6,
+    "titleCase": "as-written",
+    "heroes": {
+      "home": "split",
+      "page": "split"
+    }
   },
   "imagery": {
     "style": "owner-photo",

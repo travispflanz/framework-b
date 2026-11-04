@@ -10,6 +10,8 @@ import { SECTIONS } from "../src/sections/schema.js";
 import { stripJsonc } from "./lib/jsonc.mjs";
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
+const design = existsSync("src/styles/design.json") ? JSON.parse(readFileSync("src/styles/design.json", "utf8")) : {};
+const heroes = design.composition?.heroes;
 const bySlug = Object.fromEntries(SECTIONS.map((s) => [s.slug, s.versions.at(-1).fields]));
 const errors = [];
 
@@ -77,6 +79,17 @@ for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))
     checkFields(fields, section, where);
     if (section._type === "fb_form" && !site.forms[section.form]) errors.push(`${where}.form "${section.form}" is not in site.config.json`);
     if (section._type === "fb_hero" && i !== 0) errors.push(`${where}: the hero must be the first section`);
+    // One design language (SPEC section 12): a photo goes with the page's title, never in a bare band under it, and
+    // every page's hero is the route's (composition.heroes in DESIGN.md); a hero with no picture may also be a
+    // statement, which keeps the same title treatment.
+    if (section._type === "fb_hero" && i === 0) {
+      const hasImage = !!section.image?.src;
+      if (section.variant === "statement" && hasImage) errors.push(`${where}: a statement hero takes no picture (a bare photo band under the title is not used); pick a layout that puts the photo with the title${heroes ? ` (this site's: ${slug === "home" ? heroes.home : heroes.page})` : " (split, full-bleed, editorial or bento)"}`);
+      const want = heroes && (slug === "home" ? heroes.home : heroes.page);
+      if (want && section.variant !== undefined && section.variant !== want && !(section.variant === "statement" && !hasImage)) {
+        errors.push(`${where}: the hero layout is "${section.variant}", but this site's ${slug === "home" ? "home page uses" : "pages use"} "${want}" (composition.heroes in DESIGN.md); leave "variant" out to get it`);
+      }
+    }
   });
   const anchors = (page.sections || []).map((s) => s.anchor_id).filter(Boolean);
   for (const s of page.sections || []) {

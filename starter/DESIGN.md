@@ -54,6 +54,11 @@ spacing:
   section: 64px
   content: 68rem
   prose: 40rem
+composition:
+  titleCase: as-written
+  heroes:
+    home: split
+    page: split
 components:
   button-primary:
     backgroundColor: "{colors.accent}"

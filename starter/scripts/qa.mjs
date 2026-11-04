@@ -6,9 +6,12 @@
 //   npm run qa -- --url https://<domain> --launch    production (P8): placeholder rules + performance tripwire
 //
 // Checks: content, layout at 360/768/1280/1920 px, console errors, banned fonts, axe (WCAG 2.2 AA tags),
-// page structure, text over images (contrast against the picture behind it, at 360 and 1280 px), Lighthouse (mobile)
+// page structure, text over images (contrast against the picture behind it, at 360 and 1280 px), one design language
+// (every page title in the home page's treatment, no bare photo banner; scripts/lib/cohesion.mjs), Lighthouse (mobile)
 // accessibility / best practices / SEO = 100 and CLS < 0.1.
-// Screenshots and a JSON report go to qa-output/.
+// Screenshots, the site sheets (site-sheet-1280.png, site-sheet-360.png: the first screen of every page) and a JSON
+// report go to qa-output/. `--mixed-pages` turns the title check into notes, for a test site whose pages mix hero
+// layouts on purpose (scripts/test/variants.mjs).
 //
 // Previews sit behind Cloudflare Access. With ACCESS_CLIENT_ID and ACCESS_CLIENT_SECRET set (an Access service
 // token with a Service Auth policy on the site's previews application), every request to the URL's own host
@@ -23,6 +26,7 @@ import puppeteer from "puppeteer-core";
 import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 import { accessAuth } from "./lib/access-auth.mjs";
 import { measureImageText } from "./lib/image-text.mjs";
+import { bareBanners, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -30,6 +34,7 @@ const opt = (name) => {
   return i < 0 ? undefined : args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : true;
 };
 const LAUNCH = !!opt("launch");
+const MIXED = !!opt("mixed-pages");
 const OUT = "qa-output";
 const WIDTHS = [360, 768, 1280, 1920];
 const BANNED_FONTS = ["inter", "geist", "space grotesk", "instrument serif"];
@@ -169,6 +174,7 @@ try {
   }
   browser = await launchBrowser();
 
+  const titles = {};
   for (const path of pages) {
     for (const width of WIDTHS) {
       // Reduced motion: checks and screenshots see every element in its final state, whatever the scroll position
@@ -243,6 +249,11 @@ try {
         const pictures = await page.evaluate(() => [...document.querySelectorAll("main img")].filter((i) => i.getBoundingClientRect().width >= 64).length
           + [...document.querySelectorAll("main *")].filter((e) => /url\(/.test(getComputedStyle(e).backgroundImage)).length);
         if (!pictures && !/^\/(thanks|privacy|credits|404|not-found)/.test(path)) console.log(`  note  page ${path}: no pictures yet; the design runs through every page (docs/BUILD.md step 3)`);
+        // One design language (SPEC section 12): the title's treatment, compared across pages after the loop, and no
+        // bare photo banner (a wide photo goes with the title or with text beside it).
+        titles[path] = await titleStyle(page);
+        const banners = await bareBanners(page);
+        check(`layout ${path}: no bare photo banner (a wide photo carries text or sits beside it)`, banners.length === 0, banners.join("; "));
       }
       // Text over a photo or gradient, measured against the picture (axe and Lighthouse can't see it). Last on the
       // page: it leaves the text transparent. scripts/lib/image-text.mjs has the method and its sources.
@@ -256,6 +267,18 @@ try {
       }
       await context.close();
     }
+  }
+
+  // ---------- 5a. One design language ----------
+  // Every page title in the home page's treatment (face, weight, case, alignment; the home page may be bigger), and
+  // the site sheets: the first screen of every page in one picture, which the agent and the owner review together.
+  const mismatch = titleMismatches(titles, "/");
+  if (MIXED) for (const m of mismatch) console.log(`  note  title ${m}`);
+  else check("design: every page title has the home page's treatment (face, weight, case, alignment)", mismatch.length === 0, mismatch.join("; "));
+  if (!composition.heroes) console.log("  note  design: composition.heroes isn't set in DESIGN.md, so the hero of a page added later isn't fixed (docs/BUILD.md step 3)");
+  for (const [width, screen] of [[1280, 900], [360, 780]]) {
+    const file = await siteSheet({ out: OUT, pages: [...pages].sort((a, b) => (a === "/" ? -1 : b === "/" ? 1 : a.localeCompare(b))), width, screen, file: join(OUT, `site-sheet-${width}.png`) });
+    if (file) console.log(`  sheet ${file}: the first screen of every page, to review the site as a whole`);
   }
 
   // ---------- 5b. Phones: length budget and section heights ----------

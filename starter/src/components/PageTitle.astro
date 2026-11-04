@@ -1,0 +1,10 @@
+---
+// The <h1> of a page the framework generates (contact, privacy, thanks, 404, website assets), in the same title
+// treatment as every hero: the display face, composition.titleCase and composition.align (SPEC section 12, "One
+// design language"). The QA gate fails a page whose title doesn't match the home page's.
+import { composition } from "../sections/design.js";
+
+interface Props { class?: string }
+const { class: extra } = Astro.props;
+---
+<h1 class:list={["font-display text-display text-ink", { uppercase: composition.titleCase === "upper", "text-center": composition.align === "center" }, extra]}><slot /></h1>

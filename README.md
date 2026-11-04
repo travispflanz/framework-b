@@ -87,7 +87,10 @@ A site has two modes:
 - Images: yours first; otherwise public-domain photographs from the Library of Congress (master scans, borders
   cropped, rights checked), open-licensed photos from Openverse, or generated images in the style you chose (photo,
   line art, watercolour, flat illustration and more) through Cloudflare Workers AI, all given one colour treatment so
-  they match. A focal point keeps each photo's subject in view wherever a layout crops it. Photos taken off a page are kept in the site's image library to use again. Credits are written for you and listed on `/credits`; generated images carry no label
+  they match. A focal point keeps each photo's subject in view wherever a layout crops it.
+- One design language on every page: the design you pick fixes the title style and the hero layout for the home
+  page and for every other page, pages added later get them automatically, and the QA gate fails a page that drifts
+  (a different title style, or a bare photo strip). Each check makes a sheet of every page's first screen to review. Photos taken off a page are kept in the site's image library to use again. Credits are written for you and listed on `/credits`; generated images carry no label
   on the page and never show your people, premises or products.
 - Phones: a fixed action bar with your main button (and Call when you have a phone number), and long sections that
   fold or swipe, so the home page stays within a set number of screens. A section that swipes sideways shows an
