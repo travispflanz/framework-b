@@ -85,7 +85,7 @@ jobs:
           git -C site commit -q -m "Framework B update ($(git -C framework rev-parse --short HEAD))"
           git -C site push -q origin "$BRANCH"
           title="Framework B update to $(git -C framework rev-parse --short HEAD)"
-          [ "$CONFLICTS" = "yes" ] && title="$title (needs attention: conflicts)"
+          [ "$CONFLICTS" = "yes" ] && title="$title (needs attention: see the report)"
           [ "$TESTS_OK" != "yes" ] && title="$title (tests failed)"
           body=$(jq -Rs . < update-report.md)
           code=$(curl -s -o pr.json -w '%{http_code}' -X POST -H "Authorization: Bearer $GH_SITES_TOKEN" -H "Accept: application/vnd.github+json" \

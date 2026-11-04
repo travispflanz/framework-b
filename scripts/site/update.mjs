@@ -22,7 +22,8 @@
 // Seeded files (design/credits.json) are added once when missing and never touched again.
 // package.json is merged key by key the same way. Then (unless --no-install) it runs npm install, regenerates
 // tokens.css and, with editing on, seed/seed.json, and checks the content. A changed EmDash content model is
-// reported, because a deployed EmDash database keeps its model until it is migrated.
+// reported, because a deployed EmDash database keeps its model until it is migrated. A design or content rule the
+// site's own files break is reported as needing a person, and the exit code is 2, as for a conflict.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -188,9 +189,21 @@ if (!DRY && !flag("no-install") && base !== next) {
   };
   const before = modelOf();
   run("npm", ["install", "--no-audit", "--no-fund"]);
-  if (existsSync(join(SITE, "scripts/design-tokens.mjs"))) run("node", ["scripts/design-tokens.mjs"]);
+  // A newer framework can add a rule the site's own files break (a design value it now checks, a content rule). That
+  // is the site's to fix on this branch, so it is reported as needing a person rather than stopping the update.
+  const attempt = (args) => {
+    try {
+      run("node", args);
+      return [];
+    } catch (e) {
+      const out = `${e.stdout || ""}${e.stderr || ""}`.split("\n").map((l) => l.trim());
+      const fails = out.filter((l) => /^(FAIL|ERROR)\s/.test(l) || /^Error: /.test(l)).map((l) => l.replace(/^(FAIL|ERROR)\s+|^Error: /, ""));
+      return fails.length ? [...new Set(fails)] : [out.filter(Boolean).slice(-1)[0] || "failed"];
+    }
+  };
+  if (existsSync(join(SITE, "scripts/design-tokens.mjs"))) for (const f of attempt(["scripts/design-tokens.mjs"])) note("DESIGN.md", "needs a person", f.replace(/\|/g, "\\|"));
   if (editing) run("node", ["scripts/editing.mjs", "seed"]);
-  if (existsSync(join(SITE, "scripts/check-content.mjs"))) run("node", ["scripts/check-content.mjs"]);
+  if (existsSync(join(SITE, "scripts/check-content.mjs"))) for (const f of attempt(["scripts/check-content.mjs"])) note("src/content", "needs a person", f.replace(/\|/g, "\\|"));
   modelChanged = editing && before !== null && modelOf() !== before;
   if (modelChanged) note("seed/seed.json", "content model changed", "the deployed EmDash database keeps its current model until it is migrated");
 }
@@ -201,10 +214,12 @@ if (!DRY) {
 
 // 4. Report.
 const conflicts = report.filter((r) => r.action === "conflict");
+const rules = report.filter((r) => r.action === "needs a person");
 const lines = [
   `Framework ${base.slice(0, 7)} → ${next.slice(0, 7)}${editing ? " (client editing on)" : ""}.`,
   "",
   conflicts.length ? `**${conflicts.length} file(s) need a person:** the site and the framework changed the same lines. Compare each with its \`.framework-new\` copy, keep what's right, delete the copy.` : "No conflicts.",
+  rules.length ? `\n**${rules.length} rule(s) this framework version checks are broken by the site's own files.** Fix each on this branch before merging (the rows marked "needs a person").` : "",
   modelChanged ? "\n**The EmDash content model changed.** The deployed content database keeps its old model until it is migrated; see the site's AGENTS.md." : "",
   "",
   "| File | What happened | Detail |",
@@ -214,4 +229,4 @@ const lines = [
 const md = lines.join("\n") + "\n";
 if (arg("report")) writeFileSync(arg("report"), md);
 console.log(md);
-process.exit(conflicts.length ? 2 : 0);
+process.exit(conflicts.length || rules.length ? 2 : 0);
