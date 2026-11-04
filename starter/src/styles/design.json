@@ -10,7 +10,9 @@
     "titleCase": "as-written",
     "heroes": {
       "home": "split",
-      "page": "split"
+      "page": [
+        "split"
+      ]
     }
   },
   "imagery": {

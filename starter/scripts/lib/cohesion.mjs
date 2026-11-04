@@ -7,6 +7,8 @@
 //   beside it: a bare banner, which the owner of the first adopted site ruled out ("a large plain image taking up
 //   full width space on the screen is not a modern design", 2026-11-04). Measured at desktop width only: on a phone
 //   every picture is full width and text sits above and below it.
+// - pictureRhythm: the longest stretch of a page without a picture, in screens. The home page sets the rhythm: no
+//   other page with pictures may run more than half a screen longer without one than the home page does.
 // - siteSheet: the first screen of every page side by side, from the QA gate's own screenshots.
 import { readFileSync, writeFileSync } from "node:fs";
 import sharp from "sharp";
@@ -55,6 +57,31 @@ export async function bareBanners(page) {
       return [`${src || img.tagName.toLowerCase()} ${Math.round(b.width)}×${Math.round(b.height)}`];
     });
   });
+}
+
+export async function pictureRhythm(page) {
+  return page.evaluate(() => {
+    const main = document.querySelector("main");
+    if (!main) return { pictures: 0, longest: 0 };
+    const H = innerHeight;
+    const box = main.getBoundingClientRect();
+    const top = box.top + scrollY, bottom = box.bottom + scrollY;
+    const pics = [...main.querySelectorAll("img, video")].map((e) => e.getBoundingClientRect()).filter((b) => b.width >= 120 && b.height >= 120)
+      .map((b) => [b.top + scrollY, b.bottom + scrollY]).sort((a, b) => a[0] - b[0]);
+    let cursor = top, gap = 0;
+    for (const [a, b] of pics) { gap = Math.max(gap, a - cursor); cursor = Math.max(cursor, b); }
+    gap = Math.max(gap, bottom - cursor);
+    return { pictures: pics.length, longest: Math.round((gap / H) * 10) / 10 };
+  });
+}
+
+// Pages that run longer without a picture than the home page does (plus half a screen). Pages with no pictures at all
+// (text pages) and a home page without pictures are left out.
+export function rhythmBreaks(rhythm, home = "/") {
+  const ref = rhythm[home];
+  if (!ref || !ref.pictures) return [];
+  const limit = Math.max(ref.longest, 1) + 0.5;
+  return Object.entries(rhythm).filter(([p, r]) => p !== home && r && r.pictures && r.longest > limit).map(([p, r]) => `${p}: ${r.longest} screens without a picture (home: ${ref.longest})`);
 }
 
 // The first screen of each page from the QA screenshots (<out>/<name>-<width>.png), labelled, in one image.

@@ -84,13 +84,20 @@ for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))
     // statement, which keeps the same title treatment.
     if (section._type === "fb_hero" && i === 0) {
       const hasImage = !!section.image?.src;
-      if (section.variant === "statement" && hasImage) errors.push(`${where}: a statement hero takes no picture (a bare photo band under the title is not used); pick a layout that puts the photo with the title${heroes ? ` (this site's: ${slug === "home" ? heroes.home : heroes.page})` : " (split, full-bleed, editorial or bento)"}`);
-      const want = heroes && (slug === "home" ? heroes.home : heroes.page);
-      if (want && section.variant !== undefined && section.variant !== want && !(section.variant === "statement" && !hasImage)) {
-        errors.push(`${where}: the hero layout is "${section.variant}", but this site's ${slug === "home" ? "home page uses" : "pages use"} "${want}" (composition.heroes in DESIGN.md); leave "variant" out to get it`);
+      const family = heroes ? (slug === "home" ? [heroes.home] : [].concat(heroes.page)) : null;
+      if (section.variant === "statement" && hasImage) errors.push(`${where}: a statement hero takes no picture (a bare photo band under the title is not used); pick a layout that puts the photo with the title${family ? ` (this site's: ${family.join(", ")})` : " (split, full-bleed, editorial or bento)"}`);
+      if (family && section.variant !== undefined && !family.includes(section.variant) && !(section.variant === "statement" && !hasImage)) {
+        errors.push(`${where}: the hero layout is "${section.variant}", but this site's ${slug === "home" ? "home page uses" : "pages use one of"} ${family.map((v) => `"${v}"`).join(", ")} (composition.heroes in DESIGN.md); leave "variant" out to get "${family[0]}"`);
       }
     }
   });
+  // Page flow (SPEC section 12): a content page ends the way the home page does, on the route's closing section;
+  // a page with a form ends on the form, and thanks, privacy and 404 pages are left alone.
+  const closing = design.composition?.closing;
+  const sections = page.sections || [];
+  if (closing && sections.length && !sections.some((s) => s._type === "fb_form") && !page.noindex && !["privacy", "not-found"].includes(slug) && sections[sections.length - 1]._type !== closing) {
+    errors.push(`${file}: a content page ends on the route's closing section (${closing}, composition.closing in DESIGN.md), as the home page does; it ends on ${sections[sections.length - 1]._type}`);
+  }
   const anchors = (page.sections || []).map((s) => s.anchor_id).filter(Boolean);
   for (const s of page.sections || []) {
     for (const [k, v] of Object.entries(s)) {

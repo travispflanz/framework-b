@@ -594,6 +594,25 @@ What's built:
   the sheet). The thresholds (60% and 30%) are a first setting, chosen so a split layout's photo and a gallery pass and
   the first adopted site's band fails; they have not been tried on other sites yet: untested.
 
+### Variety within the family, and page flow (2026-11-04)
+
+Why: one fixed layout for every inner page was too rigid. The owner, choosing between three inner-page heroes built
+from the route: "a mix is good ... not every inner page needs to be the exact same layout either. a variety WITH
+consistent look, feel, and flow"; and consistency must hold for "the entire page length and flow", not only the
+hero. Measured on the first adopted site at 1280 px: the home page ran at most 3.6 screens without a picture, an inner
+page 4.4; the home page ended on its closing photo panels, the inner pages on a list or a paragraph.
+
+What's built:
+- `composition.heroes.page` takes one layout or a list: the family the inner pages choose from (the first is the
+  default). The content check fails a hero outside the family.
+- `composition.closing`: the section type every content page ends on, as the home page does. A page with a form ends
+  on the form; thanks, privacy and 404 pages are left alone.
+- QA gate: the home page sets the rhythm of pictures; a page with pictures fails when it runs more than half a
+  screen longer without one than the home page does (`pictureRhythm`, `rhythmBreaks` in `scripts/lib/cohesion.mjs`).
+  A home page without pictures sets no rhythm. `--mixed-pages` turns it into notes.
+- Unit test in `starter/scripts/test/cohesion.test.mjs`. The half-screen margin is a first setting: untested on
+  sites other than the first adopted one.
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
@@ -604,7 +623,7 @@ Rules:
 - **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders. The page's lists keep to the prose width, so long credit lines stay readable (they failed Impeccable's line length at 1280 px on the first adopted site, 2026-11-03).
 - **A photo taken off a page goes to the library,** never the bin.
 - **A design runs through every page.** A route, image style or phone rule isn't done until the inner pages have it too.
-- **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. A photo goes with the title or with text beside it, never in a bare band (owner's decision, 2026-11-04).
+- **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.

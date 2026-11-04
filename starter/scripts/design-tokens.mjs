@@ -18,8 +18,10 @@
 //                cards (filled|outlined|flat), imageShape (rounded|square|full-bleed), motion (none|subtle|expressive),
 //                phoneBudget (screens, the home page's maximum length on a 390 x 844 phone; the QA gate checks it),
 //                titleCase (as-written|upper: every page's <h1>), heroes ({ home, page }: the hero layout of the home
-//                page and of every other page, each one of this site's fb_hero variants in src/sections/schema.js; a
-//                hero without a variant takes the route's, and scripts/check-content.mjs holds every page to it)
+//                page, and the family of layouts for every other page, one or a list, each one of this site's fb_hero
+//                variants in src/sections/schema.js; a hero without a variant takes the first of the family, and
+//                scripts/check-content.mjs holds every page to it), closing (the section type every content page
+//                ends on, as the home page does, for example fb_cta; pages with a form end on the form)
 //   imagery:     style (see IMAGERY_STYLES), secondary (optional), treatment (none|duotone|tint|warm|cool|mono),
 //                grain (true|false), prompt (one line of art direction reused for every generated image)
 // Extra tokens are allowed and exported too. Components (button-primary, button-secondary, ...) become classes
@@ -96,12 +98,18 @@ composition.phoneBudget = Number(composition.phoneBudget);
 // One design language (SPEC section 12): the title treatment and the hero layouts are part of the route, so every
 // page, including the ones added later, gets them from here rather than from whoever writes the page.
 if (!["as-written", "upper"].includes(composition.titleCase)) throw new Error(`composition.titleCase must be as-written or upper (got ${composition.titleCase})`);
-if (composition.heroes !== undefined) {
-  const { VARIANTS } = await import(pathToFileURL(join(process.cwd(), "src/sections/schema.js")).href);
-  const heroes = composition.heroes;
-  if (typeof heroes !== "object" || !heroes.home || !heroes.page) throw new Error("composition.heroes needs home and page, for example { home: split, page: split }");
-  for (const k of ["home", "page"]) if (!VARIANTS.fb_hero.includes(heroes[k])) throw new Error(`composition.heroes.${k} must be one of this site's hero layouts: ${VARIANTS.fb_hero.join(", ")} (got ${heroes[k]})`);
-  composition.heroes = { home: heroes.home, page: heroes.page };
+if (composition.heroes !== undefined || composition.closing !== undefined) {
+  const { VARIANTS, SECTION_TYPES } = await import(pathToFileURL(join(process.cwd(), "src/sections/schema.js")).href);
+  if (composition.heroes !== undefined) {
+    const heroes = composition.heroes;
+    if (typeof heroes !== "object" || !heroes.home || !heroes.page) throw new Error("composition.heroes needs home and page, for example { home: split, page: [split, editorial] }");
+    // Variety within one family: the inner pages may use several layouts, all from the route (SPEC section 12).
+    const family = [].concat(heroes.page);
+    if (!family.length) throw new Error("composition.heroes.page needs at least one layout");
+    for (const v of [heroes.home, ...family]) if (!VARIANTS.fb_hero.includes(v)) throw new Error(`composition.heroes must name this site's hero layouts: ${VARIANTS.fb_hero.join(", ")} (got ${v})`);
+    composition.heroes = { home: heroes.home, page: family };
+  }
+  if (composition.closing !== undefined && !SECTION_TYPES.includes(composition.closing)) throw new Error(`composition.closing must be one of this site's section types: ${SECTION_TYPES.join(", ")} (got ${composition.closing})`);
 }
 const imagery = { style: "owner-photo", treatment: "none", grain: false, prompt: "", ...(tokens.imagery || {}) };
 for (const k of ["style", "secondary"]) if (imagery[k] !== undefined && !IMAGERY_STYLES.includes(imagery[k])) throw new Error(`imagery.${k} must be one of ${IMAGERY_STYLES.join(", ")}`);

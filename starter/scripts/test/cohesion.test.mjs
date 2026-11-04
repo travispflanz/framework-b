@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { launchBrowser } from "../lib/local-site.mjs";
-import { bareBanners, siteSheet, titleMismatches, titleStyle } from "../lib/cohesion.mjs";
+import { bareBanners, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "../lib/cohesion.mjs";
 
 test("a page title that differs from the home page's in case or alignment is listed; size doesn't count", () => {
   const home = { face: "Display", weight: "800", case: "uppercase", align: "left" };
@@ -49,4 +49,18 @@ test("the site sheet puts each page's first screen side by side", async () => {
   const meta = await sharp(file).metadata();
   assert.equal(meta.width, 3 * 640 + 2 * 16, "three columns at desktop width");
   assert.equal(meta.height, Math.round((900 * 640) / 1280) + 34, "one row: two pages, the missing one skipped");
+});
+
+test("the home page sets the picture rhythm; a page that runs longer without a picture is listed", async () => {
+  assert.deepEqual(rhythmBreaks({ "/": { pictures: 5, longest: 2 }, "/a": { pictures: 3, longest: 2.5 }, "/b": { pictures: 1, longest: 3.1 }, "/text": { pictures: 0, longest: 9 } }),
+    ["/b: 3.1 screens without a picture (home: 2)"]);
+  assert.deepEqual(rhythmBreaks({ "/": { pictures: 0, longest: 6 }, "/b": { pictures: 1, longest: 9 } }), [], "a home page without pictures sets no rhythm");
+  const browser = await launchBrowser();
+  try {
+    const p = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+    await p.setContent(page(`<div style="height:900px">text</div><img src="${PIXEL}" style="display:block;width:400px;height:450px"><div style="height:2700px">text</div>`));
+    assert.deepEqual(await pictureRhythm(p), { pictures: 1, longest: 3 }, "three screens of text after the only picture");
+  } finally {
+    await browser.close();
+  }
 });

@@ -75,8 +75,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   there expect (photos or illustration, how much text before the first action, booking or calling or quoting). Each
   draft takes a position on those expectations; the drafts differ from each other, not from the industry.
 - Every draft sets the skin and the skeleton. Besides colours, type, radii and spacing it has the Framework B blocks
-  `composition` (alignment, density, separation, card style, image shape, motion, phone budget, title case, and the
-  hero layouts for the home page and for every other page) and `imagery` (style,
+  `composition` (alignment, density, separation, card style, image shape, motion, phone budget, title case, the
+  hero layouts for the home page and the family for every other page, and the closing section) and `imagery` (style,
   secondary, treatment, grain, a one-line art direction). The brief's `design.imagery` answers decide the imagery
   block. Allowed values: the header of `scripts/design-tokens.mjs`.
 - With an owner, routes come before drafts (SPEC section 12, "Design routes"). A route is a whole page skeleton
@@ -91,15 +91,18 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      (photos, new short phrases, which are written for the owner to approve).
   3. The owner picks one or a mix, and may add conditions ("only if the text over the photos is readable"). Research
      each condition before changing anything, and turn it into a measurement. Record the pick in `DESIGN.md`: the
-     route's title case and hero layouts (`composition.titleCase`, `composition.heroes`), and in the Overview its
-     moves (how titles sit, how type meets a picture, the card style), so a page added later, by anyone, gets them.
+     route's title case, its hero layouts (the home page's, and the family the other pages choose from) and the
+     section content pages end on (`composition.titleCase`, `composition.heroes`, `composition.closing`), and in the
+     Overview its moves (how titles sit, how type meets a picture, the card style, the rhythm of pictures down a
+     page), so a page added later, by anyone, gets them. Variety comes from the family; the language stays the same.
   4. Build the pick on the site itself. Section layouts the route needs go in the site's own `src/sections/` (site
      changes survive framework updates); they move into the starter only when a second site needs the same thing.
   5. Carry the route through every page, not just the home page: the same title treatment, sections, image style
      and phone settings, and pictures on the inner pages too (the QA report lists content pages with none). The home
-     page may be louder; it may not speak a different language (SPEC section 12, "One design language"). The content
-     check holds every hero to `composition.heroes`; the QA gate fails a page title unlike the home page's and a bare
-     photo banner, and draws `qa-output/site-sheet-1280.png` and `site-sheet-360.png`. Look at the sheets before the
+     page may be louder; it may not speak a different language (SPEC section 12, "One design language"). Flow is the whole
+     page, not the hero: the content check holds every hero to the family and every content page's ending to
+     `composition.closing`; the QA gate fails a page title unlike the home page's, a bare photo banner and a page that
+     runs longer without a picture than the home page does, and draws `qa-output/site-sheet-1280.png` and `site-sheet-360.png`. Look at the sheets before the
      owner does.
   6. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
      each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
