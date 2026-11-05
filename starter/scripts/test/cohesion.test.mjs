@@ -1,5 +1,5 @@
 // One design language (scripts/lib/cohesion.mjs): the title comparison, the bare-banner check in a real browser,
-// and the site sheet.
+// the site sheet, balance about the centre, crops and their sheet, and the logo's size.
 //   node --test scripts/test/cohesion.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { launchBrowser } from "../lib/local-site.mjs";
-import { bareBanners, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "../lib/cohesion.mjs";
+import { balance, bareBanners, cropSheet, crops, logoFit, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "../lib/cohesion.mjs";
 
 test("a page title that differs from the home page's in case or alignment is listed; size doesn't count", () => {
   const home = { face: "Display", weight: "800", case: "uppercase", align: "left" };
@@ -60,6 +60,67 @@ test("the home page sets the picture rhythm; a page that runs longer without a p
     const p = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
     await p.setContent(page(`<div style="height:900px">text</div><img src="${PIXEL}" style="display:block;width:400px;height:450px"><div style="height:2700px">text</div>`));
     assert.deepEqual(await pictureRhythm(p), { pictures: 1, longest: 3 }, "three screens of text after the only picture");
+  } finally {
+    await browser.close();
+  }
+});
+
+const para = "A line of reading text that runs to about the prose width, as a page's paragraphs do. ".repeat(4);
+const paras = (n) => Array.from({ length: n }, () => `<p style="margin:0 0 16px">${para}</p>`).join("");
+
+test("a reading column set left with the right empty is lopsided; beside its headline or centred, it is balanced", async () => {
+  const browser = await launchBrowser();
+  try {
+    const p = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+    const wrap = (inner) => page(`<section style="padding:64px 48px"><div style="max-width:1184px;margin:0 auto">${inner}</div></section>`);
+    await p.setContent(wrap(`<h2 style="font-size:48px;margin:0 0 24px">How we work</h2><div style="max-width:544px">${paras(8)}</div>`));
+    const [left] = await balance(p);
+    assert.equal(left.ok, false, "text on the left, nothing on the right");
+    assert.equal(left.empty, "right");
+
+    await p.setContent(wrap(`<div style="display:grid;grid-template-columns:5fr 7fr;column-gap:64px;align-items:start"><h2 style="position:sticky;top:32px;font-size:48px;margin:0">How we work</h2><div style="max-width:544px">${paras(12)}</div></div>`));
+    const [split] = await balance(p);
+    assert.equal(split.ok, true, `headline beside the text (share ${split.share})`);
+
+    await p.setContent(wrap(`<h2 style="font-size:48px;margin:0 auto 24px;max-width:544px;text-align:center">How we work</h2><div style="max-width:544px;margin:0 auto">${paras(8)}</div>`));
+    assert.equal((await balance(p))[0].ok, true, "a centred column");
+
+    await p.setContent(wrap(`<h2 style="margin:0 0 24px">Pictures</h2><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">${`<img src="${PIXEL}" style="width:100%;height:300px">`.repeat(3)}</div>`));
+    assert.equal((await balance(p))[0].ok, true, "a row of pictures across the page");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a hard crop without a focal point on that axis is listed; a chosen one isn't; the crop sheet draws each", async () => {
+  // A 160 x 120 picture in a tall box: only 37.5% of its width shows.
+  const png = `data:image/png;base64,${(await sharp({ create: { width: 160, height: 120, channels: 3, background: "#777777" } }).png().toBuffer()).toString("base64")}`;
+  const browser = await launchBrowser();
+  try {
+    const p = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+    await p.setContent(page(`<section><h2>Cards</h2><img src="${png}" style="width:300px;height:600px;object-fit:cover"><img src="${png}" data-focal-x="0.3" style="width:300px;height:600px;object-fit:cover;object-position:30% 50%"><img src="${png}" style="width:400px;height:305px;object-fit:cover"></section>`));
+    await p.evaluate(() => Promise.all([...document.images].map((i) => i.decode())));
+    const found = await crops(p);
+    assert.equal(found.length, 2, "the third picture is barely cropped and is left out");
+    assert.deepEqual(found[0].needs, ["focalX"]);
+    assert.equal(found[0].shows[0], 0.38);
+    assert.deepEqual(found[1].needs, [], "focalX was set");
+    assert.equal(found[1].focal[0], 0.3);
+    const dir = mkdtempSync(join(tmpdir(), "crops-"));
+    const file = await cropSheet({ items: found.map((f) => ({ ...f, path: "/" })), file: join(dir, "crop-sheet.png") });
+    const meta = await sharp(file).metadata();
+    assert.equal(meta.width, 2 * 300 + 16, "two tiles side by side");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("the header logo is measured against the tallest button beside it", async () => {
+  const browser = await launchBrowser();
+  try {
+    const p = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+    await p.setContent(`<!doctype html><html><body><header><nav aria-label="Main"><a href="/"><img src="${PIXEL}" alt="Example Co" style="height:36px;width:156px"></a><a href="/start" style="display:inline-block;height:48px">Start</a></nav></header><main></main></body></html>`);
+    assert.deepEqual(await logoFit(p), { logo: 36, tallest: 48, label: "Start" });
   } finally {
     await browser.close();
   }

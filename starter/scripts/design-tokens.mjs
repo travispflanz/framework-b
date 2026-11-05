@@ -17,6 +17,9 @@
 //   composition: align (left|center), density (airy|compact), separation (bands|hairlines|none),
 //                cards (filled|outlined|flat), imageShape (rounded|square|full-bleed), motion (none|subtle|expressive),
 //                phoneBudget (screens, the home page's maximum length on a 390 x 844 phone; the QA gate checks it),
+//                logo (standard|large|masthead: the logo's size in the header; standard is as tall as the buttons, 48 px;
+//                large is 56 px on phones and 72 px from tablet width; masthead puts it on its own row, as wide as the
+//                content column),
 //                titleCase (as-written|upper: every page's <h1>), heroes ({ home, page }: the hero layout of the home
 //                page, and the family of layouts for every other page, one or a list, each one of this site's fb_hero
 //                variants in src/sections/schema.js; a hero without a variant takes the first of the family, and
@@ -85,8 +88,9 @@ const COMPOSITION = {
   cards: ["filled", "outlined", "flat"],
   imageShape: ["rounded", "square", "full-bleed"],
   motion: ["none", "subtle", "expressive"],
+  logo: ["standard", "large", "masthead"],
 };
-const COMPOSITION_DEFAULTS = { align: "left", density: "airy", separation: "bands", cards: "filled", imageShape: "rounded", motion: "none", phoneBudget: 6, titleCase: "as-written" };
+const COMPOSITION_DEFAULTS = { align: "left", density: "airy", separation: "bands", cards: "filled", imageShape: "rounded", motion: "none", phoneBudget: 6, titleCase: "as-written", logo: "standard" };
 const IMAGERY_STYLES = ["owner-photo", "documentary-stock", "photoreal-generated", "line-art", "flat-illustration", "watercolor", "3d", "isometric", "collage", "cartoon", "abstract", "icon-led"];
 const TREATMENTS = ["none", "duotone", "tint", "warm", "cool", "mono"];
 const composition = { ...COMPOSITION_DEFAULTS, ...(tokens.composition || {}) };

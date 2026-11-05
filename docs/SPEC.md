@@ -769,8 +769,66 @@ What's built (`starter/scripts/logo.mjs`, `starter/scripts/lib/logo.mjs`):
   picture-free PDFs, and a bad concept refused).
 - Tried on the first adopted site: a brief from its records and a look at its field, and eight concepts (seven ideas
   and its current logo) sent to the owner on 2026-11-04. On a test copy of the site, `pick` installed one of them
-  and the QA gate passed with it (434 checks, including the complete kit and the style guide rendered with it). Not
-  yet live on a real site.
+  and the QA gate passed with it (434 checks, including the complete kit and the style guide rendered with it). Live
+  on that site since 2026-11-05, picked by the owner from the second round.
+
+### Balance, crops and the logo's size (2026-11-05)
+
+Why: looking through the first adopted site's inner pages on a desktop, its owner found "a lot of sections ... that
+seem like they're floating off to the left with a ton of open space to the right" and asked for "different styles of
+website sections here to fill this out", with "modern layouts" and "the modern flow" through "the entire pages"; hero
+photos "not framed or cropped the best way" ("we've got the heads cut off"); and a header logo "not even as tall as
+the ... buttons". All of it "needs to be considered into framework B as a whole". Measured on that site at 1280 px
+(2026-11-05): 14 sections set their text in a reading column on the left of the page, with nothing on the right half
+of the window (a headline over prose, a single list, a stacked form, a people section's text over its photos); the
+header logo was 36 px tall beside buttons of 44 and 48 px; and no hero photo named its focal point but one, so each
+was cropped about its centre.
+
+Evidence (each checked 2026-11-05):
+- Nielsen Norman Group, [5 Principles of Visual Design in UX](https://www.nngroup.com/articles/principles-visual-design):
+  "Balance occurs when there is an equally distributed (but not necessarily symmetrical) amount of visual signal on
+  both sides of an imaginary axis going through the middle of the screen."
+- Lines keep to the prose width: 50 to 75 characters a line ([Baymard Institute, Line
+  Length](https://baymard.com/research-articles/line-length-readability)), and at most 80 for WCAG 1.4.8. So the fix
+  is a layout, never wider text.
+- Current layouts outside any one field use the empty side: asymmetrical layouts ([GoDaddy, web design
+  trends](https://www.godaddy.com/resources/skills/web-design-trends)); "Organic, Anti-Grid Layouts", alternating
+  "wide and narrow blocks down the page" ([Barnimages, web design trends](https://barnimages.com/blog/tips/web-design-trends));
+  asymmetric grids becoming the default ([Pravin Kumar, asymmetric grid layouts
+  2026](https://www.pravinkumar.co/blog/webflow-asymmetric-grid-layouts-2026)).
+
+What's built:
+- Split layouts (`src/sections/sections.css`, `.split-row`: 5 to 7 columns from 1024 px, stacked below). The headline
+  and its eyebrow stay in view beside the text as it scrolls (`SectionIntro` with `side`), and lines keep the prose
+  width. Text: `split` (the new default with a headline), `prose`, `lead` and `center` (a centred reading column, and
+  the default without a headline). Lists: `columns` (a single list goes beside its headline), `split`, and `stack`
+  (now centred). People: `aside` (the text on the left, the photos beside it on the right: stacked beside a long text,
+  two to a row beside a short one), and `grid` puts its text beside the headline. Forms: `split` (the default; the
+  introduction beside the form, or the form centred if there isn't one) and `stacked` (centred). Steps: the `timeline`
+  runs beside its headline. FAQ: `stack` is centred. Call to action: set left, the words take the left of a wide screen
+  and the button the right.
+- QA gate (`scripts/lib/cohesion.mjs`, `balance`): at 1280 px, every section's visual weight (the area of its text
+  lines, pictures, form fields and filled boxes) is measured either side of the middle of the window, in windows of
+  800 px down the section. A window where one side carries less than 10% fails; a sticky column counts wherever its
+  row runs. Run on the first adopted site, it found the same 14 sections as the measurement above and no others; the
+  thresholds are a first setting, untested on other sites.
+- Crops (`crops`, `cropSheet`): at 360 and 1280 px, every picture a layout crops (`object-fit: cover`) with how much
+  of its width and height shows and where. A crop that cuts a third or more off one of them fails unless the picture
+  names its focal point on that axis (`focalX`, `focalY`; `Picture.astro` marks the ones set with `data-focal-x` and
+  `data-focal-y`). The centre is a fine answer when it is chosen; the gate can't see heads, so it makes the agent
+  look. `qa-output/crop-sheet-1280.png` and `crop-sheet-360.png` draw each crop over its whole picture, the part that
+  shows outlined, and `crops-<width>.json` lists them. Look at both sheets before showing the owner anything.
+- The logo's size: `composition.logo` in DESIGN.md. `standard` is 48 px tall, as tall as the buttons; `large` is 56 px
+  on phones and 72 px from 768 px; `masthead` puts the logo on a row of its own, as wide as the content column, with
+  the links and buttons under it (on phones the logo is as wide as the screen less its margins). The width and height
+  attributes come from the kit's aspect (`design/brand/logo.json`), and the layout sets `--header-height` for the size
+  chosen, so a hero that fills the first screen less the header (`calc(100svh - var(--header-height))`) still ends on
+  it. The QA gate fails a header logo shorter than the tallest link or button in the header or the phone bar, at 360
+  and 1280 px (`logoFit`).
+- Tests: `starter/scripts/test/cohesion.test.mjs` (a left column fails, a split row, a centred column and a row of
+  pictures pass; a hard crop without a focal point is listed, one with it isn't, and the sheet draws them; the logo is
+  measured against the buttons) and the layout test (`starter/scripts/test/variants.mjs`), whose pages now carry
+  every new layout through the whole QA gate.
 
 Rules:
 
@@ -786,6 +844,7 @@ Rules:
 - **A logo is an idea, not a font.** A designed logo starts from a written brief, comes from something only this business has, is tested at its real sizes and in one colour, and is picked by the owner from several concepts (owner's request, 2026-11-04).
 - **A style guide before the other pages.** Once the home page carries the route, its style guide is written and rendered, and every other page, post and print piece is made from it (owner's decision, 2026-11-04).
 - **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).
+- **Balanced sections, chosen crops, a logo at least as tall as the buttons.** No section leaves one side of a wide screen empty: the headline goes beside the text, the text is centred, or pictures go beside it, and lines keep the prose width. A picture cropped by a third or more names its focal point, and the crop sheets are looked at before the owner sees anything (owner's request, 2026-11-05).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.
 - **Sections follow the page's argument,** not one fixed order. Sections come from the framework's own token-driven section library. Starwind UI is the candidate for interactive components; it is not used yet and is untested on Astro 7.

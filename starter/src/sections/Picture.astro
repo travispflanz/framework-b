@@ -7,6 +7,8 @@
 // A focal point keeps the subject in view wherever a layout crops the picture (a wide band, a card, a phone
 // screen): `focalX` and `focalY` are shares of the width and height from 0 to 1, the same two fields EmDash's
 // media library stores, so a point set by an editor works too. Without one the picture is cropped about its centre.
+// data-focal-x and data-focal-y say which were set, so the QA gate's crop check (scripts/lib/cohesion.mjs, "crops")
+// can tell a chosen crop from a default one.
 import { Image } from "astro:assets";
 
 interface Props { image: { src?: string; alt?: string; width?: number; height?: number; focalX?: number; focalY?: number }; sizes: string; class?: string; eager?: boolean }
@@ -17,9 +19,10 @@ if (image?.src && !asset && !/^(https?:)?\/\//.test(image.src)) throw new Error(
 const widths = asset ? [480, 800, 1200, 1600].filter((w) => w <= asset.width) : [];
 const share = (v: unknown) => (typeof v === "number" && v >= 0 && v <= 1 ? `${Math.round(v * 1000) / 10}%` : "50%");
 const focal = typeof image?.focalX === "number" || typeof image?.focalY === "number" ? `object-position: ${share(image.focalX)} ${share(image.focalY)}` : undefined;
+const focalAttrs = { "data-focal-x": typeof image?.focalX === "number" ? String(image.focalX) : undefined, "data-focal-y": typeof image?.focalY === "number" ? String(image.focalY) : undefined };
 ---
 {asset ? (
-  <Image src={asset} alt={image.alt || ""} widths={widths} sizes={sizes} class={className} style={focal} loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : undefined} />
+  <Image src={asset} alt={image.alt || ""} widths={widths} sizes={sizes} class={className} style={focal} {...focalAttrs} loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : undefined} />
 ) : image?.src ? (
-  <img src={image.src} alt={image.alt || ""} width={image.width} height={image.height} class={className} style={focal} loading={eager ? "eager" : "lazy"} decoding="async" />
+  <img src={image.src} alt={image.alt || ""} width={image.width} height={image.height} class={className} style={focal} {...focalAttrs} loading={eager ? "eager" : "lazy"} decoding="async" />
 ) : null}

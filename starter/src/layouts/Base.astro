@@ -45,6 +45,23 @@ const phone = config.site.phone ? String(config.site.phone) : "";
 const logo = config.site.logo || "";
 // A kit made by scripts/logo.mjs also has a 96 px PNG favicon: Google Search lists raster formats for favicons, not SVG.
 const logoKit = Object.values(import.meta.glob("../../design/brand/logo.json", { eager: true, import: "default" }))[0];
+// The logo's size in the header (composition.logo in DESIGN.md; docs/SPEC.md section 12, "Logo size"): never shorter
+// than the buttons beside it or in the phone bar (48 px), which the QA gate checks. "large" is 56 px on phones and
+// 72 px from tablet width; "masthead" puts it on a row of its own, as wide as the content column, above the links.
+const logoSize = composition.logo || "standard";
+const masthead = !!logo && logoSize === "masthead";
+const logoAspect = Number(logoKit?.aspect) > 0 ? Number(logoKit.aspect) : 160 / 36;
+const logoClass = masthead ? "block h-auto w-full" : logoSize === "large" ? "h-14 w-auto md:h-18" : "h-12 w-auto";
+// --header-height: the header's height for this logo size, for a hero that fills the first screen less the header
+// (calc(100svh - var(--header-height))). The header row is 0.75 rem above and below its tallest item, plus a 1 px rule.
+const row = (item) => `calc(${item} + 1.5rem + 1px)`;
+const headerCss = masthead
+  ? `:root { --header-height: calc(1rem + (100vw - 2 * var(--spacing-gutter)) / ${logoAspect.toFixed(4)} + ${actionBar ? "1px" : "4.5rem + 1px"}); }
+@media (min-width: 640px) { :root { --header-height: calc(1rem + min(var(--container-content), 100vw - 2 * var(--spacing-gutter)) / ${logoAspect.toFixed(4)} + 4.5rem + 1px); } }
+@media (min-width: 768px) { :root { --header-height: calc(1.5rem + min(var(--container-content), 100vw - 2 * var(--spacing-gutter)) / ${logoAspect.toFixed(4)} + 4.5rem + 1px); } }`
+  : logoSize === "large"
+    ? `:root { --header-height: ${row("3.5rem")}; } @media (min-width: 768px) { :root { --header-height: ${row("4.5rem")}; } }`
+    : `:root { --header-height: ${row("3rem")}; }`;
 // Optional footer: a short line about the business and link columns ({ note, columns: [{ title, links }] }).
 const footer = config.footer || {};
 const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
@@ -74,6 +91,7 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
     {logo && <link rel="manifest" href="/manifest.webmanifest" />}
     {logo && <meta property="og:image" content={new URL("/og.png", `https://${config.site.canonicalHost}`).toString()} />}
     {composition.motion !== "none" && <style is:inline set:html={"@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }"} />}
+    <style is:inline set:html={headerCss} />
     {fonts.map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
     <link rel="preconnect" href="https://challenges.cloudflare.com" />
     <script type="application/ld+json" set:html={JSON.stringify(org)} />
@@ -82,10 +100,17 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
   <body class:list={{ "max-sm:pb-24": actionBar }}>
     <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:bg-[var(--color-bg)] focus:p-2">Skip to content</a>
     <header class="border-b border-[var(--color-line)] px-[var(--spacing-gutter)]">
-      <nav aria-label="Main" class="mx-auto flex min-h-16 w-full max-w-[var(--container-content)] items-center justify-between gap-4 py-3">
-        <a href="/" class="font-display text-lg font-bold text-[var(--color-ink)] no-underline">
-          {logo ? <img src={logo} alt={config.site.name} class="h-9 w-auto" width="160" height="36" /> : config.site.name}
+      {masthead && (
+        <a href="/" class="mx-auto block w-full max-w-[var(--container-content)] pt-4 no-underline md:pt-6">
+          <img src={logo} alt={config.site.name} class={logoClass} width={Math.round(48 * logoAspect)} height="48" />
         </a>
+      )}
+      <nav aria-label="Main" class:list={["mx-auto flex w-full max-w-[var(--container-content)] items-center gap-4 py-3", masthead ? ["justify-end", { "max-sm:hidden": actionBar }] : "min-h-16 justify-between"]}>
+        {!masthead && (
+          <a href="/" class="font-display text-lg font-bold text-[var(--color-ink)] no-underline">
+            {logo ? <img src={logo} alt={config.site.name} class={logoClass} width={Math.round(48 * logoAspect)} height="48" /> : config.site.name}
+          </a>
+        )}
         <ul class="flex items-center gap-6">
           {/* On wide screens every link shows; on phones the pages move to the row below and the main action to the
               bar at the bottom, so the header keeps just the name. */}

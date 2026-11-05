@@ -7,10 +7,12 @@
 //
 // Checks: content, layout at 360/768/1280/1920 px, console errors, banned fonts, axe (WCAG 2.2 AA tags),
 // page structure, text over images (contrast against the picture behind it, at 360 and 1280 px), one design language
-// (every page title in the home page's treatment, no bare photo banner, pictures at the home page's rhythm;
+// (every page title in the home page's treatment, no bare photo banner, pictures at the home page's rhythm, every
+// section balanced about the centre, a focal point on every heavy crop, a logo as tall as the buttons;
 // scripts/lib/cohesion.mjs), Lighthouse (mobile)
 // accessibility / best practices / SEO = 100 and CLS < 0.1.
-// Screenshots, the site sheets (site-sheet-1280.png, site-sheet-360.png: the first screen of every page) and a JSON
+// Screenshots, the site sheets (site-sheet-1280.png, site-sheet-360.png: the first screen of every page), the crop
+// sheets (crop-sheet-1280.png, crop-sheet-360.png: every cropped picture, with the part that shows outlined) and a JSON
 // report go to qa-output/. `--mixed-pages` turns the title and rhythm checks into notes, for a test site whose pages mix hero
 // layouts on purpose (scripts/test/variants.mjs).
 //
@@ -27,7 +29,7 @@ import puppeteer from "puppeteer-core";
 import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 import { accessAuth } from "./lib/access-auth.mjs";
 import { measureImageText } from "./lib/image-text.mjs";
-import { bareBanners, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
+import { balance, bareBanners, cropSheet, crops, logoFit, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
 import { unwritten } from "./lib/style-guide.mjs";
 import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
 import { FILE as RESEARCH, unwrittenLenses } from "./lib/design-research.mjs";
@@ -204,6 +206,7 @@ try {
 
   const titles = {};
   const rhythm = {};
+  const cropped = { 360: [], 1280: [] };
   for (const path of pages) {
     for (const width of WIDTHS) {
       // Reduced motion: checks and screenshots see every element in its final state, whatever the scroll position
@@ -286,6 +289,22 @@ try {
         rhythm[path] = await pictureRhythm(page);
         const banners = await bareBanners(page);
         check(`layout ${path}: no bare photo banner (a wide photo carries text or sits beside it)`, banners.length === 0, banners.join("; "));
+        // Balance (SPEC section 12): no section leaves one side of the page empty.
+        const lopsided = (await balance(page)).filter((b) => !b.ok);
+        check(`layout ${path}: every section is balanced about the centre (neither side left empty)`, lopsided.length === 0,
+          lopsided.map((b) => `"${b.name}" ${Math.round(b.share * 100)}% on the ${b.empty} from ${b.at}px down`).join("; "));
+      }
+      if (width === 360 || width === 1280) {
+        // Crops (SPEC section 12): a crop that cuts a third or more off a picture names its focal point on that axis.
+        const found = await crops(page);
+        cropped[width].push(...found.map((c) => ({ ...c, path })));
+        const unset = found.filter((c) => c.needs.length);
+        check(`crops ${tag}: every picture cropped by a third or more has a focal point on that axis`, unset.length === 0,
+          unset.map((c) => `${c.src} shows ${Math.round(c.shows[0] * 100)}%×${Math.round(c.shows[1] * 100)}%, set ${c.needs.join(" and ")}`).join("; "));
+        // The logo is at least as tall as the buttons beside it (or in the phone bar).
+        const fit = await logoFit(page);
+        if (fit) check(`logo ${tag}: the header logo is as tall as the tallest button (composition.logo in DESIGN.md)`, fit.logo + 0.5 >= fit.tallest,
+          `logo ${fit.logo}px, "${fit.label}" ${fit.tallest}px`);
       }
       // Text over a photo or gradient, measured against the picture (axe and Lighthouse can't see it). Last on the
       // page: it leaves the text transparent. scripts/lib/image-text.mjs has the method and its sources.
@@ -315,6 +334,10 @@ try {
   for (const [width, screen] of [[1280, 900], [360, 780]]) {
     const file = await siteSheet({ out: OUT, pages: [...pages].sort((a, b) => (a === "/" ? -1 : b === "/" ? 1 : a.localeCompare(b))), width, screen, file: join(OUT, `site-sheet-${width}.png`) });
     if (file) console.log(`  sheet ${file}: the first screen of every page, to review the site as a whole`);
+    // The crop sheet: every cropped picture with the part that shows outlined, to check each subject is in its frame.
+    const crop = await cropSheet({ items: cropped[width], file: join(OUT, `crop-sheet-${width}.png`) });
+    if (crop) console.log(`  sheet ${crop}: every cropped picture at ${width} px, to check each subject is in the frame`);
+    writeFileSync(join(OUT, `crops-${width}.json`), JSON.stringify(cropped[width].map(({ data, ...c }) => c), null, 2));
   }
 
   // ---------- 5b. Phones: length budget and section heights ----------

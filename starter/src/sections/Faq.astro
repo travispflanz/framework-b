@@ -1,6 +1,6 @@
 ---
 // fb_faq: questions whose answers open in place (<details>, no JavaScript), one open at a time. Layouts: "stack"
-// (the introduction above the questions) or "two-column" (the introduction stays beside the questions).
+// (the introduction above the questions, centred) or "two-column" (the introduction stays beside the questions).
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { paragraphs, inline } from "./text.js";
@@ -13,9 +13,9 @@ const variant = variantOf("fb_faq", value);
 const phone = phoneOf("fb_faq", value);
 ---
 <Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
-  <div class:list={{ "grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]": variant === "two-column" }}>
+  <div class:list={variant === "two-column" ? "grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]" : "mx-auto max-w-(--container-prose)"}>
     <div class:list={{ "lg:sticky lg:top-24 lg:self-start": variant === "two-column" }}>
-      <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} center={false} />
+      <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} center={variant !== "two-column"} />
     </div>
     <div class="grid max-w-(--container-prose) gap-3" data-reveal>
       {value.items.map((item) => (

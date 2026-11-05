@@ -35,12 +35,12 @@ export const VARIANTS = {
   fb_area: ["chips", "columns"],
   fb_faq: ["stack", "two-column"],
   fb_cta: ["card", "band"],
-  fb_form: ["stacked", "split"],
+  fb_form: ["split", "stacked"],
   fb_split: ["side", "overlap"],
   fb_gallery: ["grid", "masonry", "strip"],
-  fb_text: ["prose", "lead"],
-  fb_list: ["columns", "stack"],
-  fb_people: ["grid", "row"],
+  fb_text: ["split", "prose", "lead", "center"],
+  fb_list: ["columns", "split", "stack"],
+  fb_people: ["grid", "row", "aside"],
 };
 // How a section behaves on a phone (under 640 px). "auto" picks the section's own default (PHONE_AUTO).
 export const PHONE = ["auto", "stack", "swipe", "collapse", "hide"];

@@ -1,5 +1,7 @@
 ---
-// fb_text: plain paragraphs under a headline. Layouts: "prose" or "lead" (the first paragraph set larger).
+// fb_text: plain paragraphs under a headline. Layouts: "split" (the headline beside the text on wide screens, so the
+// row is balanced), "prose" (the headline above a reading column), "lead" (the first paragraph set larger) or "center"
+// (a centred reading column). Without a headline, "split" is centred. The reading column keeps the prose width either way.
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { paragraphs, inline } from "./text.js";
@@ -8,11 +10,16 @@ import { phoneOf, variantOf } from "./design.js";
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "text"}`;
-const lead = variantOf("fb_text", value) === "lead";
+const variant = variantOf("fb_text", value);
+const lead = variant === "lead";
+const split = variant === "split" && !!value.headline;
+const center = variant === "center" || (variant === "split" && !value.headline);
 ---
 <Section id={value.anchor_id} tone={tone} labelledby={value.headline ? headingId : undefined} phone={phoneOf("fb_text", value)}>
-  <SectionIntro eyebrow={value.eyebrow} headline={value.headline} id={headingId} />
-  <div class="reveal grid max-w-(--container-prose) gap-4 text-body text-ink">
-    {paragraphs(value.body).map((p, i) => <p class:list={{ "text-title text-ink": lead && i === 0 }} set:html={inline(p)} />)}
+  <div class:list={{ "split-row": split }}>
+    <SectionIntro eyebrow={value.eyebrow} headline={value.headline} id={headingId} side={split} center={center || undefined} />
+    <div class:list={["reveal grid max-w-(--container-prose) gap-4 text-body text-ink", { "mx-auto": center }]}>
+      {paragraphs(value.body).map((p, i) => <p class:list={{ "text-title text-ink": lead && i === 0 }} set:html={inline(p)} />)}
+    </div>
   </div>
 </Section>

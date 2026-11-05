@@ -113,3 +113,10 @@ details[open] > summary .accordion-cue::after { display: none; }
 @keyframes fb-rise { from { opacity: 0; transform: translateY(1.5rem); } to { opacity: 1; transform: none; } }
 @keyframes fb-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes fb-drift { from { transform: translateY(-4%) scale(1.08); } to { transform: translateY(4%) scale(1.08); } }
+
+/* A split row (scripts/lib/cohesion.mjs, "balance"): on wide screens the section's intro sits in the left column and the
+   content in the right, so a reading column never leaves half the row empty. On phones they stack. */
+.split-row { display: grid; gap: 1.5rem; align-items: start; }
+@media (min-width: 64rem) {
+  .split-row { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(2.5rem, 5vw, 5rem); }
+}

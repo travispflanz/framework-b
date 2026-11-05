@@ -1,8 +1,9 @@
 ---
 import { inline, paragraphs } from "./text.js";
 // fb_steps: how it works, as numbered steps. Layouts: "cards" (a row of numbered cards), "timeline" (a vertical
-// line that draws as you scroll when motion is on), "numerals" (large numbers, no cards). On phones the steps
-// swipe sideways by default.
+// line that draws as you scroll when motion is on; on wide screens the introduction stays beside it, so the line
+// doesn't leave the right of the page empty), "numerals" (large numbers, no cards). On phones the steps swipe
+// sideways by default.
 import PhoneAccordion from "./PhoneAccordion.astro";
 import SwipeCue from "./SwipeCue.astro";
 import Section from "./Section.astro";
@@ -18,18 +19,21 @@ const collapse = phone === "collapse";
 const pad = (i) => String(i + 1).padStart(2, "0");
 ---
 <Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
-  <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
   {variant === "timeline" ? (
-    <ol class:list={["timeline grid max-w-(--container-prose) gap-10", { "max-sm:hidden": collapse }]} data-reveal>
-      {value.steps.map((s, i) => (
-        <li class="relative grid gap-2 pl-16">
-          <span class="absolute left-0 top-0 grid size-11 place-items-center rounded-full bg-accent text-label text-accent-ink" aria-hidden="true">{i + 1}</span>
-          <h3 class="font-display text-title text-ink">{s.title}</h3>
-          {paragraphs(s.body).map((p) => <p class="text-body text-ink-muted" set:html={inline(p)} />)}
-        </li>
-      ))}
-    </ol>
-  ) : variant === "numerals" ? (
+    <div class:list={{ "split-row": !!value.headline }}>
+      <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} side={!!value.headline} />
+      <ol class:list={["timeline grid max-w-(--container-prose) gap-10", { "max-sm:hidden": collapse, "mx-auto w-full": !value.headline }]} data-reveal>
+        {value.steps.map((s, i) => (
+          <li class="relative grid gap-2 pl-16">
+            <span class="absolute left-0 top-0 grid size-11 place-items-center rounded-full bg-accent text-label text-accent-ink" aria-hidden="true">{i + 1}</span>
+            <h3 class="font-display text-title text-ink">{s.title}</h3>
+            {paragraphs(s.body).map((p) => <p class="text-body text-ink-muted" set:html={inline(p)} />)}
+          </li>
+        ))}
+      </ol>
+    </div>
+  ) : <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />}
+  {variant === "timeline" ? null : variant === "numerals" ? (
     <ol class:list={["phone-list grid gap-10 md:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]", { "max-sm:hidden": collapse }]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
       {value.steps.map((s, i) => (
         <li class="grid content-start gap-3 border-t border-line pt-6">

@@ -22,7 +22,8 @@ credits.images.find((c) => c.file.endsWith("fixture-c.jpg")).source = "stock";
 Object.assign(credits.images.find((c) => c.file.endsWith("fixture-c.jpg")), { creator: "Example Photographer", license: "CC BY 2.0", license_url: "https://creativecommons.org/licenses/by/2.0/", url: "https://example.com/photo" });
 writeFileSync("design/credits.json", JSON.stringify(credits, null, 2) + "\n");
 
-const img = (src, alt) => ({ src, alt });
+// Each picture names its focal point, as the QA gate's crop check asks of any picture a layout crops hard.
+const img = (src, alt) => ({ src, alt, focalX: 0.5, focalY: 0.5 });
 writeFileSync("src/content/about.json", JSON.stringify({
   title: "About",
   description: "About Example Co.",
