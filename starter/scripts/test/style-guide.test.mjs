@@ -43,6 +43,11 @@ test("the stamp names the inputs that changed since the guide was rendered", () 
   assert.deepEqual(staleInputs({ inputs: { "DESIGN.md": hash("a"), "STYLE-GUIDE.md": hash("b") } }, { ...inputs, "design/brand/logo.json": "{}" }), ["design/brand/logo.json"]);
 });
 
+test("a list item can carry indented sub-items", () => {
+  const html = renderProse("- Use the files:\n  - on dark: `logo.svg`\n  - on light: `logo-on-light.svg`\n- Never stretch it.", inline);
+  assert.match(html, /<li>Use the files:<ul><li>on dark: <code>logo\.svg<\/code><\/li><li>on light: <code>logo-on-light\.svg<\/code><\/li><\/ul><\/li><li>Never stretch it\.<\/li>/);
+});
+
 test("code spans in the guide's prose are kept as written", () => {
   const html = renderProse("Use `public/logo.svg` on **dark** paper; never `<b>`.", inline);
   assert.match(html, /<code>public\/logo\.svg<\/code>/);

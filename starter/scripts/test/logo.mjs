@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // CI check of the logo method (scripts/logo.mjs) with a named display font:
-// 1. the old brand kit command still works: six template concepts and their sheets;
+// 1. the old brand kit command still works: six template concepts and their sheets, and redrawing one leaves the
+//    others alone;
 // 2. a designed concept (a mask, an even-odd hole, a placed mark, words centred on it) with a written brief passes
 //    `check`, builds on the sheet and is picked: every file of the kit, vector PDFs with no pictures in them,
 //    site.logo, credits and logo.json, and the content check still passes;
@@ -55,6 +56,12 @@ try {
     assert.ok(built.includes("<path") && !built.includes("<text") && !built.includes("NaN") && !/fill="(ink|accent)"/.test(built), `t${i} didn't build cleanly`);
   }
   assert.ok(existsSync("design/brand/sheet.png"), "no overview sheet");
+  // Redrawing one concept leaves the others' sheets and the overview alone.
+  const overview = readFileSync("design/brand/sheet.png");
+  node("scripts/logo.mjs", "sheet", "t2");
+  for (let i = 1; i <= 6; i++) assert.ok(existsSync(`design/brand/sheets/t${i}.png`), `sheet t2 removed t${i}'s sheet`);
+  assert.ok(readFileSync("design/brand/sheet.png").equals(overview), "sheet t2 redrew the overview");
+  assert.ok(!existsSync("design/brand/sheet.html"), "the sheet's page was left in design/brand");
   rmSync("design/brand/concepts", { recursive: true, force: true });
 
   // 3a. A designed concept without a brief can't be picked.

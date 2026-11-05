@@ -30,7 +30,8 @@ export function unwritten(md) {
   return parseGuide(md).sections.filter((s) => REQUIRED.includes(s.heading) && (!s.body || s.body === PLACEHOLDER)).map((s) => s.heading);
 }
 
-// A small, safe subset of Markdown for the guide's prose: paragraphs, "- " lists, "### " subheadings and the inline
+// A small, safe subset of Markdown for the guide's prose: paragraphs, "- " lists (with one level of "  - " sub-items),
+// "### " subheadings and the inline
 // formatting the site's text fields use (**bold**, *italic*, [label](link)), plus `code`. `inline` is the site's own
 // (src/sections/text.js), passed in so this module has no site imports. Returns HTML.
 export function renderProse(md, rawInline) {
@@ -41,12 +42,15 @@ export function renderProse(md, rawInline) {
   return blocks.map((b) => {
     if (b.startsWith("### ")) return `<h3>${inline(b.slice(4))}</h3>`;
     // A block may start with a sentence and go on into a list ("They choose from three heroes:" then "- ..." lines).
+    // List items may have one level of sub-items, indented two or more spaces ("  - ").
     const out = [];
     let para = [], list = [];
     const flushPara = () => { if (para.length) out.push(`<p>${inline(para.join(" "))}</p>`); para = []; };
-    const flushList = () => { if (list.length) out.push(`<ul>${list.map((r) => `<li>${inline(r)}</li>`).join("")}</ul>`); list = []; };
+    const item = (r) => `<li>${inline(r.text)}${r.sub.length ? `<ul>${r.sub.map((x) => `<li>${inline(x)}</li>`).join("")}</ul>` : ""}</li>`;
+    const flushList = () => { if (list.length) out.push(`<ul>${list.map(item).join("")}</ul>`); list = []; };
     for (const row of b.split("\n")) {
-      if (/^-\s+/.test(row)) { flushPara(); list.push(row.replace(/^-\s+/, "")); }
+      if (/^\s{2,}-\s+/.test(row) && list.length) list.at(-1).sub.push(row.replace(/^\s+-\s+/, ""));
+      else if (/^-\s+/.test(row)) { flushPara(); list.push({ text: row.replace(/^-\s+/, ""), sub: [] }); }
       else { flushList(); para.push(row); }
     }
     flushPara();

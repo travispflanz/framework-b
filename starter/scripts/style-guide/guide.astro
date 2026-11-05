@@ -26,6 +26,7 @@ const has = (name) => publicFiles.includes(name);
 const logo = config.site.logo || (has("logo.svg") ? "/logo.svg" : null);
 // The logo kit from scripts/logo.mjs pick: every version, clear space and minimum sizes.
 const kit: any = Object.values(import.meta.glob("../../design/brand/logo.json", { eager: true, import: "default" }))[0] || null;
+const sentence = (t) => (/[.!?]$/.test(String(t).trim()) ? String(t).trim() : `${String(t).trim()}.`);
 const VERSION_LABEL = { "on-dark": "On dark", "on-light": "On light", black: "One colour, black", white: "One colour, white" };
 
 // Colours, and the contrast of every pair the site sets text in (WCAG 2.2: 4.5:1 for text, 3:1 for large text).
@@ -104,7 +105,7 @@ const today = new Date().toISOString().slice(0, 10);
                 <figcaption style="color:inherit">{kit.minimum.rule}</figcaption>
               </figure>
             </div>
-            <p class="sg-note">{kit.template ? "A template logo (the name in the display font)." : `The idea: ${kit.idea} From: ${kit.from}`} Type in the logo: {kit.fonts.join(", ") || "none"}. Print files (vector PDF and 2000 px PNG of each version) and the social avatar are in design/brand/kit/.</p>
+            <p class="sg-note">{kit.template ? "A template logo (the name in the display font)." : `The idea: ${sentence(kit.idea)} It comes from ${sentence(kit.from)}`} Type in the logo: {kit.fonts.join(", ") || "none"}. Print files (vector PDF and 2000 px PNG of each version) and the social avatar are in design/brand/kit/.</p>
           </>
         )}
 
@@ -216,6 +217,7 @@ const today = new Date().toISOString().slice(0, 10);
   .sg-prose { font-size: var(--text-small); line-height: 1.55; max-width: 6.5in; }
   .sg-prose p, .sg-prose ul { margin: 0 0 0.6rem; }
   .sg-prose ul { padding-left: 1.2rem; list-style: disc; }
+  .sg-prose ul ul { margin: 0.2rem 0 0; list-style: circle; }
   .sg-prose h3 { font-family: var(--font-display); font-size: var(--text-title); margin: 1rem 0 0.4rem; }
   .sg-prose a, .sg-specs a { text-decoration: underline; }
   .sg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 1rem; }
