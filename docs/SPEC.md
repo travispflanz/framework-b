@@ -651,8 +651,8 @@ What's built:
 - `design/style-guide/stamp.json` records a hash of DESIGN.md, STYLE-GUIDE.md and `design/brand/logo.json`. Once a
   guide has been rendered, the QA gate fails when any of them has changed since, so the guide stays the description of
   the site as it is. A guide rendered before the logo was an input stays fresh until the site has a logo kit.
-- The guide's prose takes `code` spans (file names, commands) as written; the first adopted site's guide showed the
-  backticks.
+- The guide's prose takes `code` spans (file names, commands) as written, and list items with one level of indented
+  sub-items; the first adopted site's guide showed the backticks, and then its sub-items run into one paragraph.
 - Tests: `starter/scripts/test/style-guide.test.mjs`, the update test for the seeded template, and a starter CI step
   that renders the template. With client editing on, the guide is untested.
 - Found while building it: the QA gate's full-page screenshots (for people reviewing and for the critique rounds)
@@ -751,7 +751,9 @@ What's built (`starter/scripts/logo.mjs`, `starter/scripts/lib/logo.mjs`):
 - `sheet` tests every concept as it will be used: the header at 36 px, a 390 px phone header, dark and light paper
   from the design (the page colour and its inverse band), one colour black and white, on the home page's photo, the
   mark at 16, 32 and 48 px with the 16 px rendering enlarged, light and dark browser tabs, a circle avatar, the
-  maskable icon with its safe zone, and a business card at full size. It notes a version whose accent falls under
+  maskable icon with its safe zone, and a business card at full size. `sheet <id>` redraws only those concepts and
+  leaves the others' sheets, the overview, `design/brand/concepts.pdf` and `design/brand/concepts.json` as they were (a one-concept run once
+  wiped the others' sheets on the first adopted site). It notes a version whose accent falls under
   3:1 (that version draws the accent in ink) and a header logo wider than 240 px. `design/brand/concepts.pdf` holds
   them all for the owner.
 - `pick` writes the kit: `public/logo.svg` (the version for the page colour), `logo-on-dark.svg`,

@@ -12,7 +12,8 @@
 //                                                six quick concepts from the display font (t1 ... t6), for a site
 //                                                without the time or need for a designed logo
 //   node scripts/logo.mjs check                  the brief and every concept against the rules (scripts/lib/logo.mjs)
-//   node scripts/logo.mjs sheet [<id> ...]       builds every concept in design/brand/concepts/ and draws its test
+//   node scripts/logo.mjs sheet [<id> ...]       builds every concept in design/brand/concepts/ (or only the ids
+//                                                given, leaving the others' sheets alone) and draws its test
 //                                                sheet: header, phone header, dark and light paper, one colour
 //                                                black and white, on a photo, the mark at 16/32/48 px, a browser tab,
 //                                                a circle avatar, the maskable app icon and a business card.
@@ -314,13 +315,17 @@ const inner = (svg) => svg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
 const MASKABLE_SHARE = 0.56;
 
 if (cmd === "sheet") {
-  const ids = positional.length ? positional : conceptIds();
+  // With ids, only those concepts are redrawn: the other concepts' sheets, the overview, concepts.pdf and
+  // concepts.json are left as they were.
+  const subset = positional.length > 0;
+  const ids = subset ? positional : conceptIds();
   if (!ids.length) throw new Error(`No concepts in ${CONCEPTS}/: write the brief (node scripts/logo.mjs brief) and draw some, or run templates`);
   const brief = join(DIR, "brief.md");
   if (!existsSync(brief)) console.log("  note  no brief yet (node scripts/logo.mjs brief): a designed logo starts from one");
   const built = [];
   for (const id of ids) built.push(await build(id));
-  rmSync(join(DIR, "build"), { recursive: true, force: true });
+  if (subset) for (const id of ids) rmSync(join(DIR, "build", id), { recursive: true, force: true });
+  else rmSync(join(DIR, "build"), { recursive: true, force: true });
   for (const b of built.filter((x) => !x.problems.length)) {
     mkdirSync(join(DIR, "build", b.id), { recursive: true });
     for (const [k, svg] of Object.entries(b.files)) writeFileSync(join(DIR, "build", b.id, `${k}.svg`), svg);
@@ -389,13 +394,16 @@ figure{margin:0}figcaption{font-size:12px;color:#666;margin-top:6px}
 .o-meta{display:flex;gap:12px;padding:12px;align-items:flex-start;font-size:13px}
 .o-marks{display:flex;gap:10px;align-items:flex-end;padding:8px;border-radius:4px}
 </style><div class="ov" id="overview"><h1>Logo concepts: ${escapeXml(name)}</h1><p class="from">${built.length} concepts · fonts ${escapeXml([...used].join(", ") || "none")} · rendered by scripts/logo.mjs</p><div class="ovg">${overview}</div></div>${sections.join("\n")}`;
-  writeFileSync(join(DIR, "sheet.html"), html);
+  mkdirSync(CACHE, { recursive: true });
+  writeFileSync(join(CACHE, "sheet.html"), html); // the page the sheets are shot from, for debugging; not a deliverable
   const browser = await launchBrowser();
   try {
     const p = await browser.newPage({ viewport: { width: 1200, height: 900 } });
     await p.setContent(html, { waitUntil: "load" });
-    await (await p.$("#overview")).screenshot({ path: join(DIR, "sheet.png") });
-    rmSync(join(DIR, "sheets"), { recursive: true, force: true });
+    if (!subset) {
+      await (await p.$("#overview")).screenshot({ path: join(DIR, "sheet.png") });
+      rmSync(join(DIR, "sheets"), { recursive: true, force: true });
+    }
     mkdirSync(join(DIR, "sheets"), { recursive: true });
     for (const b of built) {
       const el = await p.$(`section[id="${b.id}"]`);
@@ -404,7 +412,7 @@ figure{margin:0}figcaption{font-size:12px;color:#666;margin-top:6px}
   } finally { await browser.close(); }
   // One file to send: the overview and every concept's sheet, a page each.
   const PDFDocument = pdfKit().PDFDocument;
-  await new Promise((done, fail) => {
+  if (!subset) await new Promise((done, fail) => {
     const doc = new PDFDocument({ autoFirstPage: false, margin: 0, info: { Title: `${name}: logo concepts` } });
     const stream = createWriteStream(join(DIR, "concepts.pdf"));
     stream.on("finish", done).on("error", fail);
@@ -416,13 +424,14 @@ figure{margin:0}figcaption{font-size:12px;color:#666;margin-top:6px}
     }
     doc.end();
   });
-  writeFileSync(join(DIR, "concepts.json"), JSON.stringify({
+  if (!subset) writeFileSync(join(DIR, "concepts.json"), JSON.stringify({
     rendered: new Date().toISOString(), brief: existsSync(brief) ? briefProblems(readFileSync(brief, "utf8")) : "missing", fonts: [...used],
     concepts: built.map((b) => ({ id: b.id, ...b.concept.meta, problems: b.problems, notes: b.notes || [], usage: b.usage })),
   }, null, 2) + "\n");
   const failed = built.filter((b) => b.problems.length);
   for (const b of built) console.log(`  ${b.problems.length ? "fail" : "ok  "}  ${b.id}${b.problems.length ? `: ${b.problems.join("; ")}` : b.notes.length ? ` (${b.notes.length} note${b.notes.length > 1 ? "s" : ""})` : ""}`);
-  console.log(`Sheets: ${DIR}/sheet.png (all), ${DIR}/sheets/<id>.png and ${DIR}/concepts.pdf. Look at every one, then: node scripts/logo.mjs pick <id>`);
+  if (subset) console.log(`Redrew ${ids.map((id) => `${DIR}/sheets/${id}.png`).join(", ")}; the overview, concepts.pdf and concepts.json are as they were (run sheet with no ids to redo them).`);
+  else console.log(`Sheets: ${DIR}/sheet.png (all), ${DIR}/sheets/<id>.png and ${DIR}/concepts.pdf. Look at every one, then: node scripts/logo.mjs pick <id>`);
   if (failed.length) process.exit(1);
 }
 
