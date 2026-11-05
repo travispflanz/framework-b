@@ -71,9 +71,20 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   marked for the owner to confirm, and "Approved claims" (only from `claims`).
 - `DESIGN.md` in Google's format: autopilot follows SPEC section 12 by hand (direction from the brief's words and
   research, a deliberate choice off the ban list). If `design.autopilot` is false, run the intake with the owner.
-- Industry first: read two or three of the best sites in the business's industry and region, and note what visitors
-  there expect (photos or illustration, how much text before the first action, booking or calling or quoting). Each
-  draft takes a position on those expectations; the drafts differ from each other, not from the industry.
+- Four lenses first, never the industry alone (SPEC section 12, "Four lenses"). Write `design/research.md` before any
+  draft or route, with dated sources, and draw on it for every design decision after it (routes, logo, style guide,
+  images, print and social):
+  1. The business: what it does and is trying to achieve, who it is for, what it promises and refuses (PRODUCT.md).
+  2. The field: two or three of the best sites in its industry and region, what visitors there expect (photos or
+     illustration, how much text before the first action, booking or calling or quoting), the sea of sameness and
+     its clichés.
+  3. Current design: what design is doing now outside the field too (dated trend reports and galleries from the
+     last 12 months: logo, web, type, colour, image, motion), which currents fit this business and why, which to
+     avoid, and how to stay current without dating fast.
+  4. The site's own look: the owner's photos or the archive's (era, subjects, texture), the type and colour, the
+     owner's words; if it is nostalgic, nostalgic for whom and for what.
+  Each draft takes a position on all four; the drafts differ from each other, not from the field. The content check
+  fails a research file missing a lens and notes one unwritten or without a dated source.
 - Every draft sets the skin and the skeleton. Besides colours, type, radii and spacing it has the Framework B blocks
   `composition` (alignment, density, separation, card style, image shape, motion, phone budget, title case, the
   hero layouts for the home page and the family for every other page, and the closing section) and `imagery` (style,
@@ -81,7 +92,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   block. Allowed values: the header of `scripts/design-tokens.mjs`.
 - With an owner, routes come before drafts (SPEC section 12, "Design routes"). A route is a whole page skeleton
   with its own image demand and type behaviour; two routes that differ only in fonts and colours are one route.
-  1. References: capture current sites from curated galleries and from the business's own field, and measure them
+  1. References: capture current sites from curated galleries (current design) and from the business's own field,
+     with the site's own material beside them (design/research.md), and measure them
      the same way (images per page, how much of the page is image, the first screen, the phone layout). Name every
      site you use.
   2. Routes: three or four, each modelled on named reference sites and mocked as a page family with the site's real
@@ -133,13 +145,19 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 - Logo (unless the owner supplied one they are keeping; then put it in `public/logo.svg` and set `site.logo`). The
   name set in a font alone is often what everyone in the field already does (it was for the first adopted site), so
   a logo needs a shape or an idea that only this business has (SPEC section 12, "Logo").
-  1. `node scripts/logo.mjs brief`, then write `design/brand/brief.md` from PRODUCT.md, DESIGN.md and a look at the
-     field: what it is, who it must reach, three words it should feel like and three it must not, the sea of sameness
+  1. `node scripts/logo.mjs brief`, then write `design/brand/brief.md` from `design/research.md` (the four lenses):
+     the business and its goals, who it must reach, three words it should feel like and three it must not, the
+     site's own look (its photographs' era and texture, its type and colour, and exactly what any nostalgia is for),
+     current design (the currents that fit and the ones to avoid, from dated trend reports), the sea of sameness
      (what similar businesses' logos do, with where you looked and the date), the clichés to avoid (including any
      symbol that promises something the business doesn't offer), ideas from the brand's own world (each with the fact
      it comes from), where it must work (smallest first) and what to keep.
   2. Draw five to eight concepts in `design/brand/concepts/<id>.svg` (format at the top of `scripts/lib/logo.mjs`):
-     several types (pictorial, abstract, emblem, combination, wordmark), each from a different idea in the brief.
+     several types (pictorial, abstract, emblem, combination, wordmark), each from a different idea in the brief,
+     each naming the fact it comes from (`data-from`), the current design move it uses (`data-trend`) and how it
+     belongs to the site's own look (`data-look`); `check` refuses a designed concept without them. Period faces
+     that belong to the site's world are fine for the logo (it is outlined, so no web font loads); words can run
+     round a seal (`<fb-text arc="top|bottom" r cx cy>`).
      Draw in two roles, ink and accent, with holes for cut-outs, so every version is exact in one colour. Words are
      `<fb-text>`, set in the design's fonts; `node scripts/logo.mjs measure "<words>"` gives their width. With the
      current logo as one concept (marked `data-template="true"`), the owner can compare.

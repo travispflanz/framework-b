@@ -2,7 +2,9 @@
 // Logo (docs/SPEC.md section 12, "Logo"; docs/BUILD.md step 3): a brief, concepts the agent draws from the brand's own
 // world, a sheet that tests every concept the way the logo will be used, and the whole kit from the one picked.
 //
-//   node scripts/logo.mjs brief                  writes design/brand/brief.md to fill in (kept if it exists)
+//   node scripts/logo.mjs brief                  writes design/brand/brief.md to fill in (kept if it exists), from
+//                                                the site's design research (design/research.md: the business, the
+//                                                field, current design and the site's own look)
 //   node scripts/logo.mjs measure "<words>" [--font display|body] [--family <Fontsource family>] [--weight 800]
 //                                               [--size 100] [--tracking 0.05]
 //                                                width, capital height and ascent of words in a font, for drawing
@@ -36,6 +38,7 @@ import opentype from "opentype.js";
 import sharp from "sharp";
 import { parse } from "yaml";
 import { launchBrowser } from "./lib/local-site.mjs";
+import { FILE as RESEARCH, unwrittenLenses } from "./lib/design-research.mjs";
 import {
   SHEET_SIZES, VARIANT_NAMES, boxOf, briefProblems, briefTemplate, escapeXml, expandSymbol, lintConcept,
   paint, parseConcept, ratio, squareBox, svgFile, usage, variantPalettes,
@@ -117,7 +120,7 @@ function layout(f, words, size, tracking = 0) {
     if (i < glyphs.length - 1) cx += (Number(f.getKerningValue(g, glyphs[i + 1])) || 0) * scale;
   });
   const capHeight = ((f.tables.os2?.sCapHeight || f.charToGlyph("H").getBoundingBox().y2) / f.unitsPerEm) * size;
-  return { glyphs, xs, width: cx - tracking * size, capHeight, ascent: (f.ascender / f.unitsPerEm) * size, descent: (-f.descender / f.unitsPerEm) * size };
+  return { glyphs, xs, unitsPerEm: f.unitsPerEm, width: cx - tracking * size, capHeight, ascent: (f.ascender / f.unitsPerEm) * size, descent: (-f.descender / f.unitsPerEm) * size };
 }
 
 // An <fb-text>'s attributes and words -> outlines.
@@ -129,8 +132,34 @@ function setText(attrs, words) {
   const x0 = Number(attrs.x) || 0;
   const x = attrs.anchor === "middle" ? x0 - l.width / 2 : attrs.anchor === "end" ? x0 - l.width : x0;
   const y = attrs["center-y"] !== undefined ? Number(attrs["center-y"]) + l.capHeight / 2 : Number(attrs.y) || 0;
+  if (attrs.arc) return { d: arcText(l, size, attrs), width: l.width, capHeight: l.capHeight };
   const d = l.glyphs.map((g, i) => pathData(g.getPath(x + l.xs[i], y, size).commands)).join(" ");
   return { d, width: l.width, capHeight: l.capHeight };
+}
+
+// Words along a circle, for seals and badges: arc="top" reads clockwise over the top with the letters' feet on the
+// circle of radius r (centre cx, cy); arc="bottom" reads left to right along the bottom with their feet on the circle
+// and their heads towards the centre. at: the angle the words are centred on, in degrees clockwise from the top
+// (default 0 for top, 180 for bottom).
+function arcText(l, size, attrs) {
+  const r = Number(attrs.r), cx = Number(attrs.cx) || 0, cy = Number(attrs.cy) || 0;
+  const bottom = attrs.arc === "bottom";
+  const at = attrs.at !== undefined ? Number(attrs.at) : bottom ? 180 : 0;
+  const rad = (deg) => (deg * Math.PI) / 180;
+  return l.glyphs.map((g, i) => {
+    const half = ((g.advanceWidth || 0) / l.unitsPerEm) * size / 2;
+    const mid = l.xs[i] + half - l.width / 2; // distance along the arc from its centre
+    const theta = bottom ? at - (mid / r) * (180 / Math.PI) : at + (mid / r) * (180 / Math.PI);
+    const rot = rad(bottom ? theta - 180 : theta);
+    const px = cx + r * Math.sin(rad(theta)), py = cy - r * Math.cos(rad(theta));
+    const [c, s] = [Math.cos(rot), Math.sin(rot)];
+    const map = (X, Y) => [px + X * c - Y * s, py + X * s + Y * c];
+    return pathData(g.getPath(-half, 0, size).commands.map((cmd) => {
+      const out = { ...cmd };
+      for (const [kx, ky] of [["x", "y"], ["x1", "y1"], ["x2", "y2"]]) if (cmd[kx] !== undefined) [out[kx], out[ky]] = map(cmd[kx], cmd[ky]);
+      return out;
+    }));
+  }).join(" ");
 }
 
 // PDFKit and SVG-to-PDFKit (both MIT), fetched into the cache like the fonts. SVG-to-PDFKit keeps masks as vector
@@ -253,6 +282,10 @@ if (cmd === "check") {
     if (!p.length) console.log(`  ok    ${id}`);
   }
   if (!ids.length) console.log(`  note  no concepts in ${CONCEPTS}/ yet`);
+  if (existsSync(RESEARCH)) {
+    const todo = unwrittenLenses(readFileSync(RESEARCH, "utf8"));
+    if (todo.length) console.log(`  note  ${RESEARCH} isn't written yet (${todo.join(", ")}): the brief draws on it`);
+  }
   process.exit(bad ? 1 : 0);
 }
 
@@ -316,7 +349,7 @@ if (cmd === "sheet") {
     const stacked = f[`stacked-${page}`];
     sections.push(`<section class="c" id="${escapeXml(b.id)}">
 <h2>${i + 1}. ${escapeXml(b.id)} <small>${escapeXml(b.concept.meta.type)}</small></h2>
-<p class="idea">${escapeXml(b.concept.meta.idea)}</p><p class="from">From: ${escapeXml(b.concept.meta.from)}</p>
+<p class="idea">${escapeXml(b.concept.meta.idea)}</p><p class="from">From: ${escapeXml(b.concept.meta.from)}</p>${b.concept.meta.trend ? `<p class="from">Current design: ${escapeXml(b.concept.meta.trend)}</p>` : ""}${b.concept.meta.look ? `<p class="from">Fits the site: ${escapeXml(b.concept.meta.look)}</p>` : ""}
 <div class="row"><figure style="flex:1"><div class="hdr" style="background:${palettes[page].paper}">${img(f[`lockup-${page}`], SHEET_SIZES.headerPx)}<span class="nav" style="color:${palettes[page].ink}">Page · Page · Page</span><span class="btn" style="background:${C.accent};color:${C["accent-ink"] || "#000"}">Action</span></div><figcaption>Site header, logo ${SHEET_SIZES.headerPx} px tall (${b.usage.headerWidthPx} px wide)</figcaption></figure>
 <figure><div class="phone" style="background:${palettes[page].paper}">${img(f[`lockup-${page}`], 28, "max-width:250px;height:auto;max-height:28px")}<span class="btn" style="background:${C.accent};color:${C["accent-ink"] || "#000"}">Action</span></div><figcaption>Phone header, 390 px</figcaption></figure></div>
 <div class="row">${["on-dark", "on-light", "black", "white"].map((v) => `<figure class="t" style="background:${palettes[v].paper};color:${fg(palettes[v].paper)}">${img(f[`lockup-${v}`], 72, "max-width:100%;height:auto;max-height:72px")}<figcaption>${{ "on-dark": "Dark paper", "on-light": "Light paper", black: "One colour, black", white: "One colour, white" }[v]}</figcaption></figure>`).join("")}</div>
@@ -335,7 +368,7 @@ ${b.notes.length ? `<ul class="notes">${b.notes.map((n) => `<li>${escapeXml(n)}<
 body{margin:0;font:15px/1.4 "${font}",system-ui,sans-serif;color:#222;background:#fff;width:1200px}
 section,.ov{padding:28px 32px;border-bottom:8px solid #eee}
 h1,h2{margin:0 0 6px;font-size:22px} h2 small{font-weight:400;color:#666;font-size:15px}
-.idea{margin:0;font-size:16px}.from{margin:0 0 14px;color:#666}
+.idea{margin:0 0 4px;font-size:16px}.from{margin:0 0 4px;color:#666}h2+.idea{margin-top:2px}section .row:first-of-type{margin-top:12px}
 .row{display:flex;gap:12px;margin:0 0 12px;flex-wrap:wrap}
 figure{margin:0}figcaption{font-size:12px;color:#666;margin-top:6px}
 .t{flex:1;min-width:200px;padding:16px;border-radius:6px;min-height:90px;display:flex;flex-direction:column;justify-content:space-between;position:relative}

@@ -663,6 +663,42 @@ What's built:
 - Proven on the first adopted site: its guide renders to 20 pages with its real colours, type, components, photographs
   and 16 page screens.
 
+### Four lenses (2026-11-04)
+
+Why: the first round of logo concepts for the first adopted site was drawn mostly from its field. The owner asked
+that every piece of design research in Framework B look past the industry: "remember the actual business idea and
+the business goals and the targets", consider "modern trends and up-to-date current modern trends the same way as
+when we're doing the web design", and fit the site's own theme and images, so that the "entire design mantra" is
+consistent through the framework.
+
+Evidence (each checked 2026-11-04):
+- Trend reports read trends as movement over years, not fads: "This is a trend report, not a trendy report"
+  ([LogoLounge, 2025 Logo Trend Report](https://www.logolounge.com/trend/2025-logo-trend-report)); "This is a report,
+  not a recommendation ... Your job isn't to mimic them" ([LogoLounge, 2026](https://www.logolounge.com/trend/2026-logo-trend-report)).
+  So the current-design lens names which currents fit and why, and which to avoid.
+- "Pick one trend that fits your story", then check it in black and white and "at 16×16 px and 16 feet away"
+  ([99designs by Vista, logo trends for 2026](https://www.vistaprint.com/hub/logo-design-trends)).
+- Nostalgia has to be specific: "nostalgic for who, and nostalgic for what?"
+  ([KOTA, brand design trends for 2026](https://kota.co.uk/blog/branding-inspiration-brand-design-trends-for-2026));
+  "If you can look at a design and not pinpoint the era, you're onto a winner"
+  ([Envato, logo and branding trends 2026](https://elements.envato.com/learn/logo-and-branding-trends)).
+- The field alone pulls a design towards its neighbours: on the first adopted site, three of four similar sites used
+  condensed uppercase wordmarks, as did its own logo, and the closest of them had already split and spliced its name
+  (by its designers' own account).
+
+What's built:
+- `design/research.md` in every site (seeded into existing sites once by **site update**, then site-owned), with four
+  lenses: The business, The field, Current design, The site's own look. `check-content.mjs` fails a file missing a
+  lens and notes one unwritten or without a dated source (the business's source is PRODUCT.md); the QA gate notes an
+  unwritten one.
+- BUILD step 3 starts with it, and every design step after it draws on it: drafts and routes (references from
+  galleries of current design as well as the field), the logo brief (sections for the business, the site's own look
+  and current design), each logo concept (`data-from`, `data-trend`, `data-look`, which `check` requires and the
+  sheet prints), and the style guide's Brand section.
+- Tested by `starter/scripts/test/logo.test.mjs` (the four lenses on a concept, and the research file's rules).
+  Proven on the first adopted site: its research file and a second round of seven concepts, each naming the fact,
+  the current design move and the part of the site's own look it comes from.
+
 ### Logo (2026-11-04)
 
 Why: the owner of the first adopted site said its logo, made by the brand kit, was "super-generic and doesn't really
@@ -701,14 +737,17 @@ Evidence (each checked 2026-11-04):
   toolkit](https://www.uspto.gov/sites/default/files/documents/TM-Registration-Toolkit.pdf)).
 
 What's built (`starter/scripts/logo.mjs`, `starter/scripts/lib/logo.mjs`):
-- `brief`: `design/brand/brief.md` with eight sections (what it is, who it must reach, feel, sea of sameness, clichés
-  to avoid, ideas from the brand's own world, where it must work, keep). `check` fails an unwritten one, and `pick`
-  refuses a designed concept until the brief is written.
+- `brief`: `design/brand/brief.md` with ten sections (the business, who it must reach, feel, the site's own look,
+  current design, sea of sameness, clichés to avoid, ideas from the brand's own world, where it must work, keep),
+  written from `design/research.md`. `check` fails an unwritten one, and `pick` refuses a designed concept until the
+  brief is written.
 - Concepts are SVG files the agent draws: a mark (square, for icons) and a lockup (the header logo), optional
   stacked. Two colour roles only, ink and accent; cut-outs are holes (masks or even-odd fills), never the background
   colour, so the one-colour and reversed versions are exact. Words are `<fb-text>`, set in the design's fonts and
-  converted to outlines; `viewBox="auto"` measures the drawing. `check` refuses fonts in `<text>`, pictures, styles,
-  filters, gradients, outside links, raw colours and a concept without an idea or the fact it comes from.
+  converted to outlines, in a straight line or round a seal (`arc`); `viewBox="auto"` measures the drawing. Every
+  designed concept names the fact it comes from, the current design move it uses and how it belongs to the site's
+  own look (`data-from`, `data-trend`, `data-look`). `check` refuses fonts in `<text>`, pictures, styles, filters,
+  gradients, outside links, raw colours and a concept missing any of those.
 - `sheet` tests every concept as it will be used: the header at 36 px, a 390 px phone header, dark and light paper
   from the design (the page colour and its inverse band), one colour black and white, on the home page's photo, the
   mark at 16, 32 and 48 px with the 16 px rendering enlarged, light and dark browser tabs, a circle avatar, the
@@ -741,6 +780,7 @@ Rules:
 - **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders. The page's lists keep to the prose width, so long credit lines stay readable (they failed Impeccable's line length at 1280 px on the first adopted site, 2026-11-03).
 - **A photo taken off a page goes to the library,** never the bin.
 - **A design runs through every page.** A route, image style or phone rule isn't done until the inner pages have it too.
+- **Four lenses for every design decision.** Routes, logos, style guides, images, print and social pieces are each looked at through the business and its goals, its field, current design (dated, from outside the field too) and the site's own look, recorded in `design/research.md`; never the industry alone (owner's request, 2026-11-04).
 - **A logo is an idea, not a font.** A designed logo starts from a written brief, comes from something only this business has, is tested at its real sizes and in one colour, and is picked by the owner from several concepts (owner's request, 2026-11-04).
 - **A style guide before the other pages.** Once the home page carries the route, its style guide is written and rendered, and every other page, post and print piece is made from it (owner's decision, 2026-11-04).
 - **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).

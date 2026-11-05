@@ -82,8 +82,12 @@ A site has two modes:
   - with you involved, it shows you this-or-that image pairs first, then the three designs to pick from;
   - after the gates pass, up to three critique rounds, each change kept only if it wins a side-by-side comparison
     both ways.
-- A logo designed for the business, not just its name in a font: a written brief (what similar businesses' logos
-  look like, the clichés to avoid, ideas only this business has), five to eight concepts, and a test sheet for each
+- Design research through four lenses, never the industry alone: the business and its goals, its field, current
+  design (dated trend reports from outside the field too) and the site's own look (its photos, type and colour).
+  Every design step draws on it: the look, the logo, the style guide, images, print and social.
+- A logo designed for the business, not just its name in a font: a written brief (the business, the site's own look,
+  current design, what similar businesses' logos look like, the clichés to avoid, ideas only this business has),
+  five to eight concepts that each name the idea, the current design move and how they fit the site, and a test sheet for each
   (the site header, a phone, light and dark paper, one colour, on a photo, a 16 px favicon, a circle avatar, an app
   icon and a business card). The one you pick becomes the full kit: dark, light and one-colour versions, favicons,
   app icons, the share image, print PDFs and a social avatar, with clear space and smallest sizes in the style guide.

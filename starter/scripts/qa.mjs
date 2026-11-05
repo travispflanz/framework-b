@@ -30,6 +30,7 @@ import { measureImageText } from "./lib/image-text.mjs";
 import { bareBanners, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
 import { unwritten } from "./lib/style-guide.mjs";
 import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
+import { FILE as RESEARCH, unwrittenLenses } from "./lib/design-research.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -99,6 +100,11 @@ if (existsSync("scripts/check-content.mjs") && existsSync("src/content")) {
 }
 // The style guide (SPEC section 12): rendered from DESIGN.md, STYLE-GUIDE.md and the logo (design/brand/logo.json).
 // Once it has been rendered, a guide older than any of them fails, so it stays the description of the site as it is.
+// Design research (SPEC section 12, "Four lenses"): a note until every lens is written.
+if (existsSync(RESEARCH)) {
+  const todo = unwrittenLenses(readFileSync(RESEARCH, "utf8"));
+  if (todo.length) console.log(`  note  design research: not written yet: ${todo.join(", ")} (${RESEARCH})`);
+}
 // The logo kit (SPEC section 12, "Logo"): every file scripts/logo.mjs pick lists in design/brand/logo.json is there.
 if (existsSync("design/brand/logo.json")) {
   const kit = JSON.parse(readFileSync("design/brand/logo.json", "utf8"));

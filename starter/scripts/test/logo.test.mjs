@@ -1,13 +1,16 @@
-// Unit tests for the logo concept format (scripts/lib/logo.mjs): what a concept may contain, how each version gets
-// its colours, how words and placed symbols are expanded, and the brief's sections.
+// Unit tests for the logo concept format (scripts/lib/logo.mjs): what a concept may contain (including the four
+// lenses), how each version gets its colours, how words and placed symbols are expanded, the brief's sections, and the
+// site's design research (scripts/lib/design-research.mjs).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   BRIEF, BRIEF_PLACEHOLDER, LOGO_CONTRAST, briefProblems, briefTemplate, expandSymbol, lintConcept, paint, parseConcept,
   ratio, squareBox, svgFile, usage, variantPalettes,
 } from "../lib/logo.mjs";
+import { LENSES, PLACEHOLDER, missingLenses, undatedLenses, unwrittenLenses } from "../lib/design-research.mjs";
+import { readFileSync } from "node:fs";
 
-const GOOD = `<svg xmlns="http://www.w3.org/2000/svg" data-type="combination" data-idea="A doorway that is also the letter E" data-from="PRODUCT.md: the shop's red door">
+const GOOD = `<svg xmlns="http://www.w3.org/2000/svg" data-type="combination" data-idea="A doorway that is also the letter E" data-from="PRODUCT.md: the shop's red door" data-trend="Simple Twist: one negative-space cut (trend report, 2026-01-01)" data-look="Flat shapes in the site's ink and its one accent, like its square-cornered cards">
   <symbol id="mark" viewBox="auto">
     <mask id="cut"><rect width="100" height="100" fill="white"/><rect x="30" y="20" width="40" height="80" fill="black"/></mask>
     <rect width="100" height="100" fill="ink" mask="url(#cut)"/>
@@ -31,6 +34,9 @@ test("the rules: no idea, raw colours, fonts, pictures, styles and outside links
   assert.match(bad(/data-idea="[^"]*"/, 'data-idea=""').join(), /data-idea/);
   assert.match(bad(/data-from="[^"]*"/, 'data-from=""').join(), /data-from/);
   assert.match(bad('data-type="combination"', 'data-type="swoosh"').join(), /data-type/);
+  assert.match(bad(/data-trend="[^"]*"/, "").join(), /data-trend is missing/);
+  assert.match(bad(/data-look="[^"]*"/, "").join(), /data-look is missing/);
+  assert.doesNotMatch(bad(/data-trend="[^"]*" data-look="[^"]*"/, 'data-template="true"').join(), /data-trend|data-look/, "a template needs neither");
   assert.match(bad('fill="accent"', 'fill="#ff0000"').join(), /use "ink" or "accent"/);
   assert.match(bad('fill="black"/></mask>', 'fill="ink"/></mask>').join(), /inside a <mask>/);
   assert.match(bad('<path fill="accent"', '<text>Hi</text><path fill="accent"').join(), /<text> isn't allowed/);
@@ -93,4 +99,15 @@ test("the brief: every section has to be written", () => {
   const done = template.replaceAll(BRIEF_PLACEHOLDER, "Written.");
   assert.deepEqual(briefProblems(done), []);
   assert.match(briefProblems(done.replace(/## Clichés to avoid[\s\S]*?(?=## )/, "")).join(), /"Clichés to avoid" is missing/);
+});
+
+test("design research: the starter's file has all four lenses, unwritten; a written lens names a dated source", () => {
+  const md = readFileSync("design/research.md", "utf8");
+  assert.deepEqual(missingLenses(md), []);
+  assert.deepEqual(unwrittenLenses(md), LENSES);
+  const written = md.replaceAll(PLACEHOLDER, "Looked at three sites on 2026-01-01.");
+  assert.deepEqual(unwrittenLenses(written), []);
+  assert.deepEqual(undatedLenses(written), []);
+  assert.deepEqual(undatedLenses(md.replaceAll(PLACEHOLDER, "Written without a source.")), ["The field", "Current design", "The site's own look"]);
+  assert.deepEqual(missingLenses(md.replace("## Current design", "## Trends")), ["Current design"]);
 });

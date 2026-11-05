@@ -11,7 +11,11 @@
 //   </svg>
 //
 // - data-type: one of TYPES. data-idea: the idea in a sentence. data-from: the fact in PRODUCT.md (or the brief)
-//   the idea comes from. A concept without both is a style, not an idea.
+//   the idea comes from. A concept without both is a style, not an idea. data-trend: the current design move it uses
+//   (from the brief's "Current design", with its source) or why it is timeless. data-look: how it belongs to the
+//   site's own look (its photographs, type and colour). These are the four lenses of SPEC section 12: the business,
+//   the field (the brief's sea of sameness), current design and the site's own look. data-template="true" marks a
+//   template (the name in a font), which needs neither of the last two.
 // - Two colours only, named by role: fill/stroke "ink" (the letters and main shapes) and "accent" (at most a detail),
 //   or "none". Each version of the logo maps the roles to real colours (VARIANT_NAMES), so the one-colour and reversed
 //   versions are exact and nothing is redrawn.
@@ -19,6 +23,8 @@
 //   shape filled with the background colour: on another background it would show.
 // - Words are <fb-text font="display|body" size x y [center-y] [anchor] [tracking] [weight] [family] fill>TEXT</fb-text>;
 //   scripts/logo.mjs sets them in the font and converts them to outlines. center-y puts the capitals' middle there.
+//   arc="top" or "bottom" with r, cx, cy (and at, the angle in degrees from the top) sets them along a circle, for
+//   a seal. A <g transform="..."> around words or shapes may rotate, skew or move them.
 // - viewBox="auto" fits the box to what is drawn (the mark's is made square). <use href="#mark" x y width height>
 //   places another symbol.
 // - Not allowed: <text>, <image>, <foreignObject>, <script>, <style>, style="", filters, gradients, patterns, links
@@ -29,9 +35,11 @@ export const TYPES = ["wordmark", "lettermark", "pictorial", "abstract", "combin
 // The logo brief (design/brand/brief.md): written before any concept is drawn, from PRODUCT.md, the design and a
 // look at what similar businesses use. Level-2 headings, in this order.
 export const BRIEF = [
-  ["What it is", "The business in one plain sentence, and its name as it must appear."],
+  ["The business", "What it does, what it is trying to achieve (the one action a visitor should take, how it earns, where it is going), what it promises and refuses, and its name as it must appear. From PRODUCT.md and design/research.md."],
   ["Who it must reach", "Who sees the logo, and where they first meet it (a printed card, a search result, a phone)."],
   ["Feel", "Three words the logo should feel like, and three it must not."],
+  ["The site's own look", "The route in DESIGN.md, the photographs (their era, subjects and texture), the type and the colour: the logo has to belong on these pages and photos. If the look is nostalgic, say exactly for whom and for what."],
+  ["Current design", "What logo and brand design is doing now, outside this field too, from dated trend reports and galleries of the last 12 months: the currents that fit this business and why, the ones to avoid and why, and how the logo stays current without dating fast."],
   ["Sea of sameness", "What similar businesses' logos do, with where you looked and the date. The concepts must not look like these."],
   ["Clichés to avoid", "The symbols every logo in this field reaches for, and any that would mislead (a promise the business doesn't make)."],
   ["Ideas from the brand's own world", "Things only this business has: its story, its customers' world, its site's own look. One line each, with the fact it comes from."],
@@ -66,7 +74,11 @@ export const escapeXml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "
 export function parseConcept(text) {
   const src = String(text || "").replace(/<!--[\s\S]*?-->/g, "").replace(/<\?xml[^>]*\?>/, "").trim();
   const root = src.match(/^<svg\b[^>]*>/)?.[0];
-  const meta = root ? { type: attr(root, "data-type") || "", idea: attr(root, "data-idea") || "", from: attr(root, "data-from") || "", name: attr(root, "data-name") || "" } : {};
+  const meta = root ? {
+    type: attr(root, "data-type") || "", idea: decode(attr(root, "data-idea") || ""), from: decode(attr(root, "data-from") || ""),
+    trend: decode(attr(root, "data-trend") || ""), look: decode(attr(root, "data-look") || ""), name: decode(attr(root, "data-name") || ""),
+    template: attr(root, "data-template") === "true",
+  } : {};
   const symbols = {};
   for (const m of src.matchAll(/<symbol\b([^>]*)>([\s\S]*?)<\/symbol>/g)) {
     const id = attr(` ${m[1]}`, "id");
@@ -83,6 +95,12 @@ export function lintConcept(concept) {
   if (!TYPES.includes(meta.type)) out.push(`data-type is "${meta.type}"; use one of ${TYPES.join(", ")}`);
   if (meta.idea.trim().length < 12) out.push("data-idea is missing: say the idea in a sentence");
   if (meta.from.trim().length < 6) out.push("data-from is missing: name the fact in PRODUCT.md or the brief the idea comes from");
+  // The four lenses (SPEC section 12): the business (data-from), the field (the brief's sea of sameness), current
+  // design (data-trend) and the site's own look (data-look). Templates are the name in a font and skip the last two.
+  if (!meta.template) {
+    if (meta.trend.trim().length < 6) out.push("data-trend is missing: name the current design move it uses, from the brief's Current design, or why it is timeless");
+    if (meta.look.trim().length < 6) out.push("data-look is missing: say how it belongs to the site's own look (its photographs, type and colour)");
+  }
   for (const id of ["mark", "lockup"]) if (!symbols[id]) out.push(`no <symbol id="${id}">`);
   for (const [id, s] of Object.entries(symbols)) {
     if (s.viewBox !== "auto" && !/^-?[\d.]+\s+-?[\d.]+\s+[\d.]+\s+[\d.]+$/.test(s.viewBox.trim())) out.push(`symbol "${id}": viewBox "${s.viewBox}" (four numbers, or "auto")`);

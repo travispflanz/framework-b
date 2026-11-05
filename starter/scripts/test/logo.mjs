@@ -25,7 +25,7 @@ process.on("SIGINT", () => { restore(); process.exit(130); });
 const node = (...args) => execFileSync("node", args, { stdio: "inherit" });
 const attempt = (...args) => spawnSync("node", args, { encoding: "utf8" });
 
-const CONCEPT = `<svg xmlns="http://www.w3.org/2000/svg" data-type="combination" data-idea="A doorway cut into a square, as the shop's front door" data-from="PRODUCT.md: the shop is known by its door">
+const CONCEPT = `<svg xmlns="http://www.w3.org/2000/svg" data-type="combination" data-idea="A doorway cut into a square, as the shop's front door" data-from="PRODUCT.md: the shop is known by its door" data-trend="Simple Twist: one negative-space cut (test fixture)" data-look="Flat ink and one accent, square corners, as the site's cards">
   <symbol id="mark" viewBox="auto">
     <mask id="door"><rect width="100" height="100" fill="white"/><path d="M34 100V46a16 16 0 0 1 32 0v54z" fill="black"/></mask>
     <rect width="100" height="100" rx="12" fill="ink" mask="url(#door)"/>
