@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { SECTIONS } from "../src/sections/schema.js";
 import { stripJsonc } from "./lib/jsonc.mjs";
 import { missingSections } from "./lib/style-guide.mjs";
+import { FILE as RESEARCH, missingLenses, undatedLenses, unwrittenLenses } from "./lib/design-research.mjs";
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
 const design = existsSync("src/styles/design.json") ? JSON.parse(readFileSync("src/styles/design.json", "utf8")) : {};
@@ -129,6 +130,18 @@ for (const c of ledger) {
 if (existsSync("STYLE-GUIDE.md")) {
   const missing = missingSections(readFileSync("STYLE-GUIDE.md", "utf8"));
   if (missing.length) errors.push(`STYLE-GUIDE.md is missing sections: ${missing.join(", ")} (the starter's STYLE-GUIDE.md has them all)`);
+}
+
+// Design research (SPEC section 12, "Four lenses"): the business, its field, current design and the site's own look.
+// A missing lens fails; an unwritten or undated one is a note until the routes are drawn.
+if (existsSync(RESEARCH)) {
+  const md = readFileSync(RESEARCH, "utf8");
+  const missing = missingLenses(md);
+  if (missing.length) errors.push(`${RESEARCH} is missing lenses: ${missing.join(", ")} (the starter's ${RESEARCH} has all four)`);
+  const todo = unwrittenLenses(md);
+  if (todo.length) console.log(`  note  ${RESEARCH}: not written yet: ${todo.join(", ")} (docs/BUILD.md step 3)`);
+  const undated = undatedLenses(md);
+  if (undated.length) console.log(`  note  ${RESEARCH}: no dated source under ${undated.join(", ")}`);
 }
 
 // Drips (core src/drips.js) need their Workflow binding; without it, leads would silently get no emails.

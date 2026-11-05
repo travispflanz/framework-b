@@ -15,7 +15,8 @@ Prose takes paragraphs, "- " lists, "### " subheadings, **bold**, *italic* and [
 
 To be written once the design is chosen.
 
-<!-- Who it's for, what it offers, and the feeling the design is after, in two or three sentences from PRODUCT.md. -->
+<!-- Who it's for, what it offers, and the feeling the design is after, in two or three sentences from PRODUCT.md and
+design/research.md (the four lenses: the business, its field, current design and the site's own look). -->
 
 ## Logo
 

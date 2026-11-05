@@ -1,5 +1,5 @@
 # Builds the starter with the current core, runs its end-to-end test in a real browser, then the QA gate,
-# twice: as a static site (plus every layout variant and the brand kit), and with client editing (EmDash) switched
+# twice: as a static site (plus every layout variant and the logo method), and with client editing (EmDash) switched
 # on, then switched off again.
 # Local Worker, local D1 and R2, Turnstile test keys, no email, no Cloudflare account access.
 name: starter tests
@@ -93,9 +93,9 @@ jobs:
           jq -e '.inputs["DESIGN.md"] and .inputs["STYLE-GUIDE.md"] and (.unwritten | length == 10)' "$RUNNER_TEMP/guide/stamp.json"
           test ! -e src/pages/style-guide.astro
         working-directory: starter
-      - name: Brand kit (six logo layouts, then the pick's logo, icons and share image)
+      - name: Logo method (template concepts; a designed concept checked, sheeted and picked into the full kit)
         if: matrix.editing == 'off'
-        run: node scripts/test/brand-kit.mjs
+        run: node scripts/test/logo.mjs
         working-directory: starter
       - name: Switch client editing off (an editor's change and image come back as files), then test the static site
         if: matrix.editing == 'on'

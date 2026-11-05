@@ -436,11 +436,11 @@ free first.
   transitions (`@view-transition`). All of it sits under `prefers-reduced-motion: no-preference`; the QA gate checks
   that nothing animates with reduced motion. No animation library ships; one may be added per site when a design
   needs JavaScript-driven motion.
-- **Logo (`scripts/brand-kit.mjs`).** Six layouts (wordmark, mark and name, stacked, badge, monogram, tracked with a
-  rule) set in the design's display font and converted to outlines with opentype.js 2.0.0 (MIT); the mark is the
-  initials or a filled Phosphor icon (`@phosphor-icons/core`, MIT). `pick` writes the logo, favicon, Apple touch icon,
-  192 and 512 px icons, a 1200×630 share image and the web manifest, and sets `site.logo`. Fonts and icons are fetched
-  into `node_modules/.cache`, never into `package.json`. CI runs it on every starter change.
+- **Logo (`scripts/logo.mjs`).** First built as six fixed layouts of the name in the display font (the brand kit);
+  since 2026-11-04 a method with a brief, drawn concepts, a test sheet and a full kit. See "Logo (2026-11-04)" below.
+  The six layouts remain as template concepts (`node scripts/logo.mjs templates`; `scripts/brand-kit.mjs` still runs
+  them). Words are set in the design's fonts and converted to outlines with opentype.js 2.0.0 (MIT); fonts are
+  fetched into `node_modules/.cache`, never into `package.json`. CI runs it on every starter change.
 - **Imagery treatment (`scripts/lib/treatment.mjs`).** `images.mjs add` and `generate-image.mjs use` apply the
   design's treatment so stock and generated images match; `images.mjs treat` applies it once to an owner photo. The
   credit records the change.
@@ -640,15 +640,19 @@ What's built:
 - `node scripts/style-guide.mjs` builds the site with a temporary guide page (`scripts/style-guide/guide.astro`, the
   same way the style tiles are built) and prints `design/style-guide/style-guide.pdf` (US Letter, a section a page)
   and `style-guide.png`. Besides the written sections it shows the site's real colours with HEX, RGB and the contrast
-  of every text pair, each type level set in the site's own words, the logo and brand-kit files, a sample of the
+  of every text pair, each type level set in the site's own words, every version of the logo with its clear space and
+  smallest sizes (from `design/brand/logo.json`), the icons and share image, a sample of the
   site's photographs and their sources, the composition, the hero family and how every page ends, the sections in
   use, the first screen of every page at 1280 and 390 px, live buttons, a card and a form field, and the owner's
   wording. Print colours are left to the printer's own profile, as the printers ask.
 - Beyond the website: share image, Instagram posts, Stories, the Facebook, LinkedIn, X and YouTube profile and cover
   images, a US business card and a flyer, each with its source and check date (`SPECS` in
   `scripts/lib/style-guide.mjs`). Ready-made social and print templates are not built yet.
-- `design/style-guide/stamp.json` records a hash of DESIGN.md and STYLE-GUIDE.md. Once a guide has been rendered, the
-  QA gate fails when either has changed since, so the guide stays the description of the site as it is.
+- `design/style-guide/stamp.json` records a hash of DESIGN.md, STYLE-GUIDE.md and `design/brand/logo.json`. Once a
+  guide has been rendered, the QA gate fails when any of them has changed since, so the guide stays the description of
+  the site as it is. A guide rendered before the logo was an input stays fresh until the site has a logo kit.
+- The guide's prose takes `code` spans (file names, commands) as written; the first adopted site's guide showed the
+  backticks.
 - Tests: `starter/scripts/test/style-guide.test.mjs`, the update test for the seeded template, and a starter CI step
   that renders the template. With client editing on, the guide is untested.
 - Found while building it: the QA gate's full-page screenshots (for people reviewing and for the critique rounds)
@@ -658,6 +662,113 @@ What's built:
   scrolls the page first.
 - Proven on the first adopted site: its guide renders to 20 pages with its real colours, type, components, photographs
   and 16 page screens.
+
+### Four lenses (2026-11-04)
+
+Why: the first round of logo concepts for the first adopted site was drawn mostly from its field. The owner asked
+that every piece of design research in Framework B look past the industry: "remember the actual business idea and
+the business goals and the targets", consider "modern trends and up-to-date current modern trends the same way as
+when we're doing the web design", and fit the site's own theme and images, so that the "entire design mantra" is
+consistent through the framework.
+
+Evidence (each checked 2026-11-04):
+- Trend reports read trends as movement over years, not fads: "This is a trend report, not a trendy report"
+  ([LogoLounge, 2025 Logo Trend Report](https://www.logolounge.com/trend/2025-logo-trend-report)); "This is a report,
+  not a recommendation ... Your job isn't to mimic them" ([LogoLounge, 2026](https://www.logolounge.com/trend/2026-logo-trend-report)).
+  So the current-design lens names which currents fit and why, and which to avoid.
+- "Pick one trend that fits your story", then check it in black and white and "at 16×16 px and 16 feet away"
+  ([99designs by Vista, logo trends for 2026](https://www.vistaprint.com/hub/logo-design-trends)).
+- Nostalgia has to be specific: "nostalgic for who, and nostalgic for what?"
+  ([KOTA, brand design trends for 2026](https://kota.co.uk/blog/branding-inspiration-brand-design-trends-for-2026));
+  "If you can look at a design and not pinpoint the era, you're onto a winner"
+  ([Envato, logo and branding trends 2026](https://elements.envato.com/learn/logo-and-branding-trends)).
+- The field alone pulls a design towards its neighbours: on the first adopted site, three of four similar sites used
+  condensed uppercase wordmarks, as did its own logo, and the closest of them had already split and spliced its name
+  (by its designers' own account).
+
+What's built:
+- `design/research.md` in every site (seeded into existing sites once by **site update**, then site-owned), with four
+  lenses: The business, The field, Current design, The site's own look. `check-content.mjs` fails a file missing a
+  lens and notes one unwritten or without a dated source (the business's source is PRODUCT.md); the QA gate notes an
+  unwritten one.
+- BUILD step 3 starts with it, and every design step after it draws on it: drafts and routes (references from
+  galleries of current design as well as the field), the logo brief (sections for the business, the site's own look
+  and current design), each logo concept (`data-from`, `data-trend`, `data-look`, which `check` requires and the
+  sheet prints), and the style guide's Brand section.
+- Tested by `starter/scripts/test/logo.test.mjs` (the four lenses on a concept, and the research file's rules).
+  Proven on the first adopted site: its research file and a second round of seven concepts, each naming the fact,
+  the current design move and the part of the site's own look it comes from.
+
+### Logo (2026-11-04)
+
+Why: the owner of the first adopted site said its logo, made by the brand kit, was "super-generic and doesn't really
+fit the brand", and asked for "a logo design method/research/design/dev" in Framework B. The brand kit set the name in
+the display font in six fixed layouts: no brief, no idea from the business, nothing that sets it apart. A look at
+four similar sites the same day found condensed uppercase wordmarks on three of them, two with red, and the site's logo
+was the same recipe.
+
+Evidence (each checked 2026-11-04):
+- The process professionals describe starts with the brand and the field, lists where the logo will be used, sketches
+  many concepts, refines a few as vectors and delivers full colour, black, white and one-colour versions
+  ([99designs, Logo design process](https://99designs.com/blog/tips/logo-design-process-how-professionals-do-it)). A
+  brief names three adjectives wanted and three rejected, the competitors, and every touchpoint with the smallest
+  size ([Malbar Design, Logo design brief](https://malbardesign.com/logo-design-brief)); a word bank comes with an
+  "avoid list" of clichés, and the strongest ideas are distilled to two or three
+  ([Ramotion, Logo design principles](https://www.ramotion.com/blog/logo-design-principles)).
+- A logo should be designed in black and white first and still work in one colour, reversed, at the size of a postage
+  stamp and as large as a billboard ([Smashing Magazine, Vital tips for effective logo
+  design](https://www.smashingmagazine.com/2009/08/vital-tips-for-effective-logo-design)); the most common mistake is
+  not testing it small or in black and white ([Vistaprint, Principles of logo
+  design](https://www.vistaprint.com/hub/principles-of-logo-design)).
+- The types: wordmarks, lettermarks, pictorial marks, abstract marks, mascots, combination marks and emblems
+  ([Vistaprint, Types of logos](https://www.vistaprint.com/hub/types-of-logos)).
+- Favicons: square, at least 8 px, larger than 48 px recommended; Google Search supports BMP, GIF, ICO, PNG, JPEG,
+  PPM and TIFF (SVG is not listed) ([Google Search Central, Favicon in search
+  results](https://developers.google.com/search/docs/appearance/favicon-in-search)).
+- Maskable icons: the important part sits inside a centred circle with a radius of 40% of the icon
+  ([web.dev, Maskable icons](https://web.dev/articles/maskable-icon)).
+- Contrast: logos are exempt from WCAG's contrast requirements, but where a logo is a control (the header logo links
+  home) W3C advises a version with enough contrast ([Understanding SC 1.4.11 Non-text
+  Contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)); Framework B holds every version to
+  3:1.
+- Fonts: OFL fonts may be used in logos and their outlines in artwork ([OFL FAQ
+  1.1](https://openfontlicense.org/ofl-faq)). Trademarks: search the USPTO database for confusingly similar marks
+  on related goods and services before filing ([USPTO, Trademark registration
+  toolkit](https://www.uspto.gov/sites/default/files/documents/TM-Registration-Toolkit.pdf)).
+
+What's built (`starter/scripts/logo.mjs`, `starter/scripts/lib/logo.mjs`):
+- `brief`: `design/brand/brief.md` with ten sections (the business, who it must reach, feel, the site's own look,
+  current design, sea of sameness, clichés to avoid, ideas from the brand's own world, where it must work, keep),
+  written from `design/research.md`. `check` fails an unwritten one, and `pick` refuses a designed concept until the
+  brief is written.
+- Concepts are SVG files the agent draws: a mark (square, for icons) and a lockup (the header logo), optional
+  stacked. Two colour roles only, ink and accent; cut-outs are holes (masks or even-odd fills), never the background
+  colour, so the one-colour and reversed versions are exact. Words are `<fb-text>`, set in the design's fonts and
+  converted to outlines, in a straight line or round a seal (`arc`); `viewBox="auto"` measures the drawing. Every
+  designed concept names the fact it comes from, the current design move it uses and how it belongs to the site's
+  own look (`data-from`, `data-trend`, `data-look`). `check` refuses fonts in `<text>`, pictures, styles, filters,
+  gradients, outside links, raw colours and a concept missing any of those.
+- `sheet` tests every concept as it will be used: the header at 36 px, a 390 px phone header, dark and light paper
+  from the design (the page colour and its inverse band), one colour black and white, on the home page's photo, the
+  mark at 16, 32 and 48 px with the 16 px rendering enlarged, light and dark browser tabs, a circle avatar, the
+  maskable icon with its safe zone, and a business card at full size. It notes a version whose accent falls under
+  3:1 (that version draws the accent in ink) and a header logo wider than 240 px. `design/brand/concepts.pdf` holds
+  them all for the owner.
+- `pick` writes the kit: `public/logo.svg` (the version for the page colour), `logo-on-dark.svg`,
+  `logo-on-light.svg`, `logo-black.svg`, `logo-white.svg`, `mark.svg`, `favicon.svg`, `favicon-96.png` (linked by
+  the layout when the kit exists), `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`,
+  `og.png` and the manifest; vector PDFs (PDFKit and SVG-to-PDFKit, both MIT: Chromium's print to PDF turned masks
+  into pictures) and 2000 px PNGs of every version and a 1000 px avatar in `design/brand/kit/`; and
+  `design/brand/logo.json` with the versions, colours, clear space (a quarter of the logo's height unless the concept
+  sets `data-clear`) and smallest sizes (the smallest the sheet checks: the logo 24 px tall and the mark 16 px on
+  screens, 6.4 mm tall in print). The style guide shows all of it, and the QA gate fails a kit with a file missing.
+- Tests: `starter/scripts/test/logo.test.mjs` (the format, versions, expansion and brief) and the starter CI step
+  `scripts/test/logo.mjs` (templates, a designed concept checked, sheeted and picked into the full kit with
+  picture-free PDFs, and a bad concept refused).
+- Tried on the first adopted site: a brief from its records and a look at its field, and eight concepts (seven ideas
+  and its current logo) sent to the owner on 2026-11-04. On a test copy of the site, `pick` installed one of them
+  and the QA gate passed with it (434 checks, including the complete kit and the style guide rendered with it). Not
+  yet live on a real site.
 
 Rules:
 
@@ -669,6 +780,8 @@ Rules:
 - **Credits on the Website assets page only,** never beside the image. Archive scans are cropped inside their borders. The page's lists keep to the prose width, so long credit lines stay readable (they failed Impeccable's line length at 1280 px on the first adopted site, 2026-11-03).
 - **A photo taken off a page goes to the library,** never the bin.
 - **A design runs through every page.** A route, image style or phone rule isn't done until the inner pages have it too.
+- **Four lenses for every design decision.** Routes, logos, style guides, images, print and social pieces are each looked at through the business and its goals, its field, current design (dated, from outside the field too) and the site's own look, recorded in `design/research.md`; never the industry alone (owner's request, 2026-11-04).
+- **A logo is an idea, not a font.** A designed logo starts from a written brief, comes from something only this business has, is tested at its real sizes and in one colour, and is picked by the owner from several concepts (owner's request, 2026-11-04).
 - **A style guide before the other pages.** Once the home page carries the route, its style guide is written and rendered, and every other page, post and print piece is made from it (owner's decision, 2026-11-04).
 - **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).

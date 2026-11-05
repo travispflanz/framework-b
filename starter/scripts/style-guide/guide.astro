@@ -24,6 +24,9 @@ const prose = Object.fromEntries(guide.sections.map((s) => [s.heading, renderPro
 const publicFiles = Object.keys(import.meta.glob("../../public/*.{svg,png,ico}")).map((f) => f.split("/").pop());
 const has = (name) => publicFiles.includes(name);
 const logo = config.site.logo || (has("logo.svg") ? "/logo.svg" : null);
+// The logo kit from scripts/logo.mjs pick: every version, clear space and minimum sizes.
+const kit: any = Object.values(import.meta.glob("../../design/brand/logo.json", { eager: true, import: "default" }))[0] || null;
+const VERSION_LABEL = { "on-dark": "On dark", "on-light": "On light", black: "One colour, black", white: "One colour, white" };
 
 // Colours, and the contrast of every pair the site sets text in (WCAG 2.2: 4.5:1 for text, 3:1 for large text).
 const colors = Object.entries(front.colors || {}).filter(([, v]) => /^#[0-9a-f]{6}$/i.test(String(v)));
@@ -80,10 +83,35 @@ const today = new Date().toISOString().slice(0, 10);
         <h2 class="sg-h2">{s.heading}</h2>
         <div class="sg-prose" set:html={prose[s.heading]} />
 
+        {s.heading === "Logo" && kit && (
+          <>
+            <div class="sg-grid">
+              {Object.entries(kit.versions).map(([v, k]: [string, any]) => (
+                <figure class="sg-tile sg-logo-tile" style={`background:${k.paper};color:${lum(k.paper) < 0.18 ? "#f2f2f2" : "#222222"}`}>
+                  <img src={k.file} alt="" />
+                  <figcaption style="color:inherit">{VERSION_LABEL[v] || v} · {k.file.slice(1)}</figcaption>
+                </figure>
+              ))}
+              <figure class="sg-tile" style={`background:${kit.versions[kit.pageVersion].paper};color:${kit.versions[kit.pageVersion].ink}`}>
+                <div class="sg-clear" style={`padding:${kit.clearSpace.share * 0.6}in;outline:1px dashed currentColor`}><img src={kit.versions[kit.pageVersion].file} alt="" style="height:0.6in;max-height:none;display:block" /></div>
+                <figcaption style="color:inherit">Clear space: the dashed line. {kit.clearSpace.rule}</figcaption>
+              </figure>
+              <figure class="sg-tile" style={`background:${kit.versions[kit.pageVersion].paper};color:${kit.versions[kit.pageVersion].ink}`}>
+                <div style="display:flex;align-items:flex-end;gap:16px">
+                  <img src={kit.versions[kit.pageVersion].file} alt="" style={`height:${kit.minimum.lockupPx}px`} />
+                  <img src={kit.mark} alt="" style={`height:${kit.minimum.markPx}px`} />
+                </div>
+                <figcaption style="color:inherit">{kit.minimum.rule}</figcaption>
+              </figure>
+            </div>
+            <p class="sg-note">{kit.template ? "A template logo (the name in the display font)." : `The idea: ${kit.idea} From: ${kit.from}`} Type in the logo: {kit.fonts.join(", ") || "none"}. Print files (vector PDF and 2000 px PNG of each version) and the social avatar are in design/brand/kit/.</p>
+          </>
+        )}
+
         {s.heading === "Logo" && (
           <div class="sg-grid">
-            {logo && <figure class="sg-tile" style="background:var(--color-bg)"><img src={logo} alt="" /><figcaption>On the page colour</figcaption></figure>}
-            {logo && <figure class="sg-tile" style="background:var(--color-surface)"><img src={logo} alt="" /><figcaption>On the surface colour</figcaption></figure>}
+            {logo && !kit && <figure class="sg-tile" style="background:var(--color-bg)"><img src={logo} alt="" /><figcaption>On the page colour</figcaption></figure>}
+            {logo && !kit && <figure class="sg-tile" style="background:var(--color-surface)"><img src={logo} alt="" /><figcaption>On the surface colour</figcaption></figure>}
             {has("icon-512.png") && <figure class="sg-tile"><img src="/icon-512.png" alt="" style="max-height:96px" /><figcaption>App icon (icon-512.png)</figcaption></figure>}
             {has("og.png") && <figure class="sg-tile sg-wide"><img src="/og.png" alt="" /><figcaption>Share image (og.png, 1200 × 630)</figcaption></figure>}
           </div>
@@ -194,6 +222,9 @@ const today = new Date().toISOString().slice(0, 10);
   .sg-tile { border: 1px solid var(--color-line); padding: 0.75rem; display: grid; gap: 0.5rem; justify-items: start; break-inside: avoid; }
   .sg-tile img { max-height: 1in; max-width: 100%; }
   .sg-wide { grid-column: 1 / -1; }
+  .sg-logo-tile { padding: 1.25rem; }
+  .sg-logo-tile img { height: 0.55in; max-width: 100%; }
+  .sg-prose code { font-family: ui-monospace, monospace; font-size: 0.9em; }
   .sg-wide img { max-height: none; }
   .sg-tile figcaption, .sg-shot figcaption { font-size: var(--text-label); color: var(--color-ink-muted); }
   .sg-swatches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: 1rem 0; list-style: none; padding: 0; }

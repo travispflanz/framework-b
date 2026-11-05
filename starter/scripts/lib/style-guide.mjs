@@ -31,9 +31,12 @@ export function unwritten(md) {
 }
 
 // A small, safe subset of Markdown for the guide's prose: paragraphs, "- " lists, "### " subheadings and the inline
-// formatting the site's text fields use (**bold**, *italic*, [label](link)). `inline` is the site's own
+// formatting the site's text fields use (**bold**, *italic*, [label](link)), plus `code`. `inline` is the site's own
 // (src/sections/text.js), passed in so this module has no site imports. Returns HTML.
-export function renderProse(md, inline) {
+export function renderProse(md, rawInline) {
+  // `code` spans (file names, commands) are kept as written; everything else goes through the site's inline format.
+  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = (t) => String(t).split(/`([^`]+)`/).map((part, i) => (i % 2 ? `<code>${esc(part)}</code>` : rawInline(part))).join("");
   const blocks = String(md || "").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
   return blocks.map((b) => {
     if (b.startsWith("### ")) return `<h3>${inline(b.slice(4))}</h3>`;

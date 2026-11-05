@@ -41,8 +41,10 @@ const showPageRow = pageLinks.length > 0 && pageLinks.length <= 6;
 const barCtas = ctas.filter((c) => path !== c.href);
 const actionBar = barCtas.length > 0;
 const phone = config.site.phone ? String(config.site.phone) : "";
-// The logo (scripts/brand-kit.mjs writes it and sets site.logo); otherwise the name in the display font.
+// The logo (scripts/logo.mjs pick writes it and sets site.logo); otherwise the name in the display font.
 const logo = config.site.logo || "";
+// A kit made by scripts/logo.mjs also has a 96 px PNG favicon: Google Search lists raster formats for favicons, not SVG.
+const logoKit = Object.values(import.meta.glob("../../design/brand/logo.json", { eager: true, import: "default" }))[0];
 // Optional footer: a short line about the business and link columns ({ note, columns: [{ title, links }] }).
 const footer = config.footer || {};
 const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
@@ -67,6 +69,7 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content="website" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {logo && logoKit && <link rel="icon" href="/favicon-96.png" type="image/png" sizes="96x96" />}
     {logo && <link rel="apple-touch-icon" href="/apple-touch-icon.png" />}
     {logo && <link rel="manifest" href="/manifest.webmanifest" />}
     {logo && <meta property="og:image" content={new URL("/og.png", `https://${config.site.canonicalHost}`).toString()} />}

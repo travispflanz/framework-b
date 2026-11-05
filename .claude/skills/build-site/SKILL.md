@@ -14,7 +14,9 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 2. **Create.** Dispatch the ops repo's `site create` with the brief JSON in `brief`. Read the run summary for the URL
    and repo.
 3. **Design.** In the site repo on branch `build/initial`: `PRODUCT.md` (facts with sources, inferred promises
-   flagged). On autopilot, write three different drafts, render them with `node scripts/design-tiles.mjs`, judge them
+   flagged), then `design/research.md` through four lenses, never the industry alone: the business, its field,
+   current design (dated trend sources from the last 12 months) and the site's own look. Every design step after it
+   (drafts, routes, logo, style guide, images) draws on it. On autopilot, write three different drafts, render them with `node scripts/design-tiles.mjs`, judge them
    with `node scripts/design-judge.mjs prepare` → answer each ballot LEFT/RIGHT → `tally`, and lock the pick as
    `DESIGN.md`. With an owner intake, first offer routes: three or four whole page skeletons mocked on the real
    content from measured reference sites; the owner picks one or a mix, with any conditions; build it on the site

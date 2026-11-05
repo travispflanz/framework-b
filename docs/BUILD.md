@@ -71,9 +71,20 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   marked for the owner to confirm, and "Approved claims" (only from `claims`).
 - `DESIGN.md` in Google's format: autopilot follows SPEC section 12 by hand (direction from the brief's words and
   research, a deliberate choice off the ban list). If `design.autopilot` is false, run the intake with the owner.
-- Industry first: read two or three of the best sites in the business's industry and region, and note what visitors
-  there expect (photos or illustration, how much text before the first action, booking or calling or quoting). Each
-  draft takes a position on those expectations; the drafts differ from each other, not from the industry.
+- Four lenses first, never the industry alone (SPEC section 12, "Four lenses"). Write `design/research.md` before any
+  draft or route, with dated sources, and draw on it for every design decision after it (routes, logo, style guide,
+  images, print and social):
+  1. The business: what it does and is trying to achieve, who it is for, what it promises and refuses (PRODUCT.md).
+  2. The field: two or three of the best sites in its industry and region, what visitors there expect (photos or
+     illustration, how much text before the first action, booking or calling or quoting), the sea of sameness and
+     its clichés.
+  3. Current design: what design is doing now outside the field too (dated trend reports and galleries from the
+     last 12 months: logo, web, type, colour, image, motion), which currents fit this business and why, which to
+     avoid, and how to stay current without dating fast.
+  4. The site's own look: the owner's photos or the archive's (era, subjects, texture), the type and colour, the
+     owner's words; if it is nostalgic, nostalgic for whom and for what.
+  Each draft takes a position on all four; the drafts differ from each other, not from the field. The content check
+  fails a research file missing a lens and notes one unwritten or without a dated source.
 - Every draft sets the skin and the skeleton. Besides colours, type, radii and spacing it has the Framework B blocks
   `composition` (alignment, density, separation, card style, image shape, motion, phone budget, title case, the
   hero layouts for the home page and the family for every other page, and the closing section) and `imagery` (style,
@@ -81,7 +92,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   block. Allowed values: the header of `scripts/design-tokens.mjs`.
 - With an owner, routes come before drafts (SPEC section 12, "Design routes"). A route is a whole page skeleton
   with its own image demand and type behaviour; two routes that differ only in fonts and colours are one route.
-  1. References: capture current sites from curated galleries and from the business's own field, and measure them
+  1. References: capture current sites from curated galleries (current design) and from the business's own field,
+     with the site's own material beside them (design/research.md), and measure them
      the same way (images per page, how much of the page is image, the first screen, the phone layout). Name every
      site you use.
   2. Routes: three or four, each modelled on named reference sites and mocked as a page family with the site's real
@@ -97,30 +109,32 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      page), so a page added later, by anyone, gets them. Variety comes from the family; the language stays the same.
   4. Build the pick on the home page of the site itself. Section layouts the route needs go in the site's own `src/sections/` (site
      changes survive framework updates); they move into the starter only when a second site needs the same thing.
-  5. Style guide, before the other pages: write `STYLE-GUIDE.md` from DESIGN.md, PRODUCT.md, the owner's decisions
+  5. Logo, unless the owner has one they are keeping (SPEC section 12, "Logo"): the brief, concepts drawn from the
+     brand's own world, the test sheet, the owner's pick and the kit. Details under "Logo" below.
+  6. Style guide, before the other pages: write `STYLE-GUIDE.md` from DESIGN.md, PRODUCT.md, the owner's decisions
      and the built home page (every heading in the starter's template; plain words and the owner's own sentences),
      then `node scripts/style-guide.mjs`. It renders the guide with the site's real colours and contrast, type scale,
      components, hero layouts and page flow, the first screen of every page, and the social and print sizes with
      their sources, into `design/style-guide/style-guide.pdf`. Send it to the owner. Every inner page, post, email and
      print piece is made from it, and it is rendered again whenever DESIGN.md or STYLE-GUIDE.md changes (the QA gate
      fails a guide older than either).
-  6. Carry the route through every page, not just the home page: the same title treatment, sections, image style
+  7. Carry the route through every page, not just the home page: the same title treatment, sections, image style
      and phone settings, and pictures on the inner pages too (the QA report lists content pages with none). The home
      page may be louder; it may not speak a different language (SPEC section 12, "One design language"). Flow is the whole
      page, not the hero: the content check holds every hero to the family and every content page's ending to
      `composition.closing`; the QA gate fails a page title unlike the home page's, a bare photo banner and a page that
      runs longer without a picture than the home page does, and draws `qa-output/site-sheet-1280.png` and `site-sheet-360.png`. Look at the sheets before the
      owner does.
-  7. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
+  8. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
      each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
-  8. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
+  9. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
 - Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette, type pair and composition; install their fonts), then:
   - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content (drafts that fail the design checks are rejected);
   - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which, then `node scripts/design-judge.mjs tally`;
   - copy the pick (or, on a tie, the draft closer to the brief) to `DESIGN.md` and record the result in its Overview.
   With an owner intake, the owner picks from `design/tiles/index.html` instead.
-- With or without an owner, the style guide (step 5 of the route method above) comes once the home page is built
-  and before the other pages.
+- With or without an owner, the logo and then the style guide (steps 5 and 6 of the route method above) come once
+  the home page is built and before the other pages.
 - With an owner intake, before the drafts: this-or-that (P2.5). Write 4–6 pairs in `design/pairs.json` (each changes
   one thing: display type, palette, imagery, density or shape; format at the top of `scripts/design-pairs.mjs`), run
   `node scripts/design-pairs.mjs render`, send the owner `design/pairs/*.png`, and record each answer with
@@ -128,10 +142,39 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   as inferred. The drafts then follow the picks in `design/intake.json`.
 - `node scripts/design-tokens.mjs`. It fails on lint errors, a missing token, an unknown composition or imagery value,
   or a contrast pair below WCAG AA, and writes `tokens.css` and `design.json`.
-- Logo (unless the owner supplied one): `node scripts/brand-kit.mjs options [--icon <Phosphor name>] [--initials AB]`
-  draws six layouts from the display font into `design/brand/options.png`. Pick one (or send the sheet to the owner)
-  and run `node scripts/brand-kit.mjs pick <n>`: logo, favicon, app icons, share image and manifest. The owner checks
-  the name in the USPTO trademark search before launch.
+- Logo (unless the owner supplied one they are keeping; then put it in `public/logo.svg` and set `site.logo`). The
+  name set in a font alone is often what everyone in the field already does (it was for the first adopted site), so
+  a logo needs a shape or an idea that only this business has (SPEC section 12, "Logo").
+  1. `node scripts/logo.mjs brief`, then write `design/brand/brief.md` from `design/research.md` (the four lenses):
+     the business and its goals, who it must reach, three words it should feel like and three it must not, the
+     site's own look (its photographs' era and texture, its type and colour, and exactly what any nostalgia is for),
+     current design (the currents that fit and the ones to avoid, from dated trend reports), the sea of sameness
+     (what similar businesses' logos do, with where you looked and the date), the clichés to avoid (including any
+     symbol that promises something the business doesn't offer), ideas from the brand's own world (each with the fact
+     it comes from), where it must work (smallest first) and what to keep.
+  2. Draw five to eight concepts in `design/brand/concepts/<id>.svg` (format at the top of `scripts/lib/logo.mjs`):
+     several types (pictorial, abstract, emblem, combination, wordmark), each from a different idea in the brief,
+     each naming the fact it comes from (`data-from`), the current design move it uses (`data-trend`) and how it
+     belongs to the site's own look (`data-look`); `check` refuses a designed concept without them. Period faces
+     that belong to the site's world are fine for the logo (it is outlined, so no web font loads); words can run
+     round a seal (`<fb-text arc="top|bottom" r cx cy>`).
+     Draw in two roles, ink and accent, with holes for cut-outs, so every version is exact in one colour. Words are
+     `<fb-text>`, set in the design's fonts; `node scripts/logo.mjs measure "<words>"` gives their width. With the
+     current logo as one concept (marked `data-template="true"`), the owner can compare.
+  3. `node scripts/logo.mjs check`, then `node scripts/logo.mjs sheet`: every concept in the header at 36 px, the
+     phone header, on dark and light paper, in one colour black and white, on the home page's photo, the mark at 16,
+     32 and 48 px, browser tabs, a circle avatar, the maskable app icon and a business card at full size. Look at
+     every sheet, fix what fails, and send `design/brand/concepts.pdf` to the owner with a recommendation and each
+     concept's honest weakness. On autopilot, pick against the brief and record why in DECISIONS.md.
+  4. `node scripts/logo.mjs pick <id>`: the logo for the page colour, on-dark, on-light, black and white versions,
+     the mark, favicons (SVG and a 96 px PNG), Apple touch and app icons, a maskable icon, the share image, the
+     manifest, print PDFs and 2000 px PNGs in `design/brand/kit/`, a social avatar, and `design/brand/logo.json`
+     (clear space and smallest sizes, which the style guide shows). Then render the style guide again.
+  5. Before launch the owner searches the name and the mark in the USPTO trademark database and records it in
+     HANDOFF.md.
+  The six quick layouts of the first brand kit are still there for a site that needs no designed logo:
+  `node scripts/logo.mjs templates [--initials AB] [--icon <Phosphor name>]` (or `node scripts/brand-kit.mjs
+  options`), then `sheet` and `pick t<n>`.
 - In a set of cards where some carry photos, most do. A type-only card is a deliberate accent (one, or a few in a long
   set), not where the photos ran out. Each photo is chosen for what its card says, as closely as the source allows.
 - Text over a picture sits on a scrim or on a part of the picture darkened for it. The QA gate measures it against

@@ -30,6 +30,7 @@ import { measureImageText } from "./lib/image-text.mjs";
 import { bareBanners, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
 import { unwritten } from "./lib/style-guide.mjs";
 import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
+import { FILE as RESEARCH, unwrittenLenses } from "./lib/design-research.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -97,15 +98,27 @@ if (existsSync("scripts/check-content.mjs") && existsSync("src/content")) {
   const r = runs(["scripts/check-content.mjs"]);
   check("content: page sections match the section schema", r.ok, r.ok ? "" : r.out);
 }
-// The style guide (SPEC section 12): rendered from DESIGN.md and STYLE-GUIDE.md. Once it has been rendered, a guide
-// older than either fails, so it stays the description of the site as it is.
+// The style guide (SPEC section 12): rendered from DESIGN.md, STYLE-GUIDE.md and the logo (design/brand/logo.json).
+// Once it has been rendered, a guide older than any of them fails, so it stays the description of the site as it is.
+// Design research (SPEC section 12, "Four lenses"): a note until every lens is written.
+if (existsSync(RESEARCH)) {
+  const todo = unwrittenLenses(readFileSync(RESEARCH, "utf8"));
+  if (todo.length) console.log(`  note  design research: not written yet: ${todo.join(", ")} (${RESEARCH})`);
+}
+// The logo kit (SPEC section 12, "Logo"): every file scripts/logo.mjs pick lists in design/brand/logo.json is there.
+if (existsSync("design/brand/logo.json")) {
+  const kit = JSON.parse(readFileSync("design/brand/logo.json", "utf8"));
+  const files = [...Object.values(kit.versions || {}).map((v) => v.file), kit.mark, "/logo.svg", "/favicon.svg", "/favicon-96.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/og.png"].filter(Boolean);
+  const missing = files.filter((f) => !existsSync(join("public", f)));
+  check(`logo: the kit for concept "${kit.concept}" is complete`, missing.length === 0, missing.length ? `missing ${missing.join(", ")}; run node scripts/logo.mjs pick ${kit.concept}` : "");
+}
 if (existsSync("STYLE-GUIDE.md")) {
   const stamp = existsSync(STAMP) ? JSON.parse(readFileSync(STAMP, "utf8")) : null;
   const todo = unwritten(readFileSync("STYLE-GUIDE.md", "utf8"));
   if (!stamp) console.log("  note  style guide: not rendered yet (write STYLE-GUIDE.md, then node scripts/style-guide.mjs; docs/BUILD.md step 3)");
   else {
     const changed = staleInputs(stamp, readInputs());
-    check("style guide: rendered from the current DESIGN.md and STYLE-GUIDE.md", changed.length === 0, changed.length ? `${changed.join(" and ")} changed since; run node scripts/style-guide.mjs` : "");
+    check("style guide: rendered from the current DESIGN.md, STYLE-GUIDE.md and logo", changed.length === 0, changed.length ? `${changed.join(" and ")} changed since; run node scripts/style-guide.mjs` : "");
     if (todo.length) console.log(`  note  style guide: unwritten sections: ${todo.join(", ")}`);
   }
 }
