@@ -805,7 +805,7 @@ What's built:
   (now centred). People: `aside` (the text on the left, the photos beside it on the right: stacked beside a long text,
   two to a row beside a short one), and `grid` puts its text beside the headline. Forms: `split` (the default; the
   introduction beside the form, or the form centred if there isn't one) and `stacked` (centred). Steps: the `timeline`
-  runs beside its headline. FAQ: `stack` is centred. Call to action: set left, the words take the left of a wide screen
+  runs beside its headline. A statement hero set left puts its text and buttons beside the title. FAQ: `stack` is centred. Call to action: set left, the words take the left of a wide screen
   and the button the right.
 - QA gate (`scripts/lib/cohesion.mjs`, `balance`): at 1280 px, every section's visual weight (the area of its text
   lines, pictures, form fields and filled boxes) is measured either side of the middle of the window, in windows of
@@ -825,6 +825,9 @@ What's built:
   chosen, so a hero that fills the first screen less the header (`calc(100svh - var(--header-height))`) still ends on
   it. The QA gate fails a header logo shorter than the tallest link or button in the header or the phone bar, at 360
   and 1280 px (`logoFit`).
+- Screen-reader-only text (Tailwind's `sr-only`, a 1 px box) carries no weight and is not measured over pictures: a
+  skip link's text boxes fell on a header logo tall enough to count as a picture and failed the contrast check on
+  every page (first adopted site, 2026-11-05).
 - Tests: `starter/scripts/test/cohesion.test.mjs` (a left column fails, a split row, a centred column and a row of
   pictures pass; a hard crop without a focal point is listed, one with it isn't, and the sheet draws them; the logo is
   measured against the buttons) and the layout test (`starter/scripts/test/variants.mjs`), whose pages now carry

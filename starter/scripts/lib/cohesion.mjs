@@ -135,7 +135,16 @@ export const BALANCE = { window: 800, step: 200, share: 0.1, fill: 0.03 };
 export async function balance(page, opts = BALANCE) {
   return page.evaluate(({ window: WIN, step, share: least, fill }) => {
     const W = document.documentElement.clientWidth, axis = W / 2;
-    const seen = (el) => { for (let e = el; e && e !== document.body; e = e.parentElement) { const cs = getComputedStyle(e); if (cs.visibility === "hidden" || cs.opacity === "0") return false; } return true; };
+    // Hidden, transparent and screen-reader-only text (a 1 px box that hides what overflows it) carries no weight.
+    const seen = (el) => {
+      for (let e = el; e && e !== document.body; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.visibility === "hidden" || cs.opacity === "0") return false;
+        const r = e.getBoundingClientRect();
+        if ((r.width <= 1 || r.height <= 1) && cs.overflow !== "visible") return false;
+      }
+      return true;
+    };
     const sections = [...document.querySelectorAll("main section")].filter((el) => !el.parentElement.closest("section"));
     const out = [];
     for (const sec of sections) {

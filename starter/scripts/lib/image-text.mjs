@@ -91,6 +91,10 @@ export function judge(bg, text) {
 function collectInPage() {
   const sx = window.scrollX, sy = window.scrollY;
   const pinned = (el) => { for (let e = el; e && e !== document.body; e = e.parentElement) { const p = getComputedStyle(e).position; if (p === "fixed" || p === "sticky") return true; } return false; };
+  // Text for screen readers only (Tailwind's sr-only: a 1 px box that hides what overflows it) still has full-size
+  // text boxes; it can't be seen, so it isn't measured. It first showed up when a skip link's boxes fell on a header
+  // logo tall enough to count as a picture (2026-11-05).
+  const unseen = (el) => { for (let e = el; e && e !== document.body; e = e.parentElement) { const r = e.getBoundingClientRect(); if ((r.width <= 1 || r.height <= 1) && getComputedStyle(e).overflow !== "visible") return true; } return false; };
   const pictures = [];
   for (const el of document.querySelectorAll("body *")) {
     if (el.tagName === "VIDEO") continue;
@@ -109,7 +113,7 @@ function collectInPage() {
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (!node.textContent.trim()) continue;
     const el = node.parentElement;
-    if (!el || ["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE"].includes(el.tagName) || pinned(el)) continue;
+    if (!el || ["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE"].includes(el.tagName) || pinned(el) || unseen(el)) continue;
     if (el.checkVisibility && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
     const range = document.createRange();
     range.selectNodeContents(node);
