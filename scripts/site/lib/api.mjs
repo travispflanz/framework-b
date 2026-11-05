@@ -18,12 +18,32 @@ export function env(name, { required = true } = {}) {
   return v || "";
 }
 
+// GET requests are retried on 429, 5xx and network failures with exponential backoff and jitter, as Cloudflare
+// advises for its API ("Retry failed API requests that return 429 or 5xx status codes with exponential backoff and
+// random jitter", Cloudflare Tunnel docs, "Tunnels for platforms", checked 2026-11-05). A preview check once failed on
+// one 500 ("12001 Internal server error") while polling Workers Builds. Writes are not retried: they may have landed.
+export const RETRY = { attempts: 4, baseMs: 2000 };
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+const transient = (status) => status === 429 || status >= 500;
+
 export async function cf(path, { method = "GET", body, token = env("CLOUDFLARE_API_TOKEN"), allow404 = false } = {}) {
-  const res = await fetch(`${CF}${path}`, {
-    method,
-    headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  for (let attempt = 1; ; attempt++) {
+    const retry = method === "GET" && attempt < RETRY.attempts;
+    try {
+      res = await fetch(`${CF}${path}`, {
+        method,
+        headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      if (!retry) throw e;
+      await pause(RETRY.baseMs * 2 ** (attempt - 1) * (1 + Math.random()));
+      continue;
+    }
+    if (!(retry && transient(res.status))) break;
+    await pause(RETRY.baseMs * 2 ** (attempt - 1) * (1 + Math.random()));
+  }
   const json = await res.json().catch(() => null);
   if (allow404 && res.status === 404) return null;
   if (!res.ok || json?.success === false) {
