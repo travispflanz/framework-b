@@ -6,33 +6,39 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { coverage, lum, parseShares, setLum, tint, tintPixel, toneGamma, toneMask } from "../lib/spot.mjs";
+import { coverage, dye, oklab, parseShares, tint, tintPixel, toneGamma, toneMask } from "../lib/spot.mjs";
 import { promptText, standaloneScript } from "../lib/spot-tool.mjs";
 import { accent, inline, plain } from "../../src/sections/text.js";
 
 const RED = [240, 52, 60];
-const lightness = (rgb) => lum(...rgb.map((c) => c / 255));
+const lightness = (rgb) => oklab(rgb)[0];
 
-test("the colour blend takes the accent's hue and keeps the photograph's lightness", () => {
-  for (const g of [40, 90, 128, 200]) {
+test("the dye takes the accent's hue and keeps the photograph's lightness, inside the screen's colours", () => {
+  for (const g of [20, 40, 90, 128, 200, 245]) {
     const out = tintPixel([g, g, g], RED, 1);
-    assert.ok(Math.abs(lightness(out) - g / 255) < 0.01, `grey ${g} kept its lightness (${lightness(out).toFixed(3)})`);
+    assert.ok(Math.abs(lightness(out) - lightness([g, g, g])) < 0.01, `grey ${g} kept its lightness (${lightness(out).toFixed(3)} for ${lightness([g, g, g]).toFixed(3)})`);
     assert.ok(out[0] > out[1] && out[0] > out[2], `grey ${g} became red: ${out}`);
+    assert.ok(out.every((c) => c >= 0 && c <= 255));
   }
   assert.deepEqual(tintPixel([128, 128, 128], RED, 0), [128, 128, 128], "no tint where the mask is empty");
-  const clipped = setLum([0.94, 0.2, 0.24], 0.95);
-  assert.ok(clipped.every((c) => c >= 0 && c <= 1), "setLum keeps channels in range");
+  const [, a1, b1] = oklab(dye(0.3, RED)), [, a2, b2] = oklab(RED);
+  assert.ok(Math.abs(Math.atan2(b1, a1) - Math.atan2(b2, a2)) < 0.05, "a dark dye keeps the accent's hue");
+  assert.ok(Math.hypot(a1, b1) < Math.hypot(a2, b2), "and gives up chroma to stay in sRGB");
+  const folds = [60, 75].map((g) => lightness(tintPixel([g, g, g], RED, 1)));
+  assert.ok(folds[1] - folds[0] > 0.03, "a fold in a dark cloth stays visible once dyed");
 });
 
-test("tint changes only the masked pixels, and the tone curve prints a pale object down towards the accent", () => {
+test("tint changes only the masked pixels, and the tone curve moves a pale object halfway to the accent", () => {
   const W = 4, rgb = Buffer.alloc(W * 3, 230), mask = Buffer.from([255, 255, 0, 0]);
   const gamma = toneGamma(rgb, mask, RED);
   assert.ok(gamma > 1, "a pale object is printed down");
   const out = tint(rgb, mask, RED, 1, gamma);
   assert.deepEqual([...out.subarray(6)], [230, 230, 230, 230, 230, 230], "unmasked pixels unchanged");
-  const now = lightness([...out.subarray(0, 3)]);
-  assert.ok(now < 230 / 255 - 0.1 && Math.abs(now - lightness(RED)) < Math.abs(230 / 255 - lightness(RED)), `the pale object is printed down towards the accent's lightness (${now.toFixed(2)})`);
-  assert.ok(out[0] > out[1] + 60, "and reads red");
+  const was = lightness([230, 230, 230]), want = was + (lightness(RED) - was) / 2, now = lightness([...out.subarray(0, 3)]);
+  assert.ok(Math.abs(now - want) < 0.02, `printed down halfway towards the accent's lightness (${now.toFixed(3)}, wanted ${want.toFixed(3)})`);
+  assert.ok(out[0] > out[1] + 40, "and reads red");
+  const dark = Buffer.alloc(W * 3, 50);
+  assert.ok(toneGamma(dark, mask, RED) < 1, "a dark object is lifted");
   assert.equal(toneGamma(rgb, Buffer.alloc(W), RED), 1, "an empty mask leaves tones alone");
 });
 
@@ -57,7 +63,7 @@ test("the visitor's script carries the same arithmetic and parses, and the promp
   writeFileSync(join(dir, "spot-colour.mjs"), script);
   execFileSync(process.execPath, ["--check", join(dir, "spot-colour.mjs")]);
   const prompt = promptText({ site: "Example Co", url: "https://example.com/credits", colour: "#f0343c", brief: "One red thing in each photo." });
-  for (const want of ["One red thing in each photo.", "**one** object", "Never a face", "#f0343c", "https://example.com/tools/spot-colour.mjs", "which model"]) assert.ok(prompt.includes(want), `the prompt says ${want}`);
+  for (const want of ["One red thing in each photo.", "**one** object", "Never a face", "#f0343c", "OKLab", "https://example.com/tools/spot-colour.mjs", "which model"]) assert.ok(prompt.includes(want), `the prompt says ${want}`);
 });
 
 test("==accent== words: in headlines and text, escaped, and gone from plain text", () => {

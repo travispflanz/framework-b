@@ -30,6 +30,8 @@ const variant = hasImage ? chosen : chosen === "bento" ? "bento" : "statement";
 const center = composition.align === "center";
 const onDark = variant === "full-bleed";
 const titleCase = { uppercase: composition.titleCase === "upper" };
+// The hero's eyebrow takes the title's case too, so every page opens with the same label.
+const eyebrowCase = composition.titleCase === "upper" ? "uppercase" : undefined;
 // A statement set left puts its text and buttons beside the title on wide screens, so a short title ("Thanks.")
 // doesn't leave the right of the page empty (scripts/lib/cohesion.mjs, "balance").
 const statementRest = !!(value.subheadline || value.primary_cta_label || value.secondary_cta_label || points.length);
@@ -51,7 +53,7 @@ const statementSplit = !center && statementRest;
   <section id={value.anchor_id || undefined} class="bg-surface px-gutter pt-section">
     <div class:list={["reveal mx-auto grid w-full max-w-content gap-6", center ? "justify-items-center text-center" : statementSplit && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-x-16"]}>
       <div class:list={["grid gap-6", { "justify-items-center": center }]}>
-        {value.eyebrow && <Eyebrow text={value.eyebrow} center={center} />}
+        {value.eyebrow && <Eyebrow text={value.eyebrow} center={center} class={eyebrowCase} />}
         <h1 class:list={["font-display text-display text-ink", titleCase]} set:html={accent(value.headline)} />
       </div>
       {statementRest && (
@@ -83,7 +85,7 @@ const statementSplit = !center && statementRest;
   <section id={value.anchor_id || undefined} class="bg-surface px-gutter py-section">
     <div class="mx-auto grid w-full max-w-content gap-4 md:grid-cols-6">
       <div class="card grid content-end gap-5 p-8 md:col-span-4 md:row-span-2">
-        {value.eyebrow && <Eyebrow text={value.eyebrow} center={center} />}
+        {value.eyebrow && <Eyebrow text={value.eyebrow} center={center} class={eyebrowCase} />}
         <h1 class:list={["font-display text-display text-ink", titleCase]} set:html={accent(value.headline)} />
         {value.subheadline && <p class="max-w-(--container-prose) text-body text-ink-muted" set:html={inline(value.subheadline)} />}
       </div>
@@ -103,7 +105,7 @@ const statementSplit = !center && statementRest;
     </div>
     <div class="hero-fade-copy relative mx-auto grid w-full max-w-content content-end gap-6 px-gutter">
       <div class="reveal grid gap-6 lg:max-w-[46%]">
-        {value.eyebrow && <Eyebrow text={value.eyebrow} />}
+        {value.eyebrow && <Eyebrow text={value.eyebrow} class={eyebrowCase} />}
         <h1 class:list={["font-display text-display text-balance text-ink", titleCase]} set:html={accent(value.headline)} />
         {value.subheadline && <p class="max-w-(--container-prose) text-body text-ink-muted" set:html={inline(value.subheadline)} />}
         <Actions value={value} />

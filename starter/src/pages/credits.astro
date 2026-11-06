@@ -22,7 +22,8 @@ const unique = (list) => [...new Set(list.filter(Boolean))];
 const chosenBy = unique(spotted.map((c) => c.spot.chosenBy));
 const colours = unique(spotted.map((c) => c.spot.colour));
 const dates = unique(spotted.map((c) => c.spot.date)).sort();
-const outlined = (c) => (/^SlimSAM/.test(c.spot.segmenter || "") ? "outlined by SlimSAM" : "lettering picked out by its tone, with no model");
+const outlined = (c) => (/^SlimSAM/.test(c.spot.segmenter || "") ? "Outlined by SlimSAM." : "Lettering picked out by its tone, with no model.");
+const sentence = (t) => { const s = String(t || "").trim(); return s ? s[0].toUpperCase() + s.slice(1) + (/[.!?]$/.test(s) ? "" : ".") : ""; };
 // public/tools/ is served as it is; the page is prerendered, so it reads the files at build time.
 const tool = (f) => resolve(process.cwd(), "public/tools", f);
 const prompt = existsSync(tool("spot-colour-prompt.md")) ? readFileSync(tool("spot-colour-prompt.md"), "utf8") : "";
@@ -91,7 +92,7 @@ const entry = "lg:mb-4 lg:break-inside-avoid";
       <div class="grid content-start gap-8">
         <ul class:list={list(spotted.length)} role="list">
           {spotted.map((c) => (
-            <li class={entry}><strong>{c.spot.what}</strong>, in {(c.alt || c.file.split("/").pop()).replace(/\.$/, "")}<span class="text-ink-muted"> ({outlined(c)})</span>.</li>
+            <li class={entry}><strong>{sentence(c.spot.what)}</strong> {sentence(c.alt || c.file.split("/").pop())} <span class="text-ink-muted">{outlined(c)}</span></li>
           ))}
         </ul>
         {(script || prompt) && (

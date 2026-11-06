@@ -157,7 +157,7 @@ const privacyInColumns = footerColumns.some((c) => c.links.some((l) => l.href ==
           {footerColumns.map((c, i) => (
             <nav aria-labelledby={`footer-col-${i}`}>
               <p id={`footer-col-${i}`} class="mb-2 font-semibold text-[var(--color-ink)]">{c.title}</p>
-              <ul class="grid gap-1 md:gap-2">{c.links.map((l) => <li><a href={l.href} class="inline-flex min-h-11 items-center md:min-h-0">{l.label}</a></li>)}</ul>
+              <ul class="grid gap-1 md:gap-2">{c.links.map((l) => <li><a href={l.href} class="inline-flex min-h-11 items-center md:min-h-6">{l.label}</a></li>)}</ul>
             </nav>
           ))}
         </div>
