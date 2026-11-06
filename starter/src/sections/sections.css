@@ -124,17 +124,18 @@ details[open] > summary .accordion-cue::after { display: none; }
 /* Fade hero (fb_hero "fade"): the photo fills the band's height on the right and fades into the background towards
    the headline, so the picture is part of the band rather than a card beside it (owner of the first adopted site,
    2026-11-05; CSS masking with a gradient: https://ishadeed.com/article/css-masking/, checked 2026-11-05). The text
-   sits on the plain background, never on the photo. On phones the photo comes first and fades into the headline. */
+   sits on the plain background, never on the photo. On phones the photo comes first and fades out above the headline.
+   A mask uses only the gradient's opacity; the colour named in it (an opaque token) doesn't show. */
 .hero-fade { display: grid; }
 .hero-fade-photo { position: relative; height: clamp(15rem, 62vw, 24rem); overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
+  -webkit-mask-image: linear-gradient(to bottom, var(--color-ink) 55%, transparent); mask-image: linear-gradient(to bottom, var(--color-ink) 55%, transparent); }
 .hero-fade-photo img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.hero-fade-copy { margin-top: -3.5rem; padding-bottom: var(--spacing-section, 4rem); }
+.hero-fade-copy { padding-top: 0.5rem; padding-bottom: var(--spacing-section, 4rem); }
 @media (min-width: 64rem) {
   .hero-fade { min-height: min(calc(78svh - var(--header-height, 4rem)), 46rem); align-items: center; }
   .hero-fade-photo { position: absolute; inset-block: 0; right: 0; width: 60%; height: auto;
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 42%); mask-image: linear-gradient(to right, transparent, #000 42%); }
-  .hero-fade-copy { margin-top: 0; padding-block: var(--spacing-section, 4rem); }
+    -webkit-mask-image: linear-gradient(to right, transparent, var(--color-ink) 42%); mask-image: linear-gradient(to right, transparent, var(--color-ink) 42%); }
+  .hero-fade-copy { padding-block: var(--spacing-section, 4rem); }
 }
 
 /* Wide text (fb_text "wide"): a headline across about four fifths of the page and the text beneath it in two columns,

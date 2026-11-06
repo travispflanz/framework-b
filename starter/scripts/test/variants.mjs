@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CI check of every section layout variant and the second set of composition options. It adds three temporary
+// CI check of every section layout variant and the second set of composition options. It adds four temporary
 // pages that use each variant at least once (with generated test images), switches DESIGN.md to a composition that
 // differs from the starter's on every axis (hairlines, outlined cards, centred, compact, square images, expressive
 // motion, a duotone imagery treatment with grain), regenerates the tokens, builds, and runs the full QA gate on every page. Everything it changed is put back
@@ -10,7 +10,7 @@ import sharp from "sharp";
 import { applyTreatment, readImagery, readPalette } from "../lib/treatment.mjs";
 
 const BACKUP = ["DESIGN.md", "src/styles/tokens.css", "src/styles/fonts.js", "src/styles/design.json", "design/credits.json", "site.config.json"];
-const PAGES = ["variants-a", "variants-b", "variants-c", "variants-thanks", "not-found", "privacy"];
+const PAGES = ["variants-a", "variants-b", "variants-c", "variants-d", "variants-thanks", "not-found", "privacy"];
 const IMAGES = ["variant-1.jpg", "variant-2.jpg", "variant-3.jpg", "variant-4.jpg"];
 const saved = new Map(BACKUP.map((f) => [f, existsSync(f) ? readFileSync(f) : null]));
 const imageDirExisted = existsSync("src/assets/images");
@@ -106,6 +106,11 @@ try {
       { _type: "fb_form", _key: "form", variant: "split", headline: "A form beside its introduction", subheadline: "One sentence about what happens next.", form: Object.keys(JSON.parse(readFileSync("site.config.json", "utf8")).forms)[0] },
       { _type: "fb_form", _key: "survey", variant: "stacked", headline: "A two-step form with choices", form: "survey" },
     ],
+    "variants-d": [
+      { _type: "fb_hero", _key: "hero", variant: "fade", eyebrow: "Layout test", headline: "A photo that ==fades== into the page", subheadline: "The picture fills the band on the right and fades into the background towards the title.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", image: img(3) },
+      { _type: "fb_text", _key: "wide", variant: "wide", headline: "A statement across ==four fifths== of the page", body: "The first paragraph of a wide block, long enough to run down a column and show that its lines stay near the reading measure.\n\nA second paragraph that flows into the second column on a wide screen and under the first on a phone." },
+      { _type: "fb_cta", _key: "cta", variant: "band", headline: "A band that is ==itself== the accent", body: "Accent words on an accent band take the band's own text colour.", cta_label: "Get in touch", cta_url: "/#contact" },
+    ],
     "variants-thanks": [
       { _type: "fb_hero", _key: "hero", variant: "statement", headline: "Thanks, that's arrived", subheadline: "A thanks page kept out of search results." },
       { _type: "fb_form", _key: "again", form: "survey" },
@@ -133,6 +138,9 @@ try {
   if (!readFileSync("dist/variants-a.html", "utf8").includes(">Try the survey</a>")) throw new Error("the second call to action is missing");
   for (const want of ['type="radio"', 'name="offer" value="camera"', "What you could offer", ">Things<"]) if (!c.includes(want)) throw new Error(`variants-c is missing ${want}`);
   if (!readFileSync("dist/variants-a.html", "utf8").includes("split-row")) throw new Error("the split text and list layouts are missing");
+  const d = readFileSync("dist/variants-d.html", "utf8");
+  for (const want of ["hero-fade-photo", "wide-body", '<span class="accent-word">fades</span>', '<span class="accent-word">four fifths</span>']) if (!d.includes(want)) throw new Error(`variants-d is missing ${want}`);
+  if (/==/.test(d.replace(/<script[\s\S]*?<\/script>/g, ""))) throw new Error("an ==accent== mark was left in the page as typed");
   if (!/data-focal-x="0.5"/.test(hero)) throw new Error("a picture with a focal point doesn't say so (data-focal-x), so the crop check can't see it");
   if (!readFileSync("dist/variants-thanks.html", "utf8").includes('content="noindex')) throw new Error("the noindex page has no robots noindex");
   if (!readFileSync("dist/404.html", "utf8").includes("in the owner")) throw new Error("not-found.json didn't replace the 404 page");

@@ -20,6 +20,7 @@
 //         and a prompt for any AI model or agent (public/tools/spot-colour-prompt.md) for visitors to do the same.
 //   node scripts/spot-colour.mjs undo <file>    → the untinted photo back, the record removed
 //   node scripts/spot-colour.mjs sheet          → design/spot/sheet.jpg: every tinted photo, before and after
+//   node scripts/spot-colour.mjs tools          → writes the visitor's script and prompt again (after editing spotNote)
 //
 // The outline comes from SlimSAM (Xenova/slimsam-77-uniform, Apache-2.0; a compressed Segment Anything model) run
 // locally with Transformers.js (@huggingface/transformers, Apache-2.0), both fetched into node_modules/.cache/spot-colour
@@ -157,6 +158,12 @@ if (cmd === "mask" && arg) {
   writeCredits(credits);
   if (!credits.images.some((i) => i.spot)) for (const f of [TOOL, PROMPT]) rmSync(f, { force: true });
   console.log(`${basename(file)}: back to the untinted photo.`);
+} else if (cmd === "tools") {
+  const credits = readCredits();
+  const spotted = credits.images.filter((i) => i.spot);
+  if (!spotted.length) throw new Error("no tinted photos yet");
+  publishTools(credits, spotted[0].spot.colour);
+  console.log(`${TOOL} and ${PROMPT} written`);
 } else if (cmd === "sheet") {
   const names = existsSync(DIR) ? readdirSync(DIR).filter((n) => readdirSync(join(DIR, n)).some((f) => f.startsWith("original."))) : [];
   if (!names.length) throw new Error("no tinted photos yet");
@@ -176,7 +183,7 @@ if (cmd === "mask" && arg) {
   writeFileSync(join(DIR, "sheet.jpg"), await sharp(sheet).jpeg({ quality: 80 }).toBuffer());
   console.log(`${join(DIR, "sheet.jpg")}: ${names.length} photos, before and after`);
 } else {
-  console.error("usage: node scripts/spot-colour.mjs mask <file> --what \"...\" --point x,y [--not x,y] [--box l,t,r,b] [--pick n] | apply <file> --by \"<model>\" | undo <file> | sheet");
+  console.error("usage: node scripts/spot-colour.mjs mask <file> --what \"...\" --point x,y [--not x,y] [--box l,t,r,b] [--pick n] | apply <file> --by \"<model>\" | undo <file> | sheet | tools");
   process.exit(2);
 }
 

@@ -95,7 +95,9 @@ A site has two modes:
 - Images: yours first; otherwise public-domain photographs from the Library of Congress (master scans, borders
   cropped, rights checked), open-licensed photos from Openverse, or generated images in the style you chose (photo,
   line art, watercolour, flat illustration and more) through Cloudflare Workers AI, all given one colour treatment so
-  they match. A focal point keeps each photo's subject in view wherever a layout crops it: the QA gate fails a hard
+  they match. Black and white photos can carry one spot of the accent colour each (a jacket, a camera, a reel of
+  film), outlined by a small local model and tinted over the photo's own tones; the Website assets page says how it
+  was made and offers visitors the script and a prompt to do the same. A focal point keeps each photo's subject in view wherever a layout crops it: the QA gate fails a hard
   crop without one and draws a sheet of every crop over its whole photo, so heads and signs stay in the frame.
 - A style guide for every site, written once the home page is settled and before the other pages: logo, colour,
   type, photography, layout and page flow, components, voice, and the brand beyond the website (social and print
@@ -104,7 +106,9 @@ A site has two modes:
   of layouts the other pages choose from, and how every page ends; pages added later get them automatically, and the
   QA gate fails a page that drifts (a different title style, a bare photo strip, a long stretch without pictures, a
   section that leaves one side of a wide screen empty, a logo smaller than the buttons). Sections of text sit beside
-  their headline, in a centred column or beside pictures, never in a narrow column on the left. Each check makes a sheet of every page's first screen to review. Photos taken off a page are kept in the site's image library to use again. Credits are written for you and listed on `/credits`; generated images carry no label
+  their headline, in a centred column, in a wide statement band (a headline with a key word in the accent colour over
+  two columns) or beside pictures, never in a narrow column on the left. Heroes can fade their photo into the page,
+  and the footer ends on the logo. Each check makes a sheet of every page's first screen to review. Photos taken off a page are kept in the site's image library to use again. Credits are written for you and listed on `/credits`; generated images carry no label
   on the page and never show your people, premises or products.
 - Phones: a fixed action bar with your main button (and Call when you have a phone number), and long sections that
   fold or swipe, so the home page stays within a set number of screens. A section that swipes sideways shows an

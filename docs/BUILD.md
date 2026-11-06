@@ -129,7 +129,10 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      lopsided section. Choose every crop: a picture cropped by a third or more needs `focalX` or `focalY` on that axis,
      and `qa-output/crop-sheet-1280.png` and `crop-sheet-360.png` show each crop over its whole picture: check every
      subject (heads, signs, faces) is inside its frame. Size the logo with `composition.logo` (`standard`, `large`,
-     `masthead`); it is never shorter than the buttons (SPEC section 12, "Balance, crops and the logo's size").
+     `masthead`); it is never shorter than the buttons (SPEC section 12, "Balance, crops and the logo's size"). Long text
+     under a big heading goes in a `wide` statement band with a key word as `==accent==`; a side-by-side hero can
+     `fade` its photo into the page. For black and white photos, offer the owner spot colour (SPEC section 12, "Spot
+     colour"): one object per photo, chosen for its story, with `node scripts/spot-colour.mjs`.
   8. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
      each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
   9. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.

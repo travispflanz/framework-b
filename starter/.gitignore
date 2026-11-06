@@ -12,3 +12,5 @@ design/generated/
 design/image-candidates/
 design/brand/build/
 design/spot/*/preview.jpg
+.qa.wrangler.jsonc
+.e2e.wrangler.jsonc
