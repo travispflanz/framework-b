@@ -17,7 +17,8 @@
 //   "floating off to the left with a ton of open space to the right" (2026-11-05). The fix is a layout, not wider
 //   text (lines stay at the prose width): the headline beside the text (split), a centred column, or pictures beside.
 //   Weight is the area of text lines, pictures, form fields and filled boxes; a sticky column counts wherever its row
-//   runs, since it stays in view beside it. Measured at desktop width: on a phone everything is one column.
+//   runs, since it stays in view beside it. What a page sets in <main> outside its sections (a generated page) is
+//   measured as one more block. Measured at desktop width: on a phone everything is one column.
 // - crops: every picture a layout crops (object-fit: cover), with how much of it shows and where. A crop that cuts a
 //   third or more off a picture's width or height must name its focal point on that axis (focalX, focalY): the
 //   centre is not a choice, and on the first adopted site it cut the heads off a hero photo (2026-11-05). cropSheet
@@ -146,8 +147,13 @@ export async function balance(page, opts = BALANCE) {
       return true;
     };
     const sections = [...document.querySelectorAll("main section")].filter((el) => !el.parentElement.closest("section"));
+    // Each top-level section, and whatever a page sets in <main> outside them (the pages the framework generates).
+    const main = document.querySelector("main");
+    const blocks = sections.map((el) => ({ el, skip: [] }));
+    if (main) blocks.push({ el: main, skip: sections });
     const out = [];
-    for (const sec of sections) {
+    for (const { el: sec, skip } of blocks) {
+      const outside = (node) => !skip.some((s) => s.contains(node));
       const sb = sec.getBoundingClientRect();
       const top0 = sb.top + scrollY, bottom0 = sb.bottom + scrollY, height = bottom0 - top0;
       if (height < 40) continue;
@@ -163,13 +169,13 @@ export async function balance(page, opts = BALANCE) {
       };
       const walker = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT);
       for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-        if (!n.textContent.trim() || !n.parentElement || !seen(n.parentElement)) continue;
+        if (!n.textContent.trim() || !n.parentElement || !outside(n) || !seen(n.parentElement)) continue;
         const range = document.createRange();
         range.selectNodeContents(n);
         for (const r of range.getClientRects()) add(r, n.parentElement);
       }
       for (const el of sec.querySelectorAll("*")) {
-        if (!el.getClientRects().length || !seen(el)) continue;
+        if (!el.getClientRects().length || !outside(el) || !seen(el)) continue;
         const tag = el.tagName.toLowerCase();
         const cs = getComputedStyle(el);
         const media = ["img", "video", "canvas", "picture"].includes(tag) || (tag === "svg" && el.getBoundingClientRect().width >= 48);
@@ -201,7 +207,8 @@ export async function balance(page, opts = BALANCE) {
         if (!worst || s < worst.share) worst = { share: Math.round(s * 100) / 100, empty: L < R ? "left" : "right", at: Math.round(y0 - top0) };
       }
       if (!worst) continue;
-      const name = sec.querySelector("h1, h2")?.textContent.trim().replace(/\s+/g, " ").slice(0, 48) || sec.id || "a section";
+      const heading = [...sec.querySelectorAll("h1, h2")].find(outside);
+      const name = heading?.textContent.trim().replace(/\s+/g, " ").slice(0, 48) || sec.id || "a section";
       out.push({ name, ...worst, ok: worst.share >= least });
     }
     return out;

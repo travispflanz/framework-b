@@ -810,7 +810,9 @@ What's built:
 - QA gate (`scripts/lib/cohesion.mjs`, `balance`): at 1280 px, every section's visual weight (the area of its text
   lines, pictures, form fields and filled boxes) is measured either side of the middle of the window, in windows of
   800 px down the section. A window where one side carries less than 10% fails; a sticky column counts wherever its
-  row runs. Run on the first adopted site, it found the same 14 sections as the measurement above and no others; the
+  row runs. What a page sets in `<main>` outside its sections (the pages the framework generates) is one more block;
+  the Website assets page sets its credits in two columns on wide screens for it, and the generated privacy page sets
+  each topic's heading beside its text. Run on the first adopted site, it found the same 14 sections as the measurement above and no others; the
   thresholds are a first setting, untested on other sites.
 - Crops (`crops`, `cropSheet`): at 360 and 1280 px, every picture a layout crops (`object-fit: cover`) with how much
   of its width and height shows and where. A crop that cuts a third or more off one of them fails unless the picture

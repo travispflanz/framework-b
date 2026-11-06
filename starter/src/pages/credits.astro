@@ -11,6 +11,8 @@ const LICENSE_URL = { "cc0": "https://creativecommons.org/publicdomain/zero/1.0/
 const all = credits.images || [];
 const items = all.filter((c) => c.source === "openverse" || c.source === "stock");
 const generated = all.filter((c) => c.source === "generated" && !c.test);
+// The credits run in two columns on wide screens, each at the prose width, so the page is balanced
+// (scripts/lib/cohesion.mjs, "balance").
 ---
 <Base title="Website assets" noindex>
   <PageTitle>Website assets</PageTitle>
@@ -18,9 +20,9 @@ const generated = all.filter((c) => c.source === "generated" && !c.test);
     <p class="mt-6 text-body text-ink-muted">Every image on this site belongs to us.</p>
   ) : null}
   {items.length > 0 && (
-    <ul class="mt-8 grid max-w-(--container-prose) gap-4 text-body text-ink" role="list">
+    <ul class="mt-8 grid max-w-(--container-prose) gap-4 text-body text-ink lg:block lg:max-w-none lg:columns-2 lg:gap-x-16" role="list">
       {items.map((c) => (
-        <li>
+        <li class="lg:mb-4 lg:break-inside-avoid">
           <a href={c.url} class="underline underline-offset-2">{c.title || c.file.split("/").pop()}</a> by {c.creator}, licensed under{" "}
           {c.license_url || LICENSE_URL[String(c.license).toLowerCase()] ? <a href={c.license_url || LICENSE_URL[String(c.license).toLowerCase()]} class="underline underline-offset-2">{c.license}</a> : c.license}.
           {c.changes && <span class="text-ink-muted"> {c.changes}</span>}
@@ -32,9 +34,9 @@ const generated = all.filter((c) => c.source === "generated" && !c.test);
     <section aria-labelledby="generated" class="mt-12">
       <h2 id="generated" class="font-display text-title text-ink">Generated images</h2>
       <p class="mt-3 max-w-(--container-prose) text-body text-ink-muted">These images were made with an image generator to illustrate the site. They don't show our own people, premises, products or work.</p>
-      <ul class="mt-6 grid max-w-(--container-prose) gap-4 text-body text-ink" role="list">
+      <ul class="mt-6 grid max-w-(--container-prose) gap-4 text-body text-ink lg:block lg:max-w-none lg:columns-2 lg:gap-x-16" role="list">
         {generated.map((c) => (
-          <li>{c.alt || c.file.split("/").pop()}{c.model ? `: generated with ${c.model}` : ": generated"}{c.created ? `, ${c.created}` : ""}.</li>
+          <li class="lg:mb-4 lg:break-inside-avoid">{c.alt || c.file.split("/").pop()}{c.model ? `: generated with ${c.model}` : ": generated"}{c.created ? `, ${c.created}` : ""}.</li>
         ))}
       </ul>
     </section>

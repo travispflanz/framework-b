@@ -85,6 +85,12 @@ test("a reading column set left with the right empty is lopsided; beside its hea
     await p.setContent(wrap(`<h2 style="font-size:48px;margin:0 auto 24px;max-width:544px;text-align:center">How we work</h2><div style="max-width:544px;margin:0 auto">${paras(8)}</div>`));
     assert.equal((await balance(p))[0].ok, true, "a centred column");
 
+    await p.setContent(`<!doctype html><html><body style="margin:0"><main style="padding:64px 48px"><h1 style="font-size:48px;margin:0 0 24px">Website assets</h1><ul style="max-width:544px">${paras(8)}</ul></main></body></html>`);
+    const generated = await balance(p);
+    assert.equal(generated.length, 1, "a page with no sections is measured as one block");
+    assert.equal(generated[0].ok, false);
+    assert.equal(generated[0].name, "Website assets");
+
     await p.setContent(wrap(`<h2 style="margin:0 0 24px">Pictures</h2><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">${`<img src="${PIXEL}" style="width:100%;height:300px">`.repeat(3)}</div>`));
     assert.equal((await balance(p))[0].ok, true, "a row of pictures across the page");
   } finally {
