@@ -1,12 +1,19 @@
 ---
+// The text sits beside the title on wide screens, as in a statement hero, so a short title doesn't leave the right
+// of the page empty (scripts/lib/cohesion.mjs, "balance").
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 ---
 <Base title="Thanks" noindex>
-  <PageTitle class="mb-4">Thanks, we got it</PageTitle>
-  <p class="max-w-[var(--container-prose)]">We'll reply soon.</p>
-  <p id="file-failed" class="mt-4 hidden max-w-[var(--container-prose)] text-[var(--color-error)] target:block">
-    Your message was saved, but your file didn't upload. Reply to our email and attach it there.
-  </p>
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-x-16">
+    <PageTitle>Thanks, we got it</PageTitle>
+    <div>
+      <p class="max-w-[var(--container-prose)]">We'll reply soon.</p>
+      <p class="mt-2"><a href="/">Back to the home page</a></p>
+      <p id="file-failed" class="mt-4 hidden max-w-[var(--container-prose)] text-[var(--color-error)] target:block">
+        Your message was saved, but your file didn't upload. Reply to our email and attach it there.
+      </p>
+    </div>
+  </div>
   <script is:inline>if (location.hash === "#file-failed") document.getElementById("file-failed").classList.remove("hidden");</script>
 </Base>
