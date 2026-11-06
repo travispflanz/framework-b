@@ -578,7 +578,9 @@ Evidence:
 
 What's built:
 - `composition.titleCase` (as-written or upper) and `composition.heroes` (`home` and `page`, each one of the site's
-  hero layouts) in DESIGN.md, checked by `design-tokens.mjs`. A hero without a `variant` takes the route's layout;
+  hero layouts) in DESIGN.md, checked by `design-tokens.mjs`. The hero's eyebrow takes the title's case too, so every
+  page opens with the same label (on the first adopted site the fade hero's label was in lower case beside upper case
+  ones on the other pages, 2026-11-06). A hero without a `variant` takes the route's layout;
   `check-content.mjs` fails a hero that sets another one (a hero with no picture may be a statement).
 - The statement hero takes no picture (`check-content.mjs` says which layout to use instead), and its title follows
   `composition.align` instead of always centring.
@@ -866,11 +868,17 @@ What's built:
   headlines, `inline()` for text; the Markdown "mark" convention). On a band that is the accent colour, the word takes
   the band's text colour, underlined. Headlines of the hero, section introductions, split and call-to-action sections
   take it.
-- Text `wide`: the headline across four fifths of the page, the text beneath in two columns (one on phones). The
-  people section's closing note is set the same way.
+- Text `wide`: the headline across four fifths of the page, the text beneath in two columns (one on phones), the
+  paragraphs flowing on from one column to the next (at least three lines either side of a break), so a short
+  paragraph beside a long one doesn't leave a column nearly empty. A single paragraph sits beside the headline instead,
+  so neither half of the band is empty (the first adopted site's balance check, 2026-11-06). The people section's
+  closing note is set the same way.
+- Hero `fade`'s masks ease in (a colour hint past the middle of the ramp): a straight ramp left a visible line where
+  the photo started (2026-11-06).
 - Hero `fade`: the photo fills the band's height on the right and fades into the background towards the headline
   (`mask-image`); on phones it sits above the headline and fades out before it. The text never sits on the photo.
-- Footer: link groups two to a row on phones with 44 px tap targets; Privacy is left out of the bottom row when a
+- Footer: link groups two to a row on phones with 44 px tap targets (24 px from tablet width, the WCAG 2.2 target-size
+  minimum: axe flagged 20 px links on the first adopted site, 2026-11-06); Privacy is left out of the bottom row when a
   column links it; with a logo, the footer ends on the logo across the content width (`composition.footer`:
   `wordmark`, the default, or `plain`).
 - `composition.ornament: mark` puts the logo kit's mark (the favicon's shape) before every eyebrow label
@@ -892,7 +900,14 @@ Evidence (each checked 2026-11-05 or 2026-11-06):
   ([Wikipedia, Hand-colouring of photographs](https://en.wikipedia.org/wiki/Hand-colouring_of_photographs)): a spot of
   colour on an old photograph belongs to the period.
 - The W3C "color" blend "preserves the gray levels of the backdrop and is useful for coloring monochrome images"
-  ([Compositing and Blending Level 1, 10.2.3](https://www.w3.org/TR/compositing-1/#blendingcolor)).
+  ([Compositing and Blending Level 1, 10.2.3](https://www.w3.org/TR/compositing-1/#blendingcolor)). It keeps Rec. 601
+  luma, of which a saturated red carries little, so on the first adopted site a dark cloth came out as a flat bright red
+  with its folds lost (2026-11-06). OKLab is built so that lightness is perceptual
+  ([Björn Ottosson](https://bottosson.github.io/posts/oklab/); coefficients as in the
+  [oklab crate](https://docs.rs/crate/oklab/latest/source/src/lib.rs)): holding its L and setting the accent's hue and
+  chroma keeps the photograph's light and shade. Where that chroma doesn't fit sRGB, CSS Color 4 reduces chroma by
+  binary search while holding lightness and hue ([gamut mapping](https://drafts.csswg.org/css-color-4/#gamut-mapping),
+  as implemented in [Servo](https://doc.servo.org/src/style/color/gamut.rs.html)).
 - SlimSAM (Xenova/slimsam-77-uniform on Hugging Face), a compressed Segment Anything model, Apache-2.0, runs locally through
   Transformers.js (`@huggingface/transformers` 4.3.1, Apache-2.0, released 2026-10-06) from a point prompt
   ([model card](https://huggingface.co/Xenova/slimsam-77-uniform)). Its ONNX decoder takes points and labels only:
@@ -902,16 +917,18 @@ What's built (`starter/scripts/spot-colour.mjs`, `scripts/lib/spot.mjs`, `script
 - `mask` outlines one object from points on it (and `--not` points off it), limited to a box; for lettering on a sign,
   `--tone dark|light` takes the dark or light pixels inside a box or a four-cornered shape, with no model. It writes
   a preview (the photo, the outline, the tint) to look at before anything changes.
-- `apply` keeps the untinted photo in `design/spot/<name>/original.*`, tints the object with the accent (the W3C
-  colour blend, after a tone curve that brings the object's middle tone to the accent's lightness, so a pale object
-  reads red rather than pink), and records what, colour, the model that chose it, the outline method and the date in
+- `apply` keeps the untinted photo in `design/spot/<name>/original.*`, tints the object with the accent (in OKLab:
+  each pixel keeps its lightness and takes the accent's hue and chroma, reduced only where sRGB can't show it, after a
+  tone curve that moves the object's middle tone halfway to the accent's lightness, so a pale object reads red rather
+  than pink and a dark one red rather than near black), and records what, colour, the model that chose it, the outline method and the date in
   `design/credits.json`. `undo` restores the photo; `sheet` draws every photo before and after.
 - The Website assets page lists the owner's own photographs, and every tinted photo under "Colour added with AI":
   the site's note (`spotNote` in `design/credits.json`, the owner's brief in plain words), how it was made, each
   object, a download of the script (`public/tools/spot-colour.mjs`, standalone: `sharp` and Transformers.js only, MIT)
   and of a prompt for any AI model or agent (`public/tools/spot-colour-prompt.md`), shown on the page as well.
 - Never a face or skin, never something random, one object per photo; generated detail is never added.
-- Tests: `starter/scripts/test/spot.test.mjs` (the blend keeps lightness, the tone curve, the tone mask in a
+- Tests: `starter/scripts/test/spot.test.mjs` (the dye keeps lightness and hue and stays in sRGB, a fold in a dark
+  cloth stays visible, the tone curve, the tone mask in a
   four-cornered shape, the visitor's script parses and carries the same arithmetic, the prompt's content). The model
   run itself is proven on the first adopted site (19 photographs, 2026-11-06), not in CI (the runtime is about 750 MB).
 

@@ -2,8 +2,9 @@
 // fb_text: plain paragraphs under a headline. Layouts: "split" (the headline beside the text on wide screens, so the
 // row is balanced), "prose" (the headline above a reading column), "lead" (the first paragraph set larger), "center"
 // (a centred reading column) or "wide" (a statement band: the headline across about four fifths of the page, ==key
-// words== in the accent colour, the text in two columns beneath it). Without a headline, "split" is centred. Reading
-// lines keep near the prose measure in every layout.
+// words== in the accent colour, the text in two columns beneath it; a single paragraph goes beside the headline
+// instead, so both halves of the band carry weight). Without a headline, "split" is centred. Reading lines keep near
+// the prose measure in every layout.
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import Eyebrow from "./Eyebrow.astro";
@@ -18,13 +19,16 @@ const lead = variant === "lead";
 const split = variant === "split" && !!value.headline;
 const center = variant === "center" || (variant === "split" && !value.headline);
 const wide = variant === "wide";
+const single = wide && paragraphs(value.body).length < 2;
 ---
 <Section id={value.anchor_id} tone={tone} labelledby={value.headline ? headingId : undefined} phone={phoneOf("fb_text", value)}>
   {wide ? (
-    <div class="reveal mx-auto grid w-full gap-8 lg:w-4/5">
-      {value.eyebrow && <Eyebrow text={value.eyebrow} />}
-      {value.headline && <h2 id={headingId} class="font-display text-headline text-balance text-ink" set:html={accent(value.headline)} />}
-      <div class="wide-body text-body text-ink">
+    <div class:list={["reveal mx-auto grid w-full gap-8 lg:w-4/5", { "lg:grid-cols-2 lg:items-end lg:gap-x-16": single }]}>
+      <div class="grid gap-6">
+        {value.eyebrow && <Eyebrow text={value.eyebrow} />}
+        {value.headline && <h2 id={headingId} class="font-display text-headline text-balance text-ink" set:html={accent(value.headline)} />}
+      </div>
+      <div class:list={["text-body text-ink", single ? "grid max-w-(--container-prose) gap-4" : "wide-body"]}>
         {paragraphs(value.body).map((p) => <p set:html={inline(p)} />)}
       </div>
     </div>
