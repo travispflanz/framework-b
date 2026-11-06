@@ -124,7 +124,12 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      page, not the hero: the content check holds every hero to the family and every content page's ending to
      `composition.closing`; the QA gate fails a page title unlike the home page's, a bare photo banner and a page that
      runs longer without a picture than the home page does, and draws `qa-output/site-sheet-1280.png` and `site-sheet-360.png`. Look at the sheets before the
-     owner does.
+     owner does. No section leaves one side of a wide screen empty: put the headline beside the text (`split`), centre
+     the column (`center`, `stack`) or put pictures beside it (`aside`), never widen the lines; the QA gate fails a
+     lopsided section. Choose every crop: a picture cropped by a third or more needs `focalX` or `focalY` on that axis,
+     and `qa-output/crop-sheet-1280.png` and `crop-sheet-360.png` show each crop over its whole picture: check every
+     subject (heads, signs, faces) is inside its frame. Size the logo with `composition.logo` (`standard`, `large`,
+     `masthead`); it is never shorter than the buttons (SPEC section 12, "Balance, crops and the logo's size").
   8. Measure the built pages, not the mock: the QA gate (which measures text over pictures), the phone length and
      each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
   9. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.

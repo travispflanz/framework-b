@@ -8,6 +8,7 @@
     "motion": "none",
     "phoneBudget": 6,
     "titleCase": "as-written",
+    "logo": "standard",
     "heroes": {
       "home": "split",
       "page": [

@@ -64,7 +64,7 @@ const PAGE = `<!doctype html><html lang="en"><head><title>Image text</title><sty
   .strip img { position: absolute; inset: 0; width: 100%; height: 100%; }
   .strip p { position: relative; margin: 0; padding: 20px; color: #f6f4f0; }
 </style></head><body><main>
-  <div class="panel" id="bright"><img src="/bright.svg" alt=""><p id="loose">Loose light text on a bright picture</p></div>
+  <div class="panel" id="bright"><img src="/bright.svg" alt=""><p id="loose">Loose light text on a bright picture</p><a href="#main" style="position:absolute;top:0;left:0;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;color:#f6f4f0">Screen readers only</a></div>
   <div class="panel"><img src="/bright.svg" alt=""><p><span class="scrim">Light text on a scrim over a bright picture</span></p></div>
   <div class="panel"><img src="/dark.svg" alt=""><p>Light text on a dark picture</p></div>
   <p>Ordinary text beside no picture at all</p>
@@ -97,6 +97,7 @@ test("in a browser: loose text on a bright picture fails (also in a sideways str
     assert.ok(rows[0].ratio <= rows[rows.length - 1].ratio, "worst first");
     assert.equal(by("Ordinary"), undefined);
     assert.equal(by("A fixed bar"), undefined);
+    assert.equal(by("Screen readers only"), undefined, "text in a 1 px box (sr-only) can't be seen and isn't measured");
 
     // The browser's histogram matches the Node one for the same pixels.
     const png = await scratch.evaluate(() => {

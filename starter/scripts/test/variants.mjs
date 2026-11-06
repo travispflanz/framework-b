@@ -66,7 +66,8 @@ try {
   site.footer = { note: "One line about the business, with a [link](/variants-b).", columns: [{ title: "Company", links: [{ label: "Layouts A", href: "/variants-a" }] }, { title: "Start", links: [{ label: "Layouts C", href: "/variants-c" }] }], legal: "A legal line, **in bold** where it matters." };
   writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
 
-  const img = (n, alt = "An abstract colour gradient") => ({ src: `variant-${n}.jpg`, alt });
+  // Each test picture names its focal point, as the QA gate's crop check asks of any picture a layout crops hard.
+  const img = (n, alt = "An abstract colour gradient") => ({ src: `variant-${n}.jpg`, alt, focalX: 0.5, focalY: 0.5 });
   const steps = [{ title: "First step", body: "What happens first, in one sentence." }, { title: "Second step", body: "What happens next." }, { title: "Third step", body: "How it ends for the visitor." }];
   const items = ["sparkles", "clock", "shield-check", "map-pin", "heart-handshake", "calendar"].map((icon, i) => ({ icon, title: `Reason ${i + 1}`, body: "One sentence that says why this matters to the visitor." }));
   const gallery = [1, 2, 3, 4].map((n) => ({ image: img(n), caption: `Caption ${n}` }));
@@ -78,6 +79,9 @@ try {
       { _type: "fb_features", _key: "features", variant: "bento", headline: "A bento grid of reasons", items, phone: "swipe" },
       { _type: "fb_gallery", _key: "gallery", variant: "masonry", headline: "A masonry gallery", items: gallery },
       { _type: "fb_faq", _key: "faq", variant: "two-column", headline: "Questions beside their answers", items: faq },
+      { _type: "fb_text", _key: "split", variant: "split", headline: "The headline beside its text", body: "Two paragraphs on the right of a wide screen, the headline held beside them.\n\nThe second paragraph, so the row runs long enough for the headline to stay in view." },
+      { _type: "fb_list", _key: "list-split", variant: "split", headline: "A list beside its headline", lists: [{ items: "One thing\nAnother thing\nA third thing", marker: "dot" }] },
+      { _type: "fb_people", _key: "people", variant: "aside", headline: "Who's behind it, beside their photos", body: "A paragraph about why they started.\n\nA second paragraph.", people: [{ name: "First Person", role: "on camera", image: img(3, "A colour gradient standing in for a photo") }, { name: "Second Person", role: "behind the camera", image: img(4, "A colour gradient standing in for a photo") }] },
       { _type: "fb_cta", _key: "cta", variant: "band", headline: "A full-width call to action", body: "One sentence of encouragement.", cta_label: "Get in touch", cta_url: "/#contact" },
     ],
     "variants-b": [
@@ -89,12 +93,16 @@ try {
       { _type: "fb_split", _key: "split", variant: "overlap", headline: "Text overlapping an image", body: "A paragraph beside the image.", image: img(3), image_side: "left" },
       { _type: "fb_text", _key: "text", variant: "lead", headline: "Text with a lead paragraph", body: "The first paragraph is set larger.\n\nThe rest is ordinary body text, with **bold**, *italic*, an [internal link](/variants-a) and an [outside one](https://example.com)." },
       { _type: "fb_list", _key: "lists", variant: "columns", headline: "Lists side by side", subheadline: "Checks, crosses and numbers.", lists: [{ title: "What we do", items: "One thing\nAnother thing, with **bold**", marker: "check" }, { title: "What we never do", items: "Charge to join\nSell your details", marker: "cross" }, { title: "In order", items: "First\nSecond\nThird", marker: "number" }], note: "A note under the lists.", phone: "collapse" },
-      { _type: "fb_people", _key: "people", variant: "grid", headline: "The people behind it", body: "A paragraph before the people.", people: [{ name: "First Person", role: "*on camera*, 2012", image: img(2, "A colour gradient standing in for a photo") }, { name: "Second Person", role: "behind the camera", bio: "Two sentences about them." }], note: "A paragraph after, with a [link](/variants-a)." },
+      { _type: "fb_people", _key: "people", variant: "grid", headline: "The people behind it", body: "A paragraph before the people.", people: [{ name: "First Person", role: "*on camera*, 2012", image: img(2, "A colour gradient standing in for a photo") }, { name: "Second Person", role: "behind the camera", bio: "Two sentences about them.", image: img(4, "A colour gradient standing in for a photo") }], note: "A paragraph after, with a [link](/variants-a)." },
     ],
     "variants-c": [
       { _type: "fb_hero", _key: "hero", variant: "bento", headline: "A bento hero", subheadline: "Tiles for the headline, the image, each reassurance and the action.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", points: "First reassurance\nSecond reassurance\nThird reassurance", image: img(4) },
       { _type: "fb_features", _key: "features", variant: "cards", headline: "Reasons as cards", items: items.slice(0, 3) },
       { _type: "fb_pricing", _key: "pricing", headline: "Plans that swipe on phones", plans: [{ name: "Small", price: "$10", cta_label: "Choose", cta_url: "/#contact" }, { name: "Large", price: "$20", cta_label: "Choose", cta_url: "/#contact", highlighted: true, badge: "Most chosen" }] },
+      { _type: "fb_text", _key: "centre", variant: "center", headline: "A centred reading column", body: "A paragraph in the middle of the page." },
+      { _type: "fb_list", _key: "list-stack", variant: "stack", headline: "Lists one under another, centred", lists: [{ title: "First", items: "One\nTwo", marker: "check" }, { title: "Second", items: "Three\nFour", marker: "cross" }] },
+      { _type: "fb_people", _key: "people-row", variant: "row", headline: "People in a row", people: [{ name: "Third Person", role: "producer", bio: "One sentence." }] },
+      { _type: "fb_cta", _key: "cta-card", headline: "A card call to action", body: "Words on the left of a wide screen, the button on the right.", cta_label: "Get in touch", cta_url: "/#contact" },
       { _type: "fb_form", _key: "form", variant: "split", headline: "A form beside its introduction", subheadline: "One sentence about what happens next.", form: Object.keys(JSON.parse(readFileSync("site.config.json", "utf8")).forms)[0] },
       { _type: "fb_form", _key: "survey", variant: "stacked", headline: "A two-step form with choices", form: "survey" },
     ],
@@ -124,6 +132,8 @@ try {
   const c = readFileSync("dist/variants-c.html", "utf8");
   if (!readFileSync("dist/variants-a.html", "utf8").includes(">Try the survey</a>")) throw new Error("the second call to action is missing");
   for (const want of ['type="radio"', 'name="offer" value="camera"', "What you could offer", ">Things<"]) if (!c.includes(want)) throw new Error(`variants-c is missing ${want}`);
+  if (!readFileSync("dist/variants-a.html", "utf8").includes("split-row")) throw new Error("the split text and list layouts are missing");
+  if (!/data-focal-x="0.5"/.test(hero)) throw new Error("a picture with a focal point doesn't say so (data-focal-x), so the crop check can't see it");
   if (!readFileSync("dist/variants-thanks.html", "utf8").includes('content="noindex')) throw new Error("the noindex page has no robots noindex");
   if (!readFileSync("dist/404.html", "utf8").includes("in the owner")) throw new Error("not-found.json didn't replace the 404 page");
   if (!readFileSync("dist/privacy.html", "utf8").includes("Privacy, in the owner")) throw new Error("privacy.json didn't replace the privacy page");
