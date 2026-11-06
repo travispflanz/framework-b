@@ -28,7 +28,7 @@ const org = {
 };
 const year = new Date().getFullYear();
 // The footer links to /credits when an image from another creator needs attribution or an image was generated.
-const needsCredits = (credits.images || []).some((c) => c.source === "openverse" || c.source === "stock" || (c.source === "generated" && !c.test));
+const needsCredits = (credits.images || []).some((c) => c.source === "openverse" || c.source === "stock" || (c.source === "generated" && !c.test) || (c.spot && !c.test));
 // Up to two nav items may carry "cta": true (a site with two front doors, for example buyers and sellers): the
 // first is the solid button, the second an outlined one, and both go in the phone action bar.
 const ctas = config.nav.filter((item) => item.cta).slice(0, 2);
@@ -65,6 +65,12 @@ const headerCss = masthead
 // Optional footer: a short line about the business and link columns ({ note, columns: [{ title, links }] }).
 const footer = config.footer || {};
 const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
+// The footer ends on the logo across the content width (a "wordmark footer": the brand as the page's last word;
+// https://pixelgrade.com/pattern-language/wordmark-footer/ and https://www.wix.com/studio/blog/big-website-footers,
+// checked 2026-11-05), unless composition.footer is "plain". On phones the link columns sit two to a row with 44 px
+// tap targets, and the bottom row leaves out Privacy when a column already links it.
+const wordmark = !!logo && composition.footer !== "plain";
+const privacyInColumns = footerColumns.some((c) => c.links.some((l) => l.href === "/privacy"));
 ---
 <!doctype html>
 <html
@@ -143,23 +149,28 @@ const footerColumns = (footer.columns || []).filter((c) => c?.links?.length);
     </main>
     <footer class="border-t border-[var(--color-line)] px-[var(--spacing-gutter)]">
       {(footer.note || footerColumns.length > 0) && (
-        <div class:list={["mx-auto grid max-w-[var(--container-content)] gap-8 pt-10 text-sm text-[var(--color-ink-muted)]", ["md:grid-cols-[2fr]", "md:grid-cols-[2fr_1fr]", "md:grid-cols-[2fr_1fr_1fr]", "md:grid-cols-[2fr_1fr_1fr_1fr]"][Math.min(footerColumns.length, 3)]]}>
-          <div class="grid content-start gap-2">
+        <div class:list={["mx-auto grid max-w-[var(--container-content)] grid-cols-2 gap-x-8 gap-y-10 pt-12 text-sm text-[var(--color-ink-muted)]", ["md:grid-cols-[2fr]", "md:grid-cols-[2fr_1fr]", "md:grid-cols-[2fr_1fr_1fr]", "md:grid-cols-[2fr_1fr_1fr_1fr]"][Math.min(footerColumns.length, 3)]]}>
+          <div class="col-span-2 grid content-start gap-2 md:col-span-1">
             <p class="font-display text-title text-[var(--color-ink)]">{config.site.name}</p>
             {footer.note && <p class="max-w-(--container-prose)" set:html={inline(footer.note)} />}
           </div>
           {footerColumns.map((c, i) => (
             <nav aria-labelledby={`footer-col-${i}`}>
               <p id={`footer-col-${i}`} class="mb-2 font-semibold text-[var(--color-ink)]">{c.title}</p>
-              <ul class="grid gap-2">{c.links.map((l) => <li><a href={l.href}>{l.label}</a></li>)}</ul>
+              <ul class="grid gap-1 md:gap-2">{c.links.map((l) => <li><a href={l.href} class="inline-flex min-h-11 items-center md:min-h-0">{l.label}</a></li>)}</ul>
             </nav>
           ))}
         </div>
       )}
+      {wordmark && (
+        <a href="/" class="mx-auto block max-w-[var(--container-content)] pt-12 no-underline" aria-label={`${config.site.name}: home`}>
+          <img src={logo} alt="" class="block h-auto w-full" width={Math.round(48 * logoAspect)} height="48" loading="lazy" decoding="async" />
+        </a>
+      )}
       <div class="mx-auto flex max-w-[var(--container-content)] flex-wrap justify-between gap-4 py-6 text-sm text-[var(--color-ink-muted)]">
         <p>© {year} {config.site.name}{config.site.postalAddress ? ` · ${config.site.postalAddress}` : ""}</p>
         {footer.legal && <p class="w-full max-w-(--container-prose)" set:html={inline(footer.legal)} />}
-        <p class="flex gap-4">{needsCredits && <a href="/credits">Website assets</a>}<a href="/privacy">Privacy</a></p>
+        <p class="flex gap-4">{needsCredits && <a href="/credits">Website assets</a>}{!privacyInColumns && <a href="/privacy">Privacy</a>}</p>
       </div>
     </footer>
     {actionBar && (

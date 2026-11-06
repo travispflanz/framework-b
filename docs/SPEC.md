@@ -837,6 +837,84 @@ What's built:
   measured against the buttons) and the layout test (`starter/scripts/test/variants.mjs`), whose pages now carry
   every new layout through the whole QA gate.
 
+### Accent words, wide statements, fade heroes, the footer and the mark (2026-11-06)
+
+Why: on the first adopted site, the owner found the long text blocks under a big heading too narrow ("this is not
+wide enough, so maybe it should span approximately 80% of the distance instead of ... 50% centered"), asked for chosen
+words of those headings in the accent colour ("pick words that draw attention"), for the side-by-side heroes to stop
+looking "just there instead of a part of that section" ("make the photo the entire section height ... fade as it
+reaches the giant heading ... and turn into the background color"), for the phone footer to be fixed, the logo to
+appear in the footer, and the favicon's shape to be "worked in ... in various places that makes sense".
+
+Evidence (each checked 2026-11-05):
+- A spot of colour on a key word guides attention; use the brand's colour, on a word or short phrase, never a whole
+  sentence, one accent per section ([SSW Rules, "Do you add a spot of color for text emphasis?"](https://www.ssw.com.au/rules/add-a-spot-of-color-for-emphasis)).
+- A statement band gives "one concise statement an entire field" at display scale ([Pixelgrade Pattern Language,
+  Statement / Quote Band](https://pixelgrade.com/pattern-language/)). Reading lines stay at 50 to 75 characters
+  ([Baymard Institute](https://baymard.com/research-articles/line-length-readability)): a block four fifths wide sets
+  its text in two columns to keep that measure.
+- A gradient mask fades an image into whatever is behind it, without a second image ([Ahmad Shadeed, CSS
+  Masking](https://ishadeed.com/article/css-masking/)).
+- Footers on phones: one column for the brand, link groups stacked or collapsed, tap targets of at least 44 by 44 px
+  ([UXPin, footer design](https://www.uxpin.com/studio/blog/footer-design-basics/); [Red Hat Design System,
+  footer](https://ux.redhat.com/elements/footer/guidelines/)). The "big footer" or wordmark footer ends the page on
+  the brand ([Wix Studio](https://www.wix.com/studio/blog/big-website-footers); [Pixelgrade, Wordmark
+  Footer](https://pixelgrade.com/pattern-language/wordmark-footer/)).
+
+What's built:
+- `==word==` in any headline or text field sets it in the accent colour (`src/sections/text.js`: `accent()` for
+  headlines, `inline()` for text; the Markdown "mark" convention). On a band that is the accent colour, the word takes
+  the band's text colour, underlined. Headlines of the hero, section introductions, split and call-to-action sections
+  take it.
+- Text `wide`: the headline across four fifths of the page, the text beneath in two columns (one on phones). The
+  people section's closing note is set the same way.
+- Hero `fade`: the photo fills the band's height on the right and fades into the background towards the headline
+  (`mask-image`); on phones it sits above the headline and fades out before it. The text never sits on the photo.
+- Footer: link groups two to a row on phones with 44 px tap targets; Privacy is left out of the bottom row when a
+  column links it; with a logo, the footer ends on the logo across the content width (`composition.footer`:
+  `wordmark`, the default, or `plain`).
+- `composition.ornament: mark` puts the logo kit's mark (the favicon's shape) before every eyebrow label
+  (`src/sections/Eyebrow.astro`).
+- Tests: `starter/scripts/test/spot.test.mjs` (accent words) and the layout test's fourth page (a fade hero, a wide
+  statement with accent words, accent words on an accent band) through the whole QA gate. The footer's wordmark and
+  the eyebrow mark need a logo kit: proven on the first adopted site, untested in CI.
+
+### Spot colour (2026-11-06)
+
+Why: the first adopted site's photographs are black and white archive and owner photos. Its owner asked for "our pop
+of color in just one spot in each of these photos", one item "like an article of clothing, or camera, or film strip -
+something on a person or used in filmmaking or relevant to the theme ... not something super random", made with AI,
+listed on the Website assets page with "the gist of the prompt ... what model ... and the date", and for visitors to
+be able to "download the script and/or give them a prompt ... to do the same".
+
+Evidence (each checked 2026-11-05 or 2026-11-06):
+- Hand-colouring photographs dates from 1839 and ran through prints, lantern slides and transparencies
+  ([Wikipedia, Hand-colouring of photographs](https://en.wikipedia.org/wiki/Hand-colouring_of_photographs)): a spot of
+  colour on an old photograph belongs to the period.
+- The W3C "color" blend "preserves the gray levels of the backdrop and is useful for coloring monochrome images"
+  ([Compositing and Blending Level 1, 10.2.3](https://www.w3.org/TR/compositing-1/#blendingcolor)).
+- SlimSAM (Xenova/slimsam-77-uniform on Hugging Face), a compressed Segment Anything model, Apache-2.0, runs locally through
+  Transformers.js (`@huggingface/transformers` 4.3.1, Apache-2.0, released 2026-10-06) from a point prompt
+  ([model card](https://huggingface.co/Xenova/slimsam-77-uniform)). Its ONNX decoder takes points and labels only:
+  a box prompt is dropped with a warning, so the script applies a box afterwards as a limit.
+
+What's built (`starter/scripts/spot-colour.mjs`, `scripts/lib/spot.mjs`, `scripts/lib/spot-tool.mjs`):
+- `mask` outlines one object from points on it (and `--not` points off it), limited to a box; for lettering on a sign,
+  `--tone dark|light` takes the dark or light pixels inside a box or a four-cornered shape, with no model. It writes
+  a preview (the photo, the outline, the tint) to look at before anything changes.
+- `apply` keeps the untinted photo in `design/spot/<name>/original.*`, tints the object with the accent (the W3C
+  colour blend, after a tone curve that brings the object's middle tone to the accent's lightness, so a pale object
+  reads red rather than pink), and records what, colour, the model that chose it, the outline method and the date in
+  `design/credits.json`. `undo` restores the photo; `sheet` draws every photo before and after.
+- The Website assets page lists the owner's own photographs, and every tinted photo under "Colour added with AI":
+  the site's note (`spotNote` in `design/credits.json`, the owner's brief in plain words), how it was made, each
+  object, a download of the script (`public/tools/spot-colour.mjs`, standalone: `sharp` and Transformers.js only, MIT)
+  and of a prompt for any AI model or agent (`public/tools/spot-colour-prompt.md`), shown on the page as well.
+- Never a face or skin, never something random, one object per photo; generated detail is never added.
+- Tests: `starter/scripts/test/spot.test.mjs` (the blend keeps lightness, the tone curve, the tone mask in a
+  four-cornered shape, the visitor's script parses and carries the same arithmetic, the prompt's content). The model
+  run itself is proven on the first adopted site (19 photographs, 2026-11-06), not in CI (the runtime is about 750 MB).
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
@@ -851,6 +929,8 @@ Rules:
 - **A logo is an idea, not a font.** A designed logo starts from a written brief, comes from something only this business has, is tested at its real sizes and in one colour, and is picked by the owner from several concepts (owner's request, 2026-11-04).
 - **A style guide before the other pages.** Once the home page carries the route, its style guide is written and rendered, and every other page, post and print piece is made from it (owner's decision, 2026-11-04).
 - **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).
+- **Accent words sparingly.** A word or a short phrase of a big headline in the accent colour (`==word==`), not every headline and never a whole sentence.
+- **Spot colour: one object, chosen for the story.** Clothing, a camera, film, a ticket, a sign; never a face or skin; the untinted photo kept; listed on the Website assets page with how it was made.
 - **Balanced sections, chosen crops, a logo at least as tall as the buttons.** No section leaves one side of a wide screen empty: the headline goes beside the text, the text is centred, or pictures go beside it, and lines keep the prose width. A picture cropped by a third or more names its focal point, and the crop sheets are looked at before the owner sees anything (owner's request, 2026-11-05).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.

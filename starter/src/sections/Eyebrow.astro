@@ -1,0 +1,15 @@
+---
+// The short label over a headline. With composition.ornament "mark" in DESIGN.md and a logo kit, the brand's mark (the
+// favicon's shape, public/mark.svg) sits before it, so the logo's own shape runs through the pages in small
+// (docs/SPEC.md section 12, "Logo size, footer and mark").
+import { composition } from "./design.js";
+
+interface Props { text: string; class?: string; center?: boolean }
+const { text, class: extra, center = false } = Astro.props;
+const kit = Object.keys(import.meta.glob("../../design/brand/logo.json")).length > 0;
+const mark = composition.ornament === "mark" && kit;
+---
+<p class:list={["text-label text-accent", { "flex items-center gap-2": mark, "justify-center": mark && center }, extra]}>
+  {mark && <img src="/mark.svg" alt="" width="20" height="20" class="eyebrow-mark h-[1.15em] w-auto shrink-0" />}
+  <span>{text}</span>
+</p>

@@ -9,6 +9,8 @@
     "phoneBudget": 6,
     "titleCase": "as-written",
     "logo": "standard",
+    "ornament": "none",
+    "footer": "wordmark",
     "heroes": {
       "home": "split",
       "page": [

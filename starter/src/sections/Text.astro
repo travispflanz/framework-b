@@ -1,10 +1,13 @@
 ---
 // fb_text: plain paragraphs under a headline. Layouts: "split" (the headline beside the text on wide screens, so the
-// row is balanced), "prose" (the headline above a reading column), "lead" (the first paragraph set larger) or "center"
-// (a centred reading column). Without a headline, "split" is centred. The reading column keeps the prose width either way.
+// row is balanced), "prose" (the headline above a reading column), "lead" (the first paragraph set larger), "center"
+// (a centred reading column) or "wide" (a statement band: the headline across about four fifths of the page, ==key
+// words== in the accent colour, the text in two columns beneath it). Without a headline, "split" is centred. Reading
+// lines keep near the prose measure in every layout.
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
-import { paragraphs, inline } from "./text.js";
+import Eyebrow from "./Eyebrow.astro";
+import { accent, paragraphs, inline } from "./text.js";
 import { phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
@@ -14,12 +17,23 @@ const variant = variantOf("fb_text", value);
 const lead = variant === "lead";
 const split = variant === "split" && !!value.headline;
 const center = variant === "center" || (variant === "split" && !value.headline);
+const wide = variant === "wide";
 ---
 <Section id={value.anchor_id} tone={tone} labelledby={value.headline ? headingId : undefined} phone={phoneOf("fb_text", value)}>
+  {wide ? (
+    <div class="reveal mx-auto grid w-full gap-8 lg:w-4/5">
+      {value.eyebrow && <Eyebrow text={value.eyebrow} />}
+      {value.headline && <h2 id={headingId} class="font-display text-headline text-balance text-ink" set:html={accent(value.headline)} />}
+      <div class="wide-body text-body text-ink">
+        {paragraphs(value.body).map((p) => <p set:html={inline(p)} />)}
+      </div>
+    </div>
+  ) : (
   <div class:list={{ "split-row": split }}>
     <SectionIntro eyebrow={value.eyebrow} headline={value.headline} id={headingId} side={split} center={center || undefined} />
     <div class:list={["reveal grid max-w-(--container-prose) gap-4 text-body text-ink", { "mx-auto": center }]}>
       {paragraphs(value.body).map((p, i) => <p class:list={{ "text-title text-ink": lead && i === 0 }} set:html={inline(p)} />)}
     </div>
   </div>
+  )}
 </Section>

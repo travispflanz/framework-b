@@ -1,5 +1,6 @@
 ---
-import { inline, paragraphs } from "./text.js";
+import Eyebrow from "./Eyebrow.astro";
+import { accent, inline, paragraphs } from "./text.js";
 // The eyebrow, headline and supporting sentence most sections start with.
 import { composition } from "./design.js";
 
@@ -12,8 +13,8 @@ const center = side ? false : (Astro.props.center ?? composition.align === "cent
 ---
 {(eyebrow || headline || subheadline) && (
   <div class:list={["reveal grid content-start gap-3", side ? "lg:sticky lg:top-8" : flush ? "max-w-(--container-prose)" : "mb-10 max-w-(--container-prose)", { "mx-auto text-center": center }]}>
-    {eyebrow && <p class="text-label text-accent">{eyebrow}</p>}
-    {headline && <h2 id={id} class="font-display text-headline text-ink">{headline}</h2>}
+    {eyebrow && <Eyebrow text={eyebrow} center={center} />}
+    {headline && <h2 id={id} class="font-display text-headline text-ink" set:html={accent(headline)} />}
     {subheadline && paragraphs(subheadline).map((p) => <p class="text-body text-ink-muted" set:html={inline(p)} />)}
   </div>
 )}
