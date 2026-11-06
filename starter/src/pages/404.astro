@@ -1,5 +1,6 @@
 ---
-// The 404 page. src/content/not-found.json, when present, replaces the default with the owner's own words.
+// The 404 page. src/content/not-found.json, when present, replaces the default with the owner's own words. The link
+// sits beside the title on wide screens, so a short title doesn't leave the right of the page empty.
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 import Sections from "../sections/Sections.astro";
@@ -11,7 +12,9 @@ const custom = Object.values(import.meta.glob<{ default: any }>("../content/not-
 </Base>
 ) : (
 <Base title="Page not found" noindex>
-  <PageTitle class="mb-4">Page not found</PageTitle>
-  <p><a href="/">Go to the home page</a></p>
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-x-16">
+    <PageTitle>Page not found</PageTitle>
+    <p><a href="/">Go to the home page</a></p>
+  </div>
 </Base>
 )}
