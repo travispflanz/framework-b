@@ -25,9 +25,10 @@
 // The outline comes from SlimSAM (Xenova/slimsam-77-uniform, Apache-2.0; a compressed Segment Anything model) run
 // locally with Transformers.js (@huggingface/transformers, Apache-2.0), both fetched into node_modules/.cache/spot-colour
 // on first use (about 750 MB with the ONNX runtime; the model itself is 14 MB), never into package.json. The colour is
-// the accent from tokens.css, blended with the W3C "color" mode (scripts/lib/spot.mjs): the photograph keeps its own
-// light, shadow and grain. The object's middle tone is first brought to the accent's lightness, as a dense dye would,
-// so a light object reads red rather than pink (--keep-tone leaves its tones alone).
+// the accent from tokens.css, laid on in OKLab (scripts/lib/spot.mjs): each pixel keeps the photograph's lightness, so
+// light, shadow, folds and grain stay. The object's middle tone is first moved halfway to the accent's lightness, as a
+// dense dye would, so a light object reads red rather than pink and a dark one red rather than near black
+// (--keep-tone leaves its tones alone).
 // The Website assets page's note on the colour, the gist of the owner's brief in plain words, goes in
 // design/credits.json as "spotNote"; the visitor's prompt repeats it.
 import { execFileSync } from "node:child_process";
@@ -143,7 +144,7 @@ if (cmd === "mask" && arg) {
   const credits = readCredits();
   const entry = entryOf(credits, file);
   const hex = `#${accent.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
-  entry.spot = { what: spec.what, colour: hex, chosenBy: by, segmenter: spec.segmenter, method: "W3C colour blend: the accent's hue and saturation over the photograph's own light and shade", date: new Date().toISOString().slice(0, 10) };
+  entry.spot = { what: spec.what, colour: hex, chosenBy: by, segmenter: spec.segmenter, method: "OKLab: the accent's hue and chroma over the photograph's own lightness", date: new Date().toISOString().slice(0, 10) };
   writeCredits(credits);
   publishTools(credits, hex);
   console.log(`${basename(file)}: ${spec.what} tinted ${hex}. The untinted photo is ${original}.`);
@@ -165,7 +166,7 @@ if (cmd === "mask" && arg) {
   publishTools(credits, spotted[0].spot.colour);
   console.log(`${TOOL} and ${PROMPT} written`);
 } else if (cmd === "sheet") {
-  const names = existsSync(DIR) ? readdirSync(DIR).filter((n) => readdirSync(join(DIR, n)).some((f) => f.startsWith("original."))) : [];
+  const names = existsSync(DIR) ? readdirSync(DIR, { withFileTypes: true }).filter((d) => d.isDirectory() && readdirSync(join(DIR, d.name)).some((f) => f.startsWith("original."))).map((d) => d.name) : [];
   if (!names.length) throw new Error("no tinted photos yet");
   const tiles = [];
   for (const n of names) {

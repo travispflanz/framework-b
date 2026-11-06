@@ -126,15 +126,16 @@ details[open] > summary .accordion-cue::after { display: none; }
    2026-11-05; CSS masking with a gradient: https://ishadeed.com/article/css-masking/, checked 2026-11-05). The text
    sits on the plain background, never on the photo. On phones the photo comes first and fades out above the headline.
    A mask uses only the gradient's opacity; the colour named in it (an opaque token) doesn't show. */
+/* The fades ease in and out (a colour hint past the middle of the ramp), so no line shows where the photo starts. */
 .hero-fade { display: grid; }
 .hero-fade-photo { position: relative; height: clamp(15rem, 62vw, 24rem); overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, var(--color-ink) 55%, transparent); mask-image: linear-gradient(to bottom, var(--color-ink) 55%, transparent); }
+  -webkit-mask-image: linear-gradient(to bottom, var(--color-ink) 45%, 60%, transparent); mask-image: linear-gradient(to bottom, var(--color-ink) 45%, 60%, transparent); }
 .hero-fade-photo img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hero-fade-copy { padding-top: 0.5rem; padding-bottom: var(--spacing-section, 4rem); }
 @media (min-width: 64rem) {
   .hero-fade { min-height: min(calc(78svh - var(--header-height, 4rem)), 46rem); align-items: center; }
   .hero-fade-photo { position: absolute; inset-block: 0; right: 0; width: 60%; height: auto;
-    -webkit-mask-image: linear-gradient(to right, transparent, var(--color-ink) 42%); mask-image: linear-gradient(to right, transparent, var(--color-ink) 42%); }
+    -webkit-mask-image: linear-gradient(to right, transparent, 40%, var(--color-ink) 55%); mask-image: linear-gradient(to right, transparent, 40%, var(--color-ink) 55%); }
   .hero-fade-copy { padding-block: var(--spacing-section, 4rem); }
 }
 
@@ -142,7 +143,7 @@ details[open] > summary .accordion-cue::after { display: none; }
    so the block is wide and each line stays near the prose measure (50 to 75 characters: Baymard Institute,
    https://baymard.com/research-articles/line-length-readability, checked 2026-11-05). One column on phones. */
 .wide-body { columns: 2 20rem; column-gap: clamp(2rem, 4vw, 3.5rem); }
-.wide-body > p { break-inside: avoid; margin: 0 0 1rem; }
+.wide-body > p { orphans: 3; widows: 3; margin: 0 0 1rem; }
 .wide-body > p:last-child { margin-bottom: 0; }
 
 /* Accent words (==word== in a headline or text): a word or two in the accent colour. On a band that is itself the

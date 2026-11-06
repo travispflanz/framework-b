@@ -109,6 +109,7 @@ try {
     "variants-d": [
       { _type: "fb_hero", _key: "hero", variant: "fade", eyebrow: "Layout test", headline: "A photo that ==fades== into the page", subheadline: "The picture fills the band on the right and fades into the background towards the title.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", image: img(3) },
       { _type: "fb_text", _key: "wide", variant: "wide", headline: "A statement across ==four fifths== of the page", body: "The first paragraph of a wide block, long enough to run down a column and show that its lines stay near the reading measure.\n\nA second paragraph that flows into the second column on a wide screen and under the first on a phone." },
+      { _type: "fb_text", _key: "wide-one", variant: "wide", eyebrow: "One paragraph", headline: "A ==short== statement", body: "A single paragraph sits beside the headline rather than leaving the right half of the band empty." },
       { _type: "fb_cta", _key: "cta", variant: "band", headline: "A band that is ==itself== the accent", body: "Accent words on an accent band take the band's own text colour.", cta_label: "Get in touch", cta_url: "/#contact" },
     ],
     "variants-thanks": [
