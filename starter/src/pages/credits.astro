@@ -1,22 +1,38 @@
 ---
-// Website assets (URL kept at /credits): every image from another creator, with its licence and source, and every generated image, with the
-// model that made it, from design/credits.json. CC BY and CC BY-SA require this attribution; the footer links here
-// whenever there is something to credit.
+// Website assets (URL kept at /credits): every image from another creator, with its licence and source, every
+// generated image, with the model that made it, the owner's own photographs, and every photograph given a spot of
+// colour with AI (scripts/spot-colour.mjs), with how it was done and the script and prompt to do the same, from
+// design/credits.json. CC BY and CC BY-SA require this attribution; the footer links here whenever there is
+// something to credit.
 export const prerender = true;
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 import credits from "../../design/credits.json";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const LICENSE_URL = { "cc0": "https://creativecommons.org/publicdomain/zero/1.0/", "pdm": "https://creativecommons.org/publicdomain/mark/1.0/" };
 const all = credits.images || [];
 const items = all.filter((c) => c.source === "openverse" || c.source === "stock");
 const generated = all.filter((c) => c.source === "generated" && !c.test);
+const owned = all.filter((c) => c.source === "owner" && !c.test);
+// Spot colour (docs/SPEC.md section 12, "Spot colour"): the note is the owner's brief in plain words.
+const spotted = all.filter((c) => c.spot && !c.test);
+const unique = (list) => [...new Set(list.filter(Boolean))];
+const chosenBy = unique(spotted.map((c) => c.spot.chosenBy));
+const colours = unique(spotted.map((c) => c.spot.colour));
+const dates = unique(spotted.map((c) => c.spot.date)).sort();
+const outlined = (c) => (/^SlimSAM/.test(c.spot.segmenter || "") ? "outlined by SlimSAM" : "lettering picked out by its tone, with no model");
+// public/tools/ is served as it is; the page is prerendered, so it reads the files at build time.
+const tool = (f) => resolve(process.cwd(), "public/tools", f);
+const prompt = existsSync(tool("spot-colour-prompt.md")) ? readFileSync(tool("spot-colour-prompt.md"), "utf8") : "";
+const script = existsSync(tool("spot-colour.mjs"));
 // The credits run in two columns on wide screens, each at the prose width, so the page is balanced
 // (scripts/lib/cohesion.mjs, "balance").
 ---
 <Base title="Website assets" noindex>
   <PageTitle>Website assets</PageTitle>
-  {items.length === 0 && generated.length === 0 ? (
+  {items.length === 0 && generated.length === 0 && owned.length === 0 ? (
     <p class="mt-6 text-body text-ink-muted">Every image on this site belongs to us.</p>
   ) : null}
   {items.length > 0 && (
@@ -39,6 +55,46 @@ const generated = all.filter((c) => c.source === "generated" && !c.test);
           <li class="lg:mb-4 lg:break-inside-avoid">{c.alt || c.file.split("/").pop()}{c.model ? `: generated with ${c.model}` : ": generated"}{c.created ? `, ${c.created}` : ""}.</li>
         ))}
       </ul>
+    </section>
+  )}
+  {owned.length > 0 && (
+    <section aria-labelledby="owned" class="mt-12">
+      <h2 id="owned" class="font-display text-title text-ink">Our own photographs</h2>
+      <ul class="mt-6 grid max-w-(--container-prose) gap-4 text-body text-ink lg:block lg:max-w-none lg:columns-2 lg:gap-x-16" role="list">
+        {owned.map((c) => (
+          <li class="lg:mb-4 lg:break-inside-avoid">{c.alt || c.file.split("/").pop()}.{c.credit && ` ${c.credit}`}{c.changes && <span class="text-ink-muted"> {c.changes}</span>}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+  {spotted.length > 0 && (
+    <section aria-labelledby="spot" class="mt-12">
+      <h2 id="spot" class="font-display text-title text-ink">Colour added with AI</h2>
+      <div class="mt-3 grid max-w-(--container-prose) gap-3 text-body text-ink">
+        {credits.spotNote && <p>{credits.spotNote}</p>}
+        <p class="text-ink-muted">
+          How it was made: {chosenBy.join(" and ")} looked at each photograph and chose the object. Its outline was drawn
+          with SlimSAM, a small Segment Anything model, or, for lettering, picked out by its tone. The colour
+          ({colours.join(", ")}) is blended over the photograph's own light and shade, so nothing in a picture was drawn
+          in or invented. {dates.length > 1 ? `${dates[0]} to ${dates[dates.length - 1]}` : dates[0]}.
+        </p>
+      </div>
+      <ul class="mt-6 grid max-w-(--container-prose) gap-4 text-body text-ink lg:block lg:max-w-none lg:columns-2 lg:gap-x-16" role="list">
+        {spotted.map((c) => (
+          <li class="lg:mb-4 lg:break-inside-avoid"><strong>{c.spot.what}</strong>, in {(c.alt || c.file.split("/").pop()).replace(/\.$/, "")}<span class="text-ink-muted"> ({outlined(c)})</span>.</li>
+        ))}
+      </ul>
+      {(script || prompt) && (
+        <div class="mt-8 grid max-w-(--container-prose) gap-3 text-body text-ink">
+          <p>Do the same with your own photographs:{script && <> <a href="/tools/spot-colour.mjs" download>download the script</a></>}{script && prompt && " or"}{prompt && <> <a href="/tools/spot-colour-prompt.md" download>download the prompt</a> for an AI model or agent</>}.</p>
+          {prompt && (
+            <details class="border-t border-line pt-3">
+              <summary class="cursor-pointer font-semibold">Read the prompt</summary>
+              <pre class="mt-3 max-w-full overflow-x-auto whitespace-pre-wrap text-small text-ink-muted">{prompt}</pre>
+            </details>
+          )}
+        </div>
+      )}
     </section>
   )}
 </Base>

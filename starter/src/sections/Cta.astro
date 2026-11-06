@@ -3,7 +3,7 @@
 // band in the accent colour). Set left, the words take the left of a wide screen and the button the right, so the
 // card or band is balanced (scripts/lib/cohesion.mjs, "balance").
 import Section from "./Section.astro";
-import { paragraphs, inline } from "./text.js";
+import { accent, paragraphs, inline } from "./text.js";
 import { composition, phoneOf, variantOf } from "./design.js";
 
 interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
@@ -17,7 +17,7 @@ const center = composition.align === "center";
   <section id={value.anchor_id || undefined} aria-labelledby={headingId} class:list={["bg-accent px-gutter py-section", { "max-sm:hidden": phone === "hide" }]}>
     <div class:list={["reveal mx-auto grid w-full max-w-content gap-5", center ? "justify-items-center text-center" : "justify-items-start lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-x-16"]}>
       <div class:list={["grid gap-5", { "justify-items-center": center }]}>
-        <h2 id={headingId} class="max-w-(--container-prose) font-display text-headline text-accent-ink">{value.headline}</h2>
+        <h2 id={headingId} class="max-w-(--container-prose) font-display text-headline text-accent-ink" set:html={accent(value.headline)} />
         {paragraphs(value.body).map((p) => <p class="max-w-(--container-prose) text-body text-accent-ink" set:html={inline(p)} />)}
       </div>
       <a href={value.cta_url} class="button-inverse inline-flex min-h-12 items-center justify-center no-underline">{value.cta_label}</a>
@@ -27,7 +27,7 @@ const center = composition.align === "center";
   <Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
     <div class:list={["reveal card grid gap-4 p-8", center ? "justify-items-center text-center" : "justify-items-start lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-x-16"]}>
       <div class:list={["grid gap-4", { "justify-items-center": center }]}>
-        <h2 id={headingId} class="font-display text-headline text-ink">{value.headline}</h2>
+        <h2 id={headingId} class="font-display text-headline text-ink" set:html={accent(value.headline)} />
         {paragraphs(value.body).map((p) => <p class="max-w-(--container-prose) text-body text-ink-muted" set:html={inline(p)} />)}
       </div>
       <a href={value.cta_url} class="button-primary inline-flex min-h-12 items-center justify-center no-underline">{value.cta_label}</a>

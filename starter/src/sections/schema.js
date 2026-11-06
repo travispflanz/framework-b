@@ -28,7 +28,7 @@ const image = (slug, label, required = false) => ({ slug, label, type: "image", 
 // Layout variants (docs/SPEC.md section 12, "Section variants"): how a section is drawn, chosen per section, so
 // two sites with the same content can look structurally different. The first option is the default.
 export const VARIANTS = {
-  fb_hero: ["split", "full-bleed", "statement", "editorial", "bento"],
+  fb_hero: ["split", "full-bleed", "statement", "editorial", "bento", "fade"],
   fb_steps: ["cards", "timeline", "numerals"],
   fb_features: ["grid", "bento", "list", "cards"],
   fb_pricing: ["cards"],
@@ -38,7 +38,7 @@ export const VARIANTS = {
   fb_form: ["split", "stacked"],
   fb_split: ["side", "overlap"],
   fb_gallery: ["grid", "masonry", "strip"],
-  fb_text: ["split", "prose", "lead", "center"],
+  fb_text: ["split", "prose", "lead", "center", "wide"],
   fb_list: ["columns", "split", "stack"],
   fb_people: ["grid", "row", "aside"],
 };
