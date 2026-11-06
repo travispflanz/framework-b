@@ -63,7 +63,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
   - anything animating when the visitor asks for reduced motion;
   - a list of three or more cards where some carry photos but half or fewer do;
   - a page title whose face, weight, case or alignment differs from the home page's, a bare photo banner (a photo at least 60% of the window wide and 30% of its height with no text over it or beside it, at 1280 px), or a page that runs more than half a screen longer without a picture than the home page does;
-  - a section with less than a tenth of its weight on one side of the middle of the window, at 1280 px; a picture cropped by a third or more of its width or height without a focal point on that axis, at 360 and 1280 px; a header logo shorter than the tallest button beside it or in the phone bar;
+  - a section with less than a tenth of its weight on one side of the middle of the window and nothing a quarter of the way across that half, at 1280 px; a picture cropped by a third or more of its width or height without a focal point on that axis, at 360 and 1280 px; a header logo shorter than the tallest button beside it or in the phone bar;
   - text over an image or gradient below 4.5:1 (3:1 for large text) against the lightest part of the picture behind it (the darkest, for dark text), at 360 and 1280 px;
   - content that doesn't match the schema;
   - reviews, ratings, customer counts or percentages without a source in `PRODUCT.md` (truth gate);

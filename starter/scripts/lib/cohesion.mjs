@@ -17,7 +17,9 @@
 //   "floating off to the left with a ton of open space to the right" (2026-11-05). The fix is a layout, not wider
 //   text (lines stay at the prose width): the headline beside the text (split), a centred column, or pictures beside.
 //   Weight is the area of text lines, pictures, form fields and filled boxes; a sticky column counts wherever its row
-//   runs, since it stays in view beside it. What a page sets in <main> outside its sections (a generated page) is
+//   runs, since it stays in view beside it. A short text beside a large photo carries little weight but still runs
+//   across its half, so a window fails only when its lighter side has both under a tenth of the weight and content
+//   across under a quarter of its half. What a page sets in <main> outside its sections (a generated page) is
 //   measured as one more block. Measured at desktop width: on a phone everything is one column.
 // - crops: every picture a layout crops (object-fit: cover), with how much of it shows and where. A crop that cuts a
 //   third or more off a picture's width or height must name its focal point on that axis (focalX, focalY): the
@@ -130,11 +132,14 @@ export async function siteSheet({ out, pages, width, screen, file, columns = wid
 
 // ---------- Balance ----------
 // window: the height looked at together (a little under a 900 px screen); share: the least weight either side may
-// carry; fill: windows with less weight than this share of their area (a spacer, the end of a band) are skipped.
-export const BALANCE = { window: 800, step: 200, share: 0.1, fill: 0.03 };
+// carry; reach: how far across its half the lighter side's content must still run (a short text beside a large photo
+// carries little weight but fills its side; a reading column on the left reaches nothing on the right); fill:
+// windows with less weight than this share of their area (a spacer, the end of a band) are skipped. A window is
+// lopsided when its lighter side has both too little weight and too little reach.
+export const BALANCE = { window: 800, step: 200, share: 0.1, reach: 0.25, fill: 0.03 };
 
 export async function balance(page, opts = BALANCE) {
-  return page.evaluate(({ window: WIN, step, share: least, fill }) => {
+  return page.evaluate(({ window: WIN, step, share: least, reach: minReach, fill }) => {
     const W = document.documentElement.clientWidth, axis = W / 2;
     // Hidden, transparent and screen-reader-only text (a 1 px box that hides what overflows it) carries no weight.
     const seen = (el) => {
@@ -184,10 +189,19 @@ export async function balance(page, opts = BALANCE) {
         if (media || field || filled) add(el.getBoundingClientRect(), el);
       }
       const starts = height <= WIN ? [top0] : [...Array(Math.ceil((height - WIN) / step)).keys()].map((i) => top0 + i * step).concat(bottom0 - WIN);
+      // Half the width the section's content spans, measured from the middle (a full-bleed picture reaches the edge).
+      const half = Math.max(1, ...marks.map((m) => Math.max(Math.abs(m.left - axis), Math.abs(m.right - axis))));
+      // The share of a half the content in it runs across (the union of its marks' extents).
+      const across = (spans) => {
+        let total = 0, end = -Infinity;
+        for (const [a, b] of spans.sort((x, y) => x[0] - y[0])) { if (b <= end) continue; total += b - Math.max(a, end); end = b; }
+        return Math.min(1, total / half);
+      };
       let worst = null;
       for (const y0 of starts) {
         const y1 = y0 + Math.min(WIN, height);
         let L = 0, R = 0;
+        const leftSpans = [], rightSpans = [];
         for (const m of marks) {
           let h;
           if (m.row) {
@@ -200,16 +214,23 @@ export async function balance(page, opts = BALANCE) {
           }
           L += h * Math.max(0, Math.min(m.right, axis) - m.left);
           R += h * Math.max(0, m.right - Math.max(m.left, axis));
+          if (m.left < axis) leftSpans.push([axis - Math.min(m.right, axis), axis - m.left]);
+          if (m.right > axis) rightSpans.push([Math.max(m.left, axis) - axis, m.right - axis]);
         }
         const total = L + R;
         if (total < W * (y1 - y0) * fill) continue;
-        const s = Math.min(L, R) / total;
-        if (!worst || s < worst.share) worst = { share: Math.round(s * 100) / 100, empty: L < R ? "left" : "right", at: Math.round(y0 - top0) };
+        const light = L < R ? "left" : "right";
+        const share = Math.min(L, R) / total;
+        const reach = across(light === "left" ? leftSpans : rightSpans);
+        const bad = share < least && reach < minReach;
+        // Keep the worst window: a lopsided one before any other, then the least weight.
+        if (!worst || (bad && !worst.bad) || (bad === worst.bad && share < worst.share)) worst = { share: Math.round(share * 100) / 100, reach: Math.round(reach * 100) / 100, empty: light, at: Math.round(y0 - top0), bad };
       }
       if (!worst) continue;
       const heading = [...sec.querySelectorAll("h1, h2")].find(outside);
       const name = heading?.textContent.trim().replace(/\s+/g, " ").slice(0, 48) || sec.id || "a section";
-      out.push({ name, ...worst, ok: worst.share >= least });
+      const { bad, ...found } = worst;
+      out.push({ name, ...found, ok: !bad });
     }
     return out;
   }, opts);

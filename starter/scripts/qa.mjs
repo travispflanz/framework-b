@@ -292,7 +292,7 @@ try {
         // Balance (SPEC section 12): no section leaves one side of the page empty.
         const lopsided = (await balance(page)).filter((b) => !b.ok);
         check(`layout ${path}: every section is balanced about the centre (neither side left empty)`, lopsided.length === 0,
-          lopsided.map((b) => `"${b.name}" ${Math.round(b.share * 100)}% on the ${b.empty} from ${b.at}px down`).join("; "));
+          lopsided.map((b) => `"${b.name}" ${Math.round(b.share * 100)}% of the weight on the ${b.empty}, reaching ${Math.round(b.reach * 100)}% across it, from ${b.at}px down`).join("; "));
       }
       if (width === 360 || width === 1280) {
         // Crops (SPEC section 12): a crop that cuts a third or more off a picture names its focal point on that axis.
