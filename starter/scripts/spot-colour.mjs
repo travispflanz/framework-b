@@ -21,12 +21,18 @@
 //        every light pixel. Lettering in the shape can make spots too: --cut the sign's face afterwards.
 //   ... --open radius  with --tone: drops anything thinner than 2 * radius + 1 pixels (the thin shadow under a sign's
 //        edge between the tops of its letters), keeping the rest whole.
+//   ... --specks pixels  with --tone: drops any separate part of the piece smaller than that many pixels (grain, the
+//        halo round a screw head), after --open: unlike --open it never breaks a thin tube into dashes.
+//   ... --grow radius  with --tone: widens the piece by that many pixels all round, after --open: a thin neon tube takes in
+//        its glow and reads as lit in the accent rather than as a hairline.
 //   ... --local radius  with --tone: measures each pixel against the average within that radius instead of an absolute
 //        lightness, and --threshold (0.05 if left out) is how far it must stand out: a neon tube on a ceiling lit
-//        unevenly from end to end.
+//        unevenly from end to end. Each pixel is first averaged with its neighbours, so a scan's grain doesn't count.
 //   ... --from <file>   outlines on another version of the same photograph (the colour original of an owner's photo,
 //        same framing): colour separates two garments that are one grey. The tint still goes on the photo itself.
-//       → design/spot/<name>/mask.png and preview.jpg (the photo, the outline, the tinted result). Changes nothing yet.
+//       → design/spot/<name>/mask.png (the outline with a soft edge, which apply tints through), outline.png (the same
+//         outline with a hard edge, which the next --add or --cut builds on) and preview.jpg (the photo, the outline,
+//         the tinted result). Changes nothing yet.
 //         Points and the box are shares of the width and height (0..1): put a point on the object, --not on what the
 //         outline wrongly took in (a face above a jacket), and a box round it: nothing outside the box is tinted. The
 //         segmenter offers three outlines; --pick another if the first is wrong. For lettering on a sign, --tone takes the dark (or light) pixels inside the box (or a four-cornered
@@ -55,7 +61,7 @@ import { basename, extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
 import { readPalette } from "./lib/treatment.mjs";
-import { coverage, fillHoles, open, parseShares, spots, tint, toneGamma, toneMask } from "./lib/spot.mjs";
+import { coverage, dropSpecks, fillHoles, grow, open, parseShares, spots, tint, toneGamma, toneMask } from "./lib/spot.mjs";
 import { PROMPT, promptText, standaloneScript, TOOL } from "./lib/spot-tool.mjs";
 
 for (const ev of ["uncaughtException", "unhandledRejection"]) process.on(ev, (e) => (console.error(`error: ${e?.message || e}`), process.exit(1)));
@@ -133,7 +139,7 @@ if (cmd === "mask" && arg) {
     if (opt("local") && !(local >= 1)) throw new Error("--local radius: measure each pixel against the average within that many pixels round it");
     const threshold = region ? 2 : Number(opt("threshold") ?? (local ? 0.05 : tone === "dark" ? 0.4 : 0.6));
     const { data, info } = await sharp(source).removeAlpha().toColourspace("srgb").raw().toBuffer({ resolveWithObject: true });
-    const part = region ? { box, quad, segmenter: `a ${quad ? "four-cornered shape" : "box"} drawn by hand` } : { points, not, box, quad, tone, threshold, ...(local ? { local } : {}), segmenter: local ? `the pixels ${threshold} ${tone === "dark" ? "darker" : "lighter"} than the average within ${local} pixels round them, inside a ${quad ? "four-cornered shape" : "box"} drawn round it` : `the ${tone} pixels (lightness ${tone === "dark" ? "under" : "over"} ${threshold}) inside a ${quad ? "four-cornered shape" : "box"} drawn round it` };
+    const part = region ? { box, quad, segmenter: `a ${quad ? "four-cornered shape" : "box"} drawn by hand` } : { points, not, box, quad, tone, threshold, ...(local ? { local } : {}), segmenter: local ? `the pixels ${threshold} ${tone === "dark" ? "darker" : "lighter"} than the average within ${local} pixels round them (each pixel first averaged with its neighbours, past the film grain), inside a ${quad ? "four-cornered shape" : "box"} drawn round it` : `the ${tone} pixels (lightness ${tone === "dark" ? "under" : "over"} ${threshold}) inside a ${quad ? "four-cornered shape" : "box"} drawn round it` };
     const [radius, contrast = 0.08] = opt("spots") ? String(opt("spots")).split(",").map(Number) : [];
     if (opt("spots") && !(radius >= 1 && contrast > 0 && contrast < 1)) throw new Error("--spots radius[,contrast]: a spot's radius in pixels (and how far it stands out, 0..1; 0.08 if left out)");
     let found;
@@ -144,6 +150,12 @@ if (cmd === "mask" && arg) {
     const thin = opt("open") ? Number(opt("open")) : 0;
     if (opt("open") && !(Number.isInteger(thin) && thin >= 1)) throw new Error("--open radius: drop anything thinner than 2 * radius + 1 pixels (a whole number from 1)");
     if (thin) { found = open(found, info.width, info.height, thin); part.opened = thin; part.segmenter += `, without anything under ${2 * thin + 1} pixels thick`; }
+    const least = opt("specks") ? Number(opt("specks")) : 0;
+    if (opt("specks") && !(Number.isInteger(least) && least >= 2)) throw new Error("--specks pixels: drop any separate part of this piece smaller than that many pixels (a whole number from 2)");
+    if (least) { found = dropSpecks(found, info.width, info.height, least); part.specks = least; part.segmenter += `, without specks under ${least} pixels`; }
+    const more = opt("grow") ? Number(opt("grow")) : 0;
+    if (opt("grow") && !(Number.isInteger(more) && more >= 1)) throw new Error("--grow radius: widen the piece by that many pixels all round (a whole number from 1)");
+    if (more) { found = grow(found, info.width, info.height, more); part.grown = more; part.segmenter += `, widened by ${more} pixels to take in its glow`; }
     const mask = await combine(name, mode, found, info.width, info.height);
     await finish(file, what, mask, info.width, info.height, record(before, mode, part));
     process.exit(0);
@@ -202,6 +214,8 @@ if (cmd === "mask" && arg) {
   const entry = entryOf(credits, file);
   const hex = `#${accent.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
   entry.spot = { what: spec.what, colour: hex, chosenBy: by, segmenter: spec.segmenter, method: "OKLab: the accent's hue and chroma over the photograph's own lightness", date: new Date().toISOString().slice(0, 10) };
+  // The Website assets page names the model behind all the picture work (src/lib/ai-use.js).
+  if (!credits.aiBy) credits.aiBy = by;
   writeCredits(credits);
   publishTools(credits, hex);
   console.log(`${basename(file)}: ${spec.what} tinted ${hex}. The untinted photo is ${original}.`);
@@ -258,11 +272,14 @@ function previous(name) {
   return JSON.parse(readFileSync(f, "utf8"));
 }
 
-// A fresh outline, or this piece added to (or cut from) the outline so far. The saved outline has a soft edge, so it
-// is read back as the pixels at least half inside it.
+// A fresh outline, or this piece added to (or cut from) the outline so far, read from outline.png, its hard-edged
+// copy. The soft mask.png, blurred and read back at half after every piece, wore thin things away: each piece added
+// pulled the end of a neon tube back a little further, and a line two pixels thick vanished at once. An outline saved
+// before outline.png existed is read from mask.png, as the pixels at least half inside it.
 async function combine(name, mode, mask, W, H) {
   if (mode === "new") return mask;
-  const so = await sharp(join(DIR, name, "mask.png")).resize(W, H, { fit: "fill" }).extractChannel(0).raw().toBuffer();
+  const hard = join(DIR, name, "outline.png");
+  const so = await sharp(existsSync(hard) ? hard : join(DIR, name, "mask.png")).resize(W, H, { fit: "fill" }).extractChannel(0).raw().toBuffer();
   const out = Buffer.alloc(W * H);
   for (let p = 0; p < W * H; p++) {
     const was = so[p] >= 128, now = mask[p] >= 128;
@@ -279,13 +296,14 @@ function record(before, mode, part) {
   return { parts: all, segmenter: [...new Set(all.map((p) => p.segmenter))].join("; ") };
 }
 
-// Writes the outline (with a soft edge of about a thousandth of the picture, so the tint meets the photograph
-// without a cut line), its record and the preview.
+// Writes the outline twice, hard-edged and with a soft edge of about a thousandth of the picture (so the tint meets
+// the photograph without a cut line), its record and the preview.
 async function finish(file, what, mask, W, H, record) {
   const name = nameOf(file), out = join(DIR, name);
   if (rest.includes("--fill")) { mask = fillHoles(mask, W, H); record = { ...record, filled: true }; }
   const share = coverage(mask);
   mkdirSync(out, { recursive: true });
+  await sharp(mask, { raw: { width: W, height: H, channels: 1 } }).toColourspace("b-w").png({ compressionLevel: 9 }).toFile(join(out, "outline.png"));
   // sharp hands a blurred single-channel image back as three channels; keep the first.
   const soft = await sharp(mask, { raw: { width: W, height: H, channels: 1 } }).blur(Math.max(0.6, Math.min(W, H) / 1000)).extractChannel(0).raw().toBuffer();
   await sharp(soft, { raw: { width: W, height: H, channels: 1 } }).toColourspace("b-w").png().toFile(join(out, "mask.png"));

@@ -551,7 +551,7 @@ if (cmd === "pick") {
   const files = [...Object.keys(out), "public/favicon-96.png", "public/apple-touch-icon.png", "public/icon-192.png", "public/icon-512.png", "public/icon-maskable-512.png", "public/og.png"];
   credits.images = credits.images.filter((c) => !files.includes(c.file));
   const note = `Logo concept "${id}" (design/brand/concepts/${id}.svg), built by scripts/logo.mjs${logoFonts.length ? `; type set in ${logoFonts.join(", ")}` : ""}`;
-  for (const file of files) credits.images.push({ file, source: "brand", alt: /logo(-[a-z-]+)?\.svg$/.test(file) ? name : file.endsWith("og.png") ? `${name}${tagline ? `: ${tagline}` : ""}` : "", note });
+  for (const file of files) credits.images.push({ file, source: "brand", alt: /logo(-[a-z-]+)?\.svg$/.test(file) ? name : file.endsWith("og.png") ? `${name}${tagline ? `: ${tagline}` : ""}` : "", note, ai: ["drew"] });
   writeFileSync("design/credits.json", JSON.stringify(credits, null, 2) + "\n");
   console.log(`Installed "${id}": ${files.length} files in public/, print and social files in ${KIT}/, ${DIR}/logo.json. site.logo is set.`);
   for (const n of b.notes) console.log(`  note  ${n}`);

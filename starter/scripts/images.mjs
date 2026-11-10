@@ -11,7 +11,9 @@
 //   node scripts/images.mjs add <openverse id | loc:<id>> --as <file name> --alt "<what it shows>" [--for "<slot: why>"]
 //       [--allow-small] [--crop left,top,right,bottom]
 //       → src/assets/images/<file name>.jpg (at most 2000 px wide, metadata stripped) + its design/credits.json entry.
-//         `--for` records where the photo goes and why it fits, so the choice can be reviewed. A loc: photo comes from
+//         `--for` records where the photo goes and why it fits, so the choice can be reviewed. The credit records
+//         what AI did ("ai": chose, cropped, treated, alt) for the Website assets page; name the model once as
+//         "aiBy" in design/credits.json. A loc: photo comes from
 //         its master scan; its mat, frame and edge markings are found and cropped (design/image-candidates/<name>-crop.png
 //         shows the box; look at it); `--crop` gives the share to cut from each edge instead (0.05 = 5%).
 //   node scripts/images.mjs treat <file in src/assets/images>
@@ -49,6 +51,8 @@ const opt = (name) => {
   const i = rest.indexOf(`--${name}`);
   return i < 0 ? undefined : rest[i + 1] && !rest[i + 1].startsWith("--") ? rest[i + 1] : true;
 };
+// The steps AI took with an image, for the Website assets page (src/lib/ai-use.js): each recorded once.
+const step = (entry, ...names) => (entry.ai = [...new Set([...(entry.ai || []), ...names])]);
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -220,6 +224,8 @@ if (cmd === "search" && arg && opt("source") === "loc") {
     creator: [...people.slice(0, 2), "Library of Congress, Prints & Photographs Division"].join(" / "),
     license: "No known restrictions on publication", rights, url: `https://www.loc.gov/item/${id}/`, alt, ...(forSlot ? { for: forSlot } : {}),
     changes: [`Cropped inside the scan's borders${manual ? " (by hand)" : ""}, resized and compressed.`, changes].filter(Boolean).join(" "),
+    ai: ["chose", "cropped", ...(changes ? ["treated"] : []), "alt"],
+    ...(changes ? { treated: changes } : {}),
   });
   writeLedger(LEDGER, ledger);
   const final = await sharp(out).metadata();
@@ -261,6 +267,7 @@ if (cmd === "search" && arg && opt("source") === "loc") {
     file, source: "openverse", title: r.title || "", creator: r.creator || "unknown", creator_url: r.creator_url || "",
     license: licenseName(r), license_url: r.license_url || "", url: r.foreign_landing_url, openverse_id: r.id,
     alt, ...(forSlot ? { for: forSlot } : {}), changes: ["Resized and compressed.", changes].filter(Boolean).join(" "),
+    ai: ["chose", ...(changes ? ["treated"] : []), "alt"], ...(changes ? { treated: changes } : {}),
   });
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   const final = await sharp(out).metadata();
@@ -280,6 +287,7 @@ if (cmd === "search" && arg && opt("source") === "loc") {
   writeFileSync(file, buffer);
   entry.treated = changes;
   entry.changes = [entry.changes, changes].filter(Boolean).join(" ");
+  step(entry, "treated");
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   console.log(`${file}: ${changes}`);
 } else if (cmd === "crop" && arg) {
@@ -311,6 +319,7 @@ if (cmd === "search" && arg && opt("source") === "loc") {
   // Another version of the same photo (a colour original kept for outlining) takes this cut from where it stands.
   if (typeof opt("also") === "string") await cropOne(opt("also"), opt("also"), cut, false);
   entry.cropped = total;
+  step(entry, "cropped");
   if (!again) entry.changes = [entry.changes, "Cropped."].filter(Boolean).join(" ");
   writeFileSync(LEDGER, JSON.stringify(ledger, null, 2) + "\n");
   console.log(`${file}: cropped ${size}; the uncropped photo is in design/image-candidates/.`);

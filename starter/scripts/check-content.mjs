@@ -7,6 +7,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SECTIONS } from "../src/sections/schema.js";
+import { STEPS as AI_STEPS } from "../src/lib/ai-use.js";
 import { stripJsonc } from "./lib/jsonc.mjs";
 import { missingSections } from "./lib/style-guide.mjs";
 import { FILE as RESEARCH, missingLenses, undatedLenses, unwrittenLenses } from "./lib/design-research.mjs";
@@ -113,7 +114,8 @@ for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))
 const IMAGE = /\.(png|jpe?g|webp|avif|gif|svg|ico)$/i;
 const walk = (d) => (existsSync(d) ? readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)])) : []);
 const images = [...walk("public"), ...walk("src")].filter((f) => IMAGE.test(f)).map((f) => f.replace(/\\/g, "/"));
-const ledger = existsSync("design/credits.json") ? JSON.parse(readFileSync("design/credits.json", "utf8")).images || [] : [];
+const creditsFile = existsSync("design/credits.json") ? JSON.parse(readFileSync("design/credits.json", "utf8")) : {};
+const ledger = creditsFile.images || [];
 const SOURCES = ["owner", "openverse", "stock", "generated", "framework", "brand"];
 for (const file of images) if (!ledger.some((c) => c.file === file)) errors.push(`${file} has no entry in design/credits.json (source, licence, alt text)`);
 for (const c of ledger) {
@@ -124,7 +126,10 @@ for (const c of ledger) {
   // Generated images are illustrative only: never the business's own people, premises, products, work or results.
   if (c.source === "generated" && c.abstract !== true && c.illustrative !== true) errors.push(`${where}: a generated image must be marked "illustrative": true (or "abstract": true); it may never show the business's own people, premises, products, work or results`);
   if (typeof c.alt !== "string") errors.push(`${where}: "alt" is required ("" for a decorative image)`);
+  // What AI did with the image, for the Website assets page (src/lib/ai-use.js; the tools write it).
+  if (c.ai !== undefined && (!Array.isArray(c.ai) || c.ai.some((s) => !AI_STEPS.includes(s)))) errors.push(`${where}: "ai" lists the steps AI took, from ${AI_STEPS.join(", ")}`);
 }
+if (ledger.some((c) => (Array.isArray(c.ai) && c.ai.length) || c.spot) && !creditsFile.aiBy) errors.push('design/credits.json: name the model that did the AI work on the images as "aiBy" (as --by names it for spot colour), for the Website assets page');
 
 // The style guide (SPEC section 12, "Style guide"): every section heading, so the rendered guide is complete.
 if (existsSync("STYLE-GUIDE.md")) {

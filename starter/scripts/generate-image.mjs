@@ -159,7 +159,7 @@ if (cmd === "draft") {
   ledger.images.push({
     file, source: "generated", illustrative: true, style: meta.style, photoreal: meta.style === "photoreal-generated",
     model: MODEL_NAME, license: "Apache-2.0", prompt: meta.prompt, seed: meta.seeds[Number(number) - 1], created: meta.created,
-    alt, changes: changes || "",
+    alt, changes: changes || "", ai: ["generated", ...(changes ? ["treated"] : []), "alt"], ...(changes ? { treated: changes } : {}),
   });
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   console.log(`${file} (${meta.style}${changes ? `; ${changes}` : ""}). Use it as { "src": "${name}.jpg", "alt": "${alt}" }.`);

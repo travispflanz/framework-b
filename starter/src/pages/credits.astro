@@ -1,15 +1,17 @@
 ---
-// Website assets (URL kept at /credits): every image from another creator, with its licence and source, every
-// generated image, with the model that made it, the owner's own photographs, and every photograph given a spot of
-// colour with AI (scripts/spot-colour.mjs), with how it was done and the script and prompt to do the same, from
-// design/credits.json. CC BY and CC BY-SA require this attribution; the footer links here whenever there is
-// something to credit.
+// Website assets (URL kept at /credits): every image from another creator, with its licence and source; how AI was
+// used on each image (chosen, cropped, framed, given the site's look, described, coloured, drawn or generated) and
+// where on the site it appears (src/lib/ai-use.js); every generated image, with the model that made it; the owner's
+// own photographs; and every photograph given a spot of colour with AI (scripts/spot-colour.mjs), with how it was
+// done and the script and prompt to do the same, from design/credits.json. CC BY and CC BY-SA require this
+// attribution; the footer links here whenever there is something to credit.
 export const prerender = true;
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 import credits from "../../design/credits.json";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { aiSummary, aiText, placements, whereText } from "../lib/ai-use.js";
 
 const LICENSE_URL = { "cc0": "https://creativecommons.org/publicdomain/zero/1.0/", "pdm": "https://creativecommons.org/publicdomain/mark/1.0/" };
 const all = credits.images || [];
@@ -22,8 +24,28 @@ const unique = (list) => [...new Set(list.filter(Boolean))];
 const chosenBy = unique(spotted.map((c) => c.spot.chosenBy));
 const colours = unique(spotted.map((c) => c.spot.colour));
 const dates = unique(spotted.map((c) => c.spot.date)).sort();
-const outlined = (c) => (/^SlimSAM/.test(c.spot.segmenter || "") ? "Outlined by SlimSAM." : "Lettering picked out by its tone, with no model.");
+// How an outline was made, from its record: the segmenter, tone, round spots, and shapes the model placed itself
+// (scripts/spot-colour.mjs calls them "drawn by hand": the agent gives their corners).
+const outlined = (c) => {
+  const s = c.spot.segmenter || "";
+  const ways = [/SlimSAM/.test(s) && "outlined by SlimSAM", /spots/.test(s) && "found as round spots of light", /(lighter|darker|lightness)/.test(s) && "picked out by its tone", /by hand/.test(s) && "drawn as shapes by the model itself"].filter(Boolean);
+  return ways.length ? sentence(ways.length < 2 ? ways[0] : `${ways.slice(0, -1).join(", ")} and ${ways[ways.length - 1]}`) : "";
+};
 const sentence = (t) => { const s = String(t || "").trim(); return s ? s[0].toUpperCase() + s.slice(1) + (/[.!?]$/.test(s) ? "" : ".") : ""; };
+// How AI was used (docs/SPEC.md section 12, "Website assets: how AI was used"): only what the records say, with where
+// each picture appears from the pages' content, the home page first. The logo and everything made from it is one entry.
+const pageFiles = import.meta.glob<{ default: any }>("../content/*.json", { eager: true });
+const pages = Object.fromEntries(Object.entries(pageFiles).map(([p, m]) => [p.split("/").pop().replace(/\.json$/, ""), m.default]).sort(([a], [b]) => Number(b === "home") - Number(a === "home")));
+const placed = placements(pages);
+const nameOf = (c) => c.file.split("/").pop();
+const aiBy = credits.aiBy || chosenBy[0] || "an AI model";
+const withAi = all.filter((c) => !c.test && ((Array.isArray(c.ai) && c.ai.length > 0) || c.spot)).map((c) => ({ ...c, places: placed.get(nameOf(c)) || [] }));
+const order = [...placed.keys()];
+const pictures = withAi.filter((c) => c.source !== "brand").sort((a, b) => (order.indexOf(nameOf(a)) + 1 || 1e4) - (order.indexOf(nameOf(b)) + 1 || 1e4));
+const brand = withAi.find((c) => c.source === "brand" && /logo\.svg$/.test(c.file)) || withAi.find((c) => c.source === "brand");
+const summary = aiSummary(withAi.map((c) => ({ ...c, framed: c.places.some((p) => p.framed) })), { by: aiBy, heroes: pictures.some((c) => c.places.some((p) => p.where === "top of the page")) });
+// Anything to list beyond the framework's own placeholder icon.
+const listed = all.some((c) => !c.test && c.source !== "framework");
 // public/tools/ is served as it is; the page is prerendered, so it reads the files at build time.
 const tool = (f) => resolve(process.cwd(), "public/tools", f);
 const prompt = existsSync(tool("spot-colour-prompt.md")) ? readFileSync(tool("spot-colour-prompt.md"), "utf8") : "";
@@ -31,26 +53,62 @@ const script = existsSync(tool("spot-colour.mjs"));
 // The credits run in two columns on wide screens, each at the prose width, so the page is balanced
 // (scripts/lib/cohesion.mjs, "balance"). Each titled group sets its heading and note beside its list, so a group with a
 // single entry still fills both sides; a long list splits into two columns of its own.
+// The sources come first. A few sit beside their heading like the groups below; more than four set the heading above
+// a list across the page, as a long list beside a short heading would open the page with one column several screens
+// tall (Impeccable's first-viewport-column-overflow).
 const group = "mt-12 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-16";
 const side = "grid content-start gap-3 text-body";
 const list = (n) => ["grid gap-4 text-body text-ink", { "lg:block lg:columns-2 lg:gap-x-12": n > 3 }];
 const entry = "lg:mb-4 lg:break-inside-avoid";
 ---
 <Base title="Website assets" noindex>
-  <PageTitle>Website assets</PageTitle>
+  <!-- The title with a line beside it on wide screens, so the top of the page is balanced like the groups below. -->
+  <div class:list={["grid gap-4", { "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-end lg:gap-16": listed }]}>
+    <PageTitle>Website assets</PageTitle>
+    {listed && <p class="max-w-(--container-prose) text-body text-ink-muted">Every picture on this site: where it comes from, what was done to it, and where it appears.</p>}
+  </div>
   {items.length === 0 && generated.length === 0 && owned.length === 0 ? (
     <p class="mt-6 text-body text-ink-muted">Every image on this site belongs to us.</p>
   ) : null}
   {items.length > 0 && (
-    <ul class="mt-8 grid max-w-(--container-prose) gap-4 text-body text-ink lg:block lg:max-w-none lg:columns-2 lg:gap-x-16" role="list">
-      {items.map((c) => (
-        <li class="lg:mb-4 lg:break-inside-avoid">
-          <a href={c.url} class="underline underline-offset-2">{c.title || c.file.split("/").pop()}</a> by {c.creator}, licensed under{" "}
-          {c.license_url || LICENSE_URL[String(c.license).toLowerCase()] ? <a href={c.license_url || LICENSE_URL[String(c.license).toLowerCase()]} class="underline underline-offset-2">{c.license}</a> : c.license}.
-          {c.changes && <span class="text-ink-muted"> {c.changes}</span>}
-        </li>
-      ))}
-    </ul>
+    <section aria-labelledby="sources" class={items.length > 4 ? "mt-12 grid gap-6" : group}>
+      <div class={items.length > 4 ? "grid max-w-(--container-prose) gap-3 text-body" : side}>
+        <h2 id="sources" class="font-display text-title text-ink">Where the pictures come from</h2>
+        <p class="text-ink-muted">Each picture from another collection, with its creator, its licence and what was changed.</p>
+      </div>
+      <ul class:list={items.length > 4 ? "grid max-w-(--container-prose) gap-4 text-body text-ink lg:block lg:max-w-none lg:columns-2 lg:gap-x-16" : list(items.length)} role="list">
+        {items.map((c) => (
+          <li class={entry}>
+            <a href={c.url} class="underline underline-offset-2">{c.title || c.file.split("/").pop()}</a> by {c.creator}, licensed under{" "}
+            {c.license_url || LICENSE_URL[String(c.license).toLowerCase()] ? <a href={c.license_url || LICENSE_URL[String(c.license).toLowerCase()]} class="underline underline-offset-2">{c.license}</a> : c.license}.
+            {c.changes && <span class="text-ink-muted"> {c.changes}</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+  {summary && (
+    <section aria-labelledby="ai" class={group}>
+      <div class={side}>
+        <h2 id="ai" class="font-display text-title text-ink">How AI was used</h2>
+        <p class="text-ink-muted">{summary}</p>
+      </div>
+      <ul class:list={list(pictures.length + (brand ? 1 : 0))} role="list">
+        {pictures.map((c) => (
+          <li class={entry}>
+            <strong>{sentence(c.alt || nameOf(c))}</strong>
+            {c.places.length > 0 && <> Where: {whereText(c.places)}.</>}
+            {" "}<span class="text-ink-muted">{aiText(c, { places: c.places })}</span>
+          </li>
+        ))}
+        {brand && (
+          <li class={entry}>
+            <strong>The logo, and the icons and share image made from it.</strong> Where: the header of every page, the
+            browser tab and link previews. <span class="text-ink-muted">{aiText(brand)}</span>
+          </li>
+        )}
+      </ul>
+    </section>
   )}
   {generated.length > 0 && (
     <section aria-labelledby="generated" class={group}>
@@ -84,7 +142,8 @@ const entry = "lg:mb-4 lg:break-inside-avoid";
         {credits.spotNote && <p class="text-ink">{credits.spotNote}</p>}
         <p class="text-ink-muted">
           How it was made: {chosenBy.join(" and ")} looked at each photograph and chose the object. Its outline was drawn
-          with SlimSAM, a small Segment Anything model, or, for lettering, picked out by its tone. The colour
+          with SlimSAM, a small Segment Anything model, picked out by its tone (lettering, neon, bulbs), or drawn as
+          shapes by the model itself, piece by piece, and checked close up. The colour
           ({colours.join(", ")}) is blended over the photograph's own light and shade, so nothing in a picture was drawn
           in or invented. {dates.length > 1 ? `${dates[0]} to ${dates[dates.length - 1]}` : dates[0]}.
         </p>

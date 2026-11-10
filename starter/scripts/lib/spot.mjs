@@ -85,6 +85,8 @@ export function tint(rgb, mask, accent, strength = 1, gamma = 1) {
 // (for a sign photographed at an angle), in shares of the width and height; `threshold` a lightness 0..1.
 // With `local` (a radius in pixels), a pixel is measured against the average round it instead: `threshold` is then how
 // far it must stand out (0..1), for a thin bright tube or dark lettering on a surface lit unevenly from end to end.
+// The pixel's own lightness is first averaged with its nearest neighbours (a Gaussian of one pixel), so the grain of a
+// scanned print doesn't pass for the object and a thin stretch of tube isn't lost to the grain round it.
 export function toneMask(rgb, width, height, area, tone, threshold, local = 0) {
   const mask = Buffer.alloc(width * height);
   const { inside, x0, y0, x1, y1 } = shape(area, width, height);
@@ -98,10 +100,11 @@ export function toneMask(rgb, width, height, area, tone, threshold, local = 0) {
       L[y * bw + x] = lum(rgb[i] / 255, rgb[i + 1] / 255, rgb[i + 2] / 255);
     }
   const round = local ? blur(L, bw, bh, local) : null;
+  const own = local ? blur(L, bw, bh, 1) : L;
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
       if (!inside(x + 0.5, y + 0.5)) continue;
-      const p = (y - by0) * bw + x - bx0, l = L[p], d = round ? (tone === "dark" ? round[p] - l : l - round[p]) : null;
+      const p = (y - by0) * bw + x - bx0, l = own[p], d = round ? (tone === "dark" ? round[p] - l : l - round[p]) : null;
       if (round ? d > threshold : tone === "dark" ? l < threshold : l > threshold) mask[y * width + x] = 255;
     }
   return mask;
@@ -228,26 +231,59 @@ export function fillHoles(mask, width, height, share = 0.01) {
   return out;
 }
 
+// Drops every separate part of a mask smaller than `least` pixels (parts touching at a corner count as one): the
+// specks of grain and the halo round a dark screw head that a tone test lets through, where a tube or a letter, one
+// long part, stays whole however thin it is. Unlike opening, it never breaks a thin tube into dashes.
+export function dropSpecks(mask, width, height, least) {
+  const out = Buffer.from(mask), seen = new Uint8Array(width * height);
+  for (let start = 0; start < width * height; start++) {
+    if (seen[start] || mask[start] < 128) continue;
+    const part = [start];
+    seen[start] = 1;
+    for (let i = 0; i < part.length; i++) {
+      const p = part[i], x = p % width, y = (p - x) / width;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy, q = ny * width + nx;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height || seen[q] || mask[q] < 128) continue;
+          seen[q] = 1;
+          part.push(q);
+        }
+    }
+    if (part.length < least) for (const p of part) out[p] = 0;
+  }
+  return out;
+}
+
 // Takes away every part of a mask thinner than 2 * radius + 1 pixels and keeps the rest as it was (a morphological
 // opening: shrink, then grow back by the same square, https://en.wikipedia.org/wiki/Opening_(morphology), checked
 // 2026-11-10): the thin shadow under a sign's edge goes, the lettering stays.
 export function open(mask, width, height, radius) {
-  const pass = (src, keep, along) => {
-    const out = new Uint8Array(width * height);
-    for (let y = 0; y < height; y++)
-      for (let x = 0; x < width; x++) {
-        let hit = keep === "all";
-        for (let i = -radius; i <= radius; i++) {
-          const xx = along ? x + i : x, yy = along ? y : y + i;
-          const on = xx >= 0 && yy >= 0 && xx < width && yy < height && src[yy * width + xx] >= 128;
-          if (keep === "all" ? !on : on) { hit = !hit; break; }
-        }
-        out[y * width + x] = hit ? 255 : 0;
+  return grow(shrink(mask, width, height, radius), width, height, radius);
+}
+
+// One pass of a square of 2 * radius + 1 pixels along a row or a column: "all" keeps a pixel only where the whole
+// square is in the mask (shrinking it), "any" where any of it is (growing it).
+function pass(src, width, height, radius, keep, along) {
+  const out = Buffer.alloc(width * height);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) {
+      let hit = keep === "all";
+      for (let i = -radius; i <= radius; i++) {
+        const xx = along ? x + i : x, yy = along ? y : y + i;
+        const on = xx >= 0 && yy >= 0 && xx < width && yy < height && src[yy * width + xx] >= 128;
+        if (keep === "all" ? !on : on) { hit = !hit; break; }
       }
-    return out;
-  };
-  const shrunk = pass(pass(mask, "all", true), "all", false);
-  return Buffer.from(pass(pass(shrunk, "any", true), "any", false));
+      out[y * width + x] = hit ? 255 : 0;
+    }
+  return out;
+}
+const shrink = (mask, w, h, r) => pass(pass(mask, w, h, r, "all", true), w, h, r, "all", false);
+
+// Grows a mask by `radius` pixels all round: a thin neon tube takes in the glow that hangs round it, so it reads as lit
+// in the accent rather than as a hairline.
+export function grow(mask, width, height, radius) {
+  return pass(pass(mask, width, height, radius, "any", true), width, height, radius, "any", false);
 }
 
 // The share of the picture a mask covers (0..1), for the preview and to catch a mask that took the whole frame.
