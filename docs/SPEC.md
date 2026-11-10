@@ -932,6 +932,43 @@ What's built (`starter/scripts/spot-colour.mjs`, `scripts/lib/spot.mjs`, `script
   four-cornered shape, the visitor's script parses and carries the same arithmetic, the prompt's content). The model
   run itself is proven on the first adopted site (19 photographs, 2026-11-06), not in CI (the runtime is about 750 MB).
 
+Second round (2026-11-10). The first adopted site's owner reviewed every photo later on 2026-11-06: "the entire camera and
+tripod", the film "in the top reel and the film in the bottom reel, plus as it flows through the projector", a shirt
+"missed some parts", a jacket that "missed the collar", "the roundish looking light bulbs that are all throughout
+this photo", a headset, a short-sleeved T-shirt over a long-sleeved one ("start with a color image"), a stray red line
+along the top of a sign, and a portrait cropped so a second person's face is mostly out of frame. One click outline
+can't do these, so an outline is now built from pieces:
+- `--add` and `--cut` add a piece to the outline so far or cut one out of it; `design/spot/<name>/spot.json` keeps every piece in order
+  (`parts`, each with its method), and the credit names every method used. Outlines and previews always come from the
+  untinted photo (`design/spot/<name>/original.*`), so an earlier tint can't steer the segmenter.
+- A bare `--box` or `--quad` with `--add`/`--cut` takes that shape whole, and `--ellipse cx,cy,rx,ry` draws a round
+  piece (a reel face on, a mouthpiece): for parts the segmenter misses or over-reaches. On the first adopted site it
+  took a background rectangle for a tripod's leg and a chair for another, so those legs were drawn by hand.
+- `--from <file>` outlines on a colour original of an owner's photo (same framing), where two garments are one grey in
+  black and white; the tint still goes on the photo itself.
+- `--fill` fills holes inside an outline smaller than 1% of it (a printed logo, a crease).
+- `--spots radius[,contrast]` finds round bulbs as peaks of a difference of Gaussians tuned to their size, a faster
+  stand-in for the Laplacian of Gaussian with a blob's radius √2 times its scale
+  ([scikit-image, Blob Detection](https://scikit-image.org/docs/0.23.x/auto_examples/features_detection/plot_blob.html),
+  checked 2026-11-10). A first version kept small round patches of light pixels; on the first adopted site the bulbs
+  touch a lit sign as bright as they are and merged into it, so it found almost none (2026-11-10). Each spot keeps the
+  pixels within its radius at least halfway from its surroundings to its peak; lettering in the area makes spots too,
+  so the sign's face is cut afterwards.
+- `--open radius` drops anything thinner than `2 * radius + 1` pixels from a tone piece and keeps the rest whole, a
+  morphological opening ([Wikipedia, Opening (morphology)](https://en.wikipedia.org/wiki/Opening_(morphology)),
+  checked 2026-11-10): the sliver of shadow under a sign's edge between the tops of its letters (the stray red line).
+  With `--cut`, the thick bright things (the lamps in a ceiling) come out and a thin neon tube stays.
+- `--local radius` measures each pixel against the average within that radius instead of a fixed lightness, for a
+  neon tube across a ceiling lit unevenly from end to end (a fixed threshold took the bright end's ceiling and missed
+  the dim end's tube).
+- `node scripts/images.mjs crop <file> --cut l,t,r,b [--also <file>]` crops a photo, keeping the uncropped copy as
+  `design/image-candidates/<name>-uncropped.<ext>`; a second crop is cut from that copy with both cuts made into one, and the credit records
+  the whole cut (`cropped`) and "Cropped." once. `--also` crops a colour original for `--from` the same way. A tinted
+  photo is cropped only after `undo`; its outline is then made again.
+- Tests: the same file covers holes, spots beside an even sign, the opening, the local tone mask and the repeat crop.
+  The pieces, `--from` and the segmenter runs are proven on the first adopted site's 19 photographs (2026-11-10), not
+  in CI.
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
@@ -947,7 +984,7 @@ Rules:
 - **A style guide before the other pages.** Once the home page carries the route, its style guide is written and rendered, and every other page, post and print piece is made from it (owner's decision, 2026-11-04).
 - **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).
 - **Accent words sparingly.** A word or a short phrase of a big headline in the accent colour (`==word==`), not every headline and never a whole sentence.
-- **Spot colour: one object, chosen for the story.** Clothing, a camera, film, a ticket, a sign; never a face or skin; the untinted photo kept; listed on the Website assets page with how it was made.
+- **Spot colour: one object, chosen for the story, all of it.** Clothing, a camera and its tripod, film, a ticket, a sign, the bulbs round a marquee; never a face or skin; the whole object, built from pieces where it has several, and nothing beside it; the untinted photo kept; listed on the Website assets page with how it was made.
 - **Balanced sections, chosen crops, a logo at least as tall as the buttons.** No section leaves one side of a wide screen empty: the headline goes beside the text, the text is centred, or pictures go beside it, and lines keep the prose width. A picture cropped by a third or more names its focal point, and the crop sheets are looked at before the owner sees anything (owner's request, 2026-11-05).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.

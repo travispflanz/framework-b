@@ -8,6 +8,24 @@
 //        [--not x,y] [--box left,top,right,bottom] [--pick 1|2|3]
 //   node scripts/spot-colour.mjs mask <file> --what "<lettering>" --box l,t,r,b | --quad x1,y1,...,x4,y4 --tone dark|light
 //        [--threshold 0.4]
+//   ... --add | --cut   adds this outline to the photo's outline so far, or cuts it out of it: an object in several
+//        pieces (the film on two reels and the strip between them; a camera and its tripod; a jacket's collar and
+//        cuffs) is outlined piece by piece, each with its own points and box. Without either, an outline starts afresh.
+//   ... --add|--cut --box l,t,r,b (or --quad ...) with no points and no tone takes that shape whole: a stray piece
+//        cut off, or a part the segmenter can't see added by hand.
+//   ... --ellipse cx,cy,rx,ry draws a round object by hand (centre and radii, shares of the width and height): a
+//        reel seen face on. It can start an outline, or be added or cut.
+//   ... --fill          fills small holes inside the outline (a printed logo, a crease left out).
+//   ... --spots radius[,contrast]  with --tone: finds small round spots of about that radius in pixels that stand out
+//        from what's round them (light bulbs round a marquee, even beside a sign as bright as they are), instead of
+//        every light pixel. Lettering in the shape can make spots too: --cut the sign's face afterwards.
+//   ... --open radius  with --tone: drops anything thinner than 2 * radius + 1 pixels (the thin shadow under a sign's
+//        edge between the tops of its letters), keeping the rest whole.
+//   ... --local radius  with --tone: measures each pixel against the average within that radius instead of an absolute
+//        lightness, and --threshold (0.05 if left out) is how far it must stand out: a neon tube on a ceiling lit
+//        unevenly from end to end.
+//   ... --from <file>   outlines on another version of the same photograph (the colour original of an owner's photo,
+//        same framing): colour separates two garments that are one grey. The tint still goes on the photo itself.
 //       → design/spot/<name>/mask.png and preview.jpg (the photo, the outline, the tinted result). Changes nothing yet.
 //         Points and the box are shares of the width and height (0..1): put a point on the object, --not on what the
 //         outline wrongly took in (a face above a jacket), and a box round it: nothing outside the box is tinted. The
@@ -37,7 +55,7 @@ import { basename, extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
 import { readPalette } from "./lib/treatment.mjs";
-import { coverage, parseShares, tint, toneGamma, toneMask } from "./lib/spot.mjs";
+import { coverage, fillHoles, open, parseShares, spots, tint, toneGamma, toneMask } from "./lib/spot.mjs";
 import { PROMPT, promptText, standaloneScript, TOOL } from "./lib/spot-tool.mjs";
 
 for (const ev of ["uncaughtException", "unhandledRejection"]) process.on(ev, (e) => (console.error(`error: ${e?.message || e}`), process.exit(1)));
@@ -83,27 +101,64 @@ async function segmenter() {
 
 if (cmd === "mask" && arg) {
   const file = fileOf(arg), name = nameOf(file);
-  const what = opt("what");
+  // A photo already tinted is outlined again on its untinted original, so the old colour can't steer the outline.
+  const source = untinted(file);
+  const mode = rest.includes("--add") ? "add" : rest.includes("--cut") ? "cut" : "new";
+  const before = mode === "new" ? null : previous(name);
+  const what = opt("what") || before?.what;
   if (!what || what === true) throw new Error('say what the object is: --what "the cameraman\'s jacket"');
   const points = all("point").map((p) => parseShares(p, 2));
   const not = all("not").map((p) => parseShares(p, 2));
   const box = opt("box") ? parseShares(opt("box"), 4) : null;
   const quad = opt("quad") ? parseShares(opt("quad"), 8) : null;
+  const ellipse = opt("ellipse") ? parseShares(opt("ellipse"), 4) : null;
+  if (ellipse) {
+    // A round object drawn by hand (a reel seen face on, a can's lid): centre x,y and radii, in shares of the width
+    // and height. It can start an outline, or be added or cut like any other piece.
+    const meta = await sharp(source).metadata();
+    const [cx, cy, rx, ry] = ellipse, W = meta.width, H = meta.height, m = Buffer.alloc(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (((x + 0.5) / W - cx) ** 2 / rx ** 2 + ((y + 0.5) / H - cy) ** 2 / ry ** 2 <= 1) m[y * W + x] = 255;
+    await finish(file, what, await combine(name, mode, m, W, H), W, H, record(before, mode, { ellipse, segmenter: "an ellipse drawn by hand round the object" }));
+    process.exit(0);
+  }
   if (!points.length && !box && !quad) throw new Error("give at least one --point x,y on the object (or a --box)");
-  if (!opt("tone") && !points.length) throw new Error("an outline needs at least one --point x,y on the object (a --box only limits it)");
-  const tone = opt("tone");
+  // A shape with no points and no tone is taken whole: for cutting a stray piece off (--cut --box ...) or adding a part
+  // the segmenter can't see, drawn by hand (--add --quad ...).
+  const region = !opt("tone") && !points.length;
+  if (region && mode === "new") throw new Error("an outline needs at least one --point x,y on the object (a --box only limits it); a bare --box or --quad works with --add or --cut");
+  const tone = region ? "dark" : opt("tone");
   if (tone) {
     if (!["dark", "light"].includes(tone) || !(box || quad)) throw new Error("--tone is dark or light, and needs a --box or --quad round the lettering");
-    const threshold = Number(opt("threshold") ?? (tone === "dark" ? 0.4 : 0.6));
-    const { data, info } = await sharp(file).removeAlpha().toColourspace("srgb").raw().toBuffer({ resolveWithObject: true });
-    await finish(file, what, toneMask(data, info.width, info.height, quad || box, tone, threshold), info.width, info.height,
-      { points, not, box, quad, tone, threshold, segmenter: `the ${tone} pixels (lightness ${tone === "dark" ? "under" : "over"} ${threshold}) inside a ${quad ? "four-cornered shape" : "box"} drawn round the lettering` });
+    const local = opt("local") ? Number(opt("local")) : 0;
+    if (opt("local") && !(local >= 1)) throw new Error("--local radius: measure each pixel against the average within that many pixels round it");
+    const threshold = region ? 2 : Number(opt("threshold") ?? (local ? 0.05 : tone === "dark" ? 0.4 : 0.6));
+    const { data, info } = await sharp(source).removeAlpha().toColourspace("srgb").raw().toBuffer({ resolveWithObject: true });
+    const part = region ? { box, quad, segmenter: `a ${quad ? "four-cornered shape" : "box"} drawn by hand` } : { points, not, box, quad, tone, threshold, ...(local ? { local } : {}), segmenter: local ? `the pixels ${threshold} ${tone === "dark" ? "darker" : "lighter"} than the average within ${local} pixels round them, inside a ${quad ? "four-cornered shape" : "box"} drawn round it` : `the ${tone} pixels (lightness ${tone === "dark" ? "under" : "over"} ${threshold}) inside a ${quad ? "four-cornered shape" : "box"} drawn round it` };
+    const [radius, contrast = 0.08] = opt("spots") ? String(opt("spots")).split(",").map(Number) : [];
+    if (opt("spots") && !(radius >= 1 && contrast > 0 && contrast < 1)) throw new Error("--spots radius[,contrast]: a spot's radius in pixels (and how far it stands out, 0..1; 0.08 if left out)");
+    let found;
+    if (radius) {
+      found = spots(data, info.width, info.height, quad || box, tone, threshold, radius, contrast);
+      Object.assign(part, { spots: { radius, contrast }, segmenter: `round ${tone} spots about ${2 * radius} pixels across that stand out from what's round them (a difference of Gaussians), lightness ${tone === "dark" ? "under" : "over"} ${threshold}, inside a ${quad ? "four-cornered shape" : "box"} drawn round them` });
+    } else found = toneMask(data, info.width, info.height, quad || box, tone, threshold, local);
+    const thin = opt("open") ? Number(opt("open")) : 0;
+    if (opt("open") && !(Number.isInteger(thin) && thin >= 1)) throw new Error("--open radius: drop anything thinner than 2 * radius + 1 pixels (a whole number from 1)");
+    if (thin) { found = open(found, info.width, info.height, thin); part.opened = thin; part.segmenter += `, without anything under ${2 * thin + 1} pixels thick`; }
+    const mask = await combine(name, mode, found, info.width, info.height);
+    await finish(file, what, mask, info.width, info.height, record(before, mode, part));
     process.exit(0);
   }
   const { SamModel, AutoProcessor, RawImage } = await segmenter();
   const model = await SamModel.from_pretrained(MODEL, { dtype: "q8" });
   const processor = await AutoProcessor.from_pretrained(MODEL);
-  const image = await RawImage.read(file);
+  const from = opt("from");
+  if (from && !existsSync(from)) throw new Error(`${from} doesn't exist`);
+  const meta = await sharp(source).metadata();
+  // Another version of the same photograph (a colour original) is brought to the photo's own size, so the outline
+  // lands on the photo; the framing has to match.
+  const image = from
+    ? await RawImage.fromBlob(new Blob([await sharp(from).resize(meta.width, meta.height, { fit: "fill" }).removeAlpha().png().toBuffer()]))
+    : await RawImage.read(source);
   const { width: W, height: H } = image;
   const px = ([x, y]) => [x * W, y * H];
   const input = {};
@@ -128,7 +183,9 @@ if (cmd === "mask" && arg) {
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < x0 || x >= x1 || y < y0 || y >= y1) mask[y * W + x] = 0;
   }
   console.log(`${name}: outline ${order.indexOf(pick) + 1} of 3 (score ${scores[pick].toFixed(2)})`);
-  await finish(file, what, mask, W, H, { points, not, box, pick: order.indexOf(pick) + 1, scores, segmenter: box ? `${SEGMENTER}, kept within a box drawn round the object` : SEGMENTER });
+  const method = [SEGMENTER, box && "kept within a box drawn round the object", from && "outlined on the colour original"].filter(Boolean).join(", ");
+  const part = { points, not, box, pick: order.indexOf(pick) + 1, scores, ...(from ? { from: basename(from) } : {}), segmenter: method };
+  await finish(file, what, await combine(name, mode, mask, W, H), W, H, record(before, mode, part));
 } else if (cmd === "apply" && arg) {
   const file = fileOf(arg), name = nameOf(file), out = join(DIR, name);
   const by = opt("by");
@@ -184,14 +241,49 @@ if (cmd === "mask" && arg) {
   writeFileSync(join(DIR, "sheet.jpg"), await sharp(sheet).jpeg({ quality: 80 }).toBuffer());
   console.log(`${join(DIR, "sheet.jpg")}: ${names.length} photos, before and after`);
 } else {
-  console.error("usage: node scripts/spot-colour.mjs mask <file> --what \"...\" --point x,y [--not x,y] [--box l,t,r,b] [--pick n] | apply <file> --by \"<model>\" | undo <file> | sheet | tools");
+  console.error("usage: node scripts/spot-colour.mjs mask <file> --what \"...\" --point x,y [--not x,y] [--box l,t,r,b] [--pick n] [--add|--cut] [--from <colour original>] | apply <file> --by \"<model>\" | undo <file> | sheet | tools");
   process.exit(2);
+}
+
+// The photo as it was before any spot colour: design/spot/<name>/original.<ext> once a colour has been applied.
+function untinted(file) {
+  const kept = join(DIR, nameOf(file), `original${extname(file)}`);
+  return existsSync(kept) ? kept : file;
+}
+
+// The record of the outline so far (design/spot/<name>/spot.json), for --add and --cut.
+function previous(name) {
+  const f = join(DIR, name, "spot.json");
+  if (!existsSync(f)) throw new Error(`${name} has no outline yet to add to: start one without --add or --cut`);
+  return JSON.parse(readFileSync(f, "utf8"));
+}
+
+// A fresh outline, or this piece added to (or cut from) the outline so far. The saved outline has a soft edge, so it
+// is read back as the pixels at least half inside it.
+async function combine(name, mode, mask, W, H) {
+  if (mode === "new") return mask;
+  const so = await sharp(join(DIR, name, "mask.png")).resize(W, H, { fit: "fill" }).extractChannel(0).raw().toBuffer();
+  const out = Buffer.alloc(W * H);
+  for (let p = 0; p < W * H; p++) {
+    const was = so[p] >= 128, now = mask[p] >= 128;
+    out[p] = (mode === "add" ? was || now : was && !now) ? 255 : 0;
+  }
+  return out;
+}
+
+// One piece's record, or the pieces so far with this one added. The segmenter line names every method used.
+function record(before, mode, part) {
+  if (mode === "new") return part;
+  const { file, what, coverage, parts, ...first } = before;
+  const all = [...(parts || [{ op: "add", ...first }]), { op: mode, ...part }];
+  return { parts: all, segmenter: [...new Set(all.map((p) => p.segmenter))].join("; ") };
 }
 
 // Writes the outline (with a soft edge of about a thousandth of the picture, so the tint meets the photograph
 // without a cut line), its record and the preview.
 async function finish(file, what, mask, W, H, record) {
   const name = nameOf(file), out = join(DIR, name);
+  if (rest.includes("--fill")) { mask = fillHoles(mask, W, H); record = { ...record, filled: true }; }
   const share = coverage(mask);
   mkdirSync(out, { recursive: true });
   // sharp hands a blurred single-channel image back as three channels; keep the first.
@@ -216,8 +308,9 @@ async function spotted(original, maskFile, accent, strength, matchTone) {
 }
 
 // The photo, its outline in the accent, and the tinted result, side by side.
-async function preview(file, mask, hard, to, what) {
+async function preview(shown, mask, hard, to, what) {
   const { accent } = readPalette();
+  const file = untinted(shown);
   const meta = await sharp(file).metadata();
   const full = await sharp(file).removeAlpha().toColourspace("srgb").raw().toBuffer();
   const gamma = toneGamma(full, hard, accent);
