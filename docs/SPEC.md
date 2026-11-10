@@ -969,6 +969,64 @@ can't do these, so an outline is now built from pieces:
   The pieces, `--from` and the segmenter runs are proven on the first adopted site's 19 photographs (2026-11-10), not
   in CI.
 
+Third round (2026-11-10). The owner's notes on the second round: the film running "through the front side around by
+her hands and then through the mechanics and then onto the lower reel" (the strips coloured last time were the
+projector's rods), a sleeve missed and a hand taken, a neck taken, "the entire camera tripod and rolling rig" with its
+handle, a coat "further down in the depth" mixed into the right man's suit, a T-shirt sleeve whose hem "is fairly
+straight across", a cuff, a tripod's third leg and the part of a leg seen through the others, and for a marquee "all of
+the squiggly lighting ... not the bulb lighting": the neon above it, under it and over the box office. Building that
+neon showed two faults and two gaps in the tools:
+- Every piece wore the outline down. The outline so far was read back from the soft-edged `mask.png` at half: a blur
+  then a threshold, once per piece, pulled the end of a thin tube back a little each time and dropped a line two
+  pixels thick at once (on the first adopted site, tube ends had receded from their electrodes after about 70 pieces).
+  Pieces now combine on `design/spot/<name>/outline.png`, a hard-edged copy written with every piece; `mask.png` keeps
+  the soft edge the tint goes through. An outline saved before `outline.png` existed is read from `mask.png` once.
+- `--local` compared single pixels with their surroundings, so the grain of a scanned print passed for tube, and
+  `--open`, used to clear the grain, broke thin stretches of tube into dashes. Each pixel is now averaged with its
+  neighbours (a Gaussian of one pixel) before the comparison.
+- `--specks pixels` drops any separate part of a tone piece smaller than that many pixels (grain, the halo round a dark
+  screw head in a ceiling), counting parts that touch at a corner as one; unlike `--open` it never breaks a thin line.
+- `--grow radius` widens a tone piece by that many pixels all round, after `--open`, so a neon tube takes in its glow
+  and reads as lit in the accent rather than as a hairline.
+- A tube along a sign whose own lightness defeats every automatic method (the top of the marquee, against a sky and
+  lettering as bright as it) is traced instead: its centre line read from columns of the photo at regular steps, then
+  one narrow `--quad` a step with `--local`, so the tube's own pixels inside each band are taken.
+- Tests: the outline keeps a thin tube's whole length through six more pieces, grain doesn't pass `--local`, specks go
+  while a thin tube stays (where opening would break it), and growing widens a piece evenly. The rest is proven on the
+  first adopted site (2026-11-10).
+
+### Website assets: how AI was used (2026-11-10)
+
+Why: the first adopted site's owner asked that the Website assets page "mention each area ... and how AI is used on
+these photos", including that AI chose them from the Library of Congress, cropped them and chose and added the film
+look: "everything that we've used AI for to create these images". The page listed colour added with AI and generated
+images, but not the choosing, cropping, framing, look and descriptions that the agent also did.
+
+What's built (`starter/src/lib/ai-use.js`, `src/pages/credits.astro`):
+- The tools record what AI did with each image as `ai` in `design/credits.json`: `images.mjs add` writes `chose`,
+  `alt`, `treated` when the design's treatment was applied, and `cropped` for an archive scan trimmed inside its
+  borders; `images.mjs crop` adds `cropped`, `images.mjs treat` adds `treated`, `logo.mjs pick` writes `drew` on the
+  logo and everything made from it, and `generate-image.mjs use` writes `generated`. `aiBy` names the model once:
+  `--by "<model>"` on any of these tools (and `spot-colour.mjs apply --by`) sets it when it is missing, and the content
+  check fails an `ai` record or a spot with no `aiBy`, and any step it doesn't know (CI's logo test picks with `--by`). A record is only ever what a tool did or what the agent says it did: nothing is
+  claimed for an image without one, so an owner's photo edited by hand says nothing about AI.
+- The page opens with a line beside its title, then "Where the pictures come from" (the attributions, across the page),
+  then "How AI was used": a summary of what the model did across the pictures (chose them from which archives, cropped
+  and framed them, gave them one look, wrote their descriptions for screen readers, added the spot of colour, drew the
+  logo), that no photograph was made up when none was generated, and, where a photo tops a page, that the page lays a
+  dark gradient over it or fades it so its words can be read while the file is unchanged. Each picture follows with
+  where it appears (from the pages' content: the top of a page, or the card, person or door it sits in, each spot once
+  with its pages) and what the model did with it, in the order the work was done; framing comes from the focal points
+  the pages give it. The logo and its icons are one entry.
+- The colour section says how each outline was made from its record (SlimSAM, its tone, round spots of light, shapes
+  the model drew itself); the tool's "drawn by hand" means shapes whose corners the agent gave, so the page doesn't call
+  them hand-drawn.
+- With client editing on, "where it appears" comes from the content files, not later edits in the editor (untested).
+- Tests: `starter/scripts/test/ai-use.test.mjs` (where each picture is, only recorded steps are claimed, the summary,
+  and the gradient only when a picture tops a page). The page's layout passes the QA gate on the first adopted site;
+  the sources sit above a list across the page because a long list beside a short heading failed Impeccable's
+  "one column stretches the first viewport" there (2026-11-10).
+
 Rules:
 
 - **No invented proof.** No testimonials, logos, counts, statistics or faces without an owner source. The agent never generates the business's own people, premises, products or work, and never a recognisable face.
@@ -985,6 +1043,7 @@ Rules:
 - **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).
 - **Accent words sparingly.** A word or a short phrase of a big headline in the accent colour (`==word==`), not every headline and never a whole sentence.
 - **Spot colour: one object, chosen for the story, all of it.** Clothing, a camera and its tripod, film, a ticket, a sign, the bulbs round a marquee; never a face or skin; the whole object, built from pieces where it has several, and nothing beside it; the untinted photo kept; listed on the Website assets page with how it was made.
+- **Say what AI did with every picture.** The tools record each step (chosen, cropped, given the look, described, coloured, drawn, generated) and the Website assets page lists them with where each picture appears and the model's name; nothing is claimed without a record.
 - **Balanced sections, chosen crops, a logo at least as tall as the buttons.** No section leaves one side of a wide screen empty: the headline goes beside the text, the text is centred, or pictures go beside it, and lines keep the prose width. A picture cropped by a third or more names its focal point, and the crop sheets are looked at before the owner sees anything (owner's request, 2026-11-05).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.

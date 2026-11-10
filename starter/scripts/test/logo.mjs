@@ -76,7 +76,7 @@ try {
   node("scripts/logo.mjs", "sheet");
   const concepts = JSON.parse(readFileSync("design/brand/concepts.json", "utf8")).concepts;
   assert.equal(concepts[0].problems.length, 0);
-  node("scripts/logo.mjs", "pick", "door");
+  node("scripts/logo.mjs", "pick", "door", "--by", "Example Model (example-1), Example Lab");
   for (const f of [...OUTPUTS, "public/favicon.svg"]) assert.ok(existsSync(f), `${f} wasn't written`);
   const kit = JSON.parse(readFileSync("design/brand/logo.json", "utf8"));
   assert.equal(kit.concept, "door");
@@ -91,7 +91,8 @@ try {
   assert.ok(manifest.icons.some((i) => i.purpose === "maskable"), "no maskable icon in the manifest");
   assert.equal(JSON.parse(readFileSync("site.config.json", "utf8")).site.logo, "/logo.svg");
   const credits = JSON.parse(readFileSync("design/credits.json", "utf8")).images;
-  for (const f of ["public/logo.svg", "public/logo-on-light.svg", "public/favicon-96.png", "public/og.png"]) assert.ok(credits.some((c) => c.file === f && c.source === "brand"), `${f} isn't credited`);
+  for (const f of ["public/logo.svg", "public/logo-on-light.svg", "public/favicon-96.png", "public/og.png"]) assert.ok(credits.some((c) => c.file === f && c.source === "brand" && c.ai?.includes("drew")), `${f} isn't credited as drawn by AI`);
+  assert.equal(JSON.parse(readFileSync("design/credits.json", "utf8")).aiBy, "Example Model (example-1), Example Lab", "--by names the model for the Website assets page");
   node("scripts/check-content.mjs");
 
   // 3b. A concept that breaks the rules fails the check.

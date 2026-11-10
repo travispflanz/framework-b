@@ -197,7 +197,9 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   A photo taken off the pages goes to the library, never the bin: `node scripts/images.mjs shelve <file>` (and
   `unshelve`, `library` for a contact sheet). Credits go on the Website assets page (`/credits`), never beside the image. Generated images never show the business's own people, premises, products or work; photorealistic
   ones show no faces, none carries a label on the page, and all of them are listed on `/credits`. Every image gets an entry in
-  `design/credits.json`.
+  `design/credits.json`, with what AI did as `ai` (the tools write it) and your model named once as `aiBy` (`--by` on
+  the tools sets it); the Website
+  assets page lists them (SPEC section 12, "Website assets: how AI was used").
 
 ## 4. Content (P3)
 

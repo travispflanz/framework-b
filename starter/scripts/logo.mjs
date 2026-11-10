@@ -19,7 +19,8 @@
 //                                                a circle avatar, the maskable app icon and a business card.
 //                                                design/brand/sheet.png (all concepts), sheets/<id>.png (each) and
 //                                                concepts.pdf (all of them, a page each, to send the owner).
-//   node scripts/logo.mjs pick <id>              installs the kit (below), sets site.logo and credits every file
+//   node scripts/logo.mjs pick <id> [--by "<model>"]  installs the kit (below), sets site.logo and credits every
+//                                                file as drawn by AI; --by names the model ("aiBy" in design/credits.json)
 //
 // The kit: public/logo.svg (the version for the site's page colour), logo-on-dark.svg, logo-on-light.svg,
 // logo-black.svg, logo-white.svg, mark.svg, favicon.svg, favicon-96.png, apple-touch-icon.png, icon-192.png,
@@ -49,7 +50,7 @@ const args = process.argv.slice(2);
 const cmd = args[0];
 const flag = (name) => { const i = args.indexOf(`--${name}`); return i > 0 ? args[i + 1] : undefined; };
 const positional = args.slice(1).filter((a, i, all) => !a.startsWith("--") && !(i > 0 && all[i - 1].startsWith("--")));
-const USAGE = 'usage: node scripts/logo.mjs brief | measure "<words>" [--font display|body] | templates [--initials AB] [--icon <name>] | check | sheet [<id> ...] | pick <id>';
+const USAGE = 'usage: node scripts/logo.mjs brief | measure "<words>" [--font display|body] | templates [--initials AB] [--icon <name>] | check | sheet [<id> ...] | pick <id> [--by "<model>"]';
 if (!["brief", "measure", "templates", "check", "sheet", "pick"].includes(cmd)) { console.error(USAGE); process.exit(2); }
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
@@ -551,7 +552,8 @@ if (cmd === "pick") {
   const files = [...Object.keys(out), "public/favicon-96.png", "public/apple-touch-icon.png", "public/icon-192.png", "public/icon-512.png", "public/icon-maskable-512.png", "public/og.png"];
   credits.images = credits.images.filter((c) => !files.includes(c.file));
   const note = `Logo concept "${id}" (design/brand/concepts/${id}.svg), built by scripts/logo.mjs${logoFonts.length ? `; type set in ${logoFonts.join(", ")}` : ""}`;
-  for (const file of files) credits.images.push({ file, source: "brand", alt: /logo(-[a-z-]+)?\.svg$/.test(file) ? name : file.endsWith("og.png") ? `${name}${tagline ? `: ${tagline}` : ""}` : "", note });
+  for (const file of files) credits.images.push({ file, source: "brand", alt: /logo(-[a-z-]+)?\.svg$/.test(file) ? name : file.endsWith("og.png") ? `${name}${tagline ? `: ${tagline}` : ""}` : "", note, ai: ["drew"] });
+  if (flag("by") && !credits.aiBy) credits.aiBy = flag("by");
   writeFileSync("design/credits.json", JSON.stringify(credits, null, 2) + "\n");
   console.log(`Installed "${id}": ${files.length} files in public/, print and social files in ${KIT}/, ${DIR}/logo.json. site.logo is set.`);
   for (const n of b.notes) console.log(`  note  ${n}`);

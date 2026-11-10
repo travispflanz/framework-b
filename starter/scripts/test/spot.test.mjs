@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
-import { coverage, dye, fillHoles, oklab, open, parseShares, spots, tint, tintPixel, toneGamma, toneMask } from "../lib/spot.mjs";
+import { coverage, dropSpecks, dye, fillHoles, grow, oklab, open, parseShares, spots, tint, tintPixel, toneGamma, toneMask } from "../lib/spot.mjs";
 import { promptText, standaloneScript } from "../lib/spot-tool.mjs";
 import { accent, inline, plain } from "../../src/sections/text.js";
 
@@ -87,10 +87,22 @@ test("opening drops a thin line and keeps a thick shape whole", () => {
   for (const [x, y] of [[5, 8], [14, 17], [10, 12]]) assert.equal(out[y * W + x], 255, `the letter keeps ${x},${y}`);
 });
 
-test("a local tone mask follows a thin bright tube across a ceiling lit unevenly", () => {
+test("specks go and a thin tube stays whole, where opening would break it", () => {
+  const W = 40, H = 20, mask = Buffer.alloc(W * H);
+  for (let x = 2; x < 38; x++) mask[(x % 3 === 0 ? 9 : 10) * W + x] = 255; // a tube one or two pixels thick, wavering
+  for (const [x, y] of [[5, 3], [6, 3], [5, 4], [30, 16]]) mask[y * W + x] = 255; // the halo of a screw head, a grain
+  const out = dropSpecks(mask, W, H, 10);
+  assert.equal(out[3 * W + 5], 0, "the halo goes");
+  assert.equal(out[16 * W + 30], 0, "the grain goes");
+  for (const x of [2, 20, 37]) assert.equal(out[(x % 3 === 0 ? 9 : 10) * W + x], 255, `the tube keeps ${x}`);
+  assert.equal(open(mask, W, H, 1)[10 * W + 20], 0, "opening would have taken the tube too");
+});
+
+test("a local tone mask follows a thin bright tube across a ceiling lit unevenly, past the grain of the scan", () => {
   const W = 60, H = 20, rgb = Buffer.alloc(W * H * 3);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const v = Math.round(120 + x * 2) + (y === 10 ? 30 : 0); // a ceiling growing lighter to the right, and a tube along it
+    const grain = (x * 7 + y * 13) % 5 === 0 ? 25 : 0; // a lighter speck here and there, as in a scanned print
+    const v = 110 + x * 2 + (y >= 9 && y <= 11 ? 40 : 0) + grain; // a ceiling growing lighter to the right, a tube along it
     rgb.fill(Math.min(255, v), (y * W + x) * 3, (y * W + x) * 3 + 3);
   }
   const plainMask = toneMask(rgb, W, H, [0, 0, 1, 1], "light", 0.75);
@@ -99,6 +111,15 @@ test("a local tone mask follows a thin bright tube across a ceiling lit unevenly
   const local = toneMask(rgb, W, H, [0, 0, 1, 1], "light", 0.05, 3);
   for (const x of [5, 30, 55]) assert.equal(local[10 * W + x], 255, `the tube at ${x}`);
   for (const x of [5, 30, 55]) assert.equal(local[5 * W + x], 0, `not the ceiling at ${x}`);
+  for (const x of [3, 28, 53]) assert.equal(local[3 * W + x], 0, `not a speck of grain at ${x}`);
+});
+
+test("growing widens a piece by the same number of pixels all round", () => {
+  const W = 20, H = 20, mask = Buffer.alloc(W * H);
+  for (let x = 5; x < 15; x++) mask[10 * W + x] = 255; // a neon tube one pixel thick
+  const out = grow(mask, W, H, 2);
+  for (const [x, y] of [[10, 8], [10, 12], [3, 10], [16, 10]]) assert.equal(out[y * W + x], 255, `takes ${x},${y}`);
+  for (const [x, y] of [[10, 7], [10, 13], [2, 10], [17, 10]]) assert.equal(out[y * W + x], 0, `stops before ${x},${y}`);
 });
 
 test("a photo cropped twice is cut once from its uncropped copy, and its credit records the whole cut", async () => {
@@ -116,6 +137,25 @@ test("a photo cropped twice is cut once from its uncropped copy, and its credit 
   assert.deepEqual(entry.cropped, [0.1, 0, 0.3, 0]);
   assert.equal(entry.changes, "Cropped.", "said once");
   assert.equal((await sharp(join(dir, "design/image-candidates/team-uncropped.jpg")).metadata()).width, 200, "the uncropped copy is the original");
+});
+
+test("a thin tube keeps its whole length however many pieces are added after it", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tube-"));
+  mkdirSync(join(dir, "src/assets/images"), { recursive: true });
+  mkdirSync(join(dir, "design"), { recursive: true });
+  mkdirSync(join(dir, "src/styles"), { recursive: true });
+  writeFileSync(join(dir, "src/styles/tokens.css"), ":root { --color-ink: #111111; --color-accent: #f0343c; --color-highlight: #f0343c; --color-bg: #ffffff; }");
+  const W = 1600, H = 1600, raw = Buffer.alloc(W * H * 3, 90);
+  for (let y = 799; y < 802; y++) for (let x = 400; x < 1200; x++) raw.fill(240, (y * W + x) * 3, (y * W + x) * 3 + 3); // three pixels thick
+  await sharp(raw, { raw: { width: W, height: H, channels: 3 } }).png().toFile(join(dir, "src/assets/images/tube.png"));
+  writeFileSync(join(dir, "design/credits.json"), JSON.stringify({ images: [{ file: "src/assets/images/tube.png", source: "owner", alt: "A neon tube" }] }));
+  const mask = (...args) => execFileSync(process.execPath, [new URL("../spot-colour.mjs", import.meta.url).pathname, "mask", "tube.png", ...args], { cwd: dir, stdio: "pipe" });
+  mask("--what", "the tube", "--tone", "light", "--box", "0,0,1,1");
+  for (let i = 0; i < 6; i++) mask("--add", "--ellipse", "0.1,0.1,0.02,0.02"); // other pieces, far from the tube
+  const outline = await sharp(join(dir, "design/spot/tube/outline.png")).extractChannel(0).raw().toBuffer();
+  for (const x of [400, 800, 1199]) assert.equal(outline[800 * W + x], 255, `the tube still reaches ${x}`);
+  const soft = await sharp(join(dir, "design/spot/tube/mask.png")).extractChannel(0).raw().toBuffer();
+  assert.ok(soft[802 * W + 800] > 0 && soft[802 * W + 800] < 255, "the mask the tint goes through keeps its soft edge");
 });
 
 test("the visitor's script carries the same arithmetic and parses, and the prompt says how", () => {
