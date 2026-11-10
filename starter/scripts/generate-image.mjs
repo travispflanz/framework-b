@@ -6,7 +6,7 @@
 //
 //   node scripts/generate-image.mjs draft "<subject>" --as <name> [--aspect 3:2] [--count 4] [--style <style>] [--seed <n>] [--account <id>] [--dry-run]
 //       → design/generated/<name>/1.jpg … and sheet.png (numbered) + prompt.json. Look at the sheet before choosing.
-//   node scripts/generate-image.mjs use <name> <number> --alt "<what it shows>"
+//   node scripts/generate-image.mjs use <name> <number> --alt "<what it shows>" [--by "<model>"]
 //       → src/assets/images/<name>.jpg with the DESIGN.md imagery treatment, and its design/credits.json entry
 //
 // The style and art direction come from DESIGN.md (imagery.style, imagery.prompt) via src/styles/design.json; the
@@ -161,9 +161,10 @@ if (cmd === "draft") {
     model: MODEL_NAME, license: "Apache-2.0", prompt: meta.prompt, seed: meta.seeds[Number(number) - 1], created: meta.created,
     alt, changes: changes || "", ai: ["generated", ...(changes ? ["treated"] : []), "alt"], ...(changes ? { treated: changes } : {}),
   });
+  if (typeof flags.by === "string" && !ledger.aiBy) ledger.aiBy = flags.by; // the model writing the alt text
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   console.log(`${file} (${meta.style}${changes ? `; ${changes}` : ""}). Use it as { "src": "${name}.jpg", "alt": "${alt}" }.`);
 } else {
-  console.error('usage: generate-image.mjs draft "<subject>" --as <name> [--aspect 3:2] [--count 4] [--style <style>] [--seed <n>] [--account <id>] [--dry-run] | use <name> <number> --alt "<text>"');
+  console.error('usage: generate-image.mjs draft "<subject>" --as <name> [--aspect 3:2] [--count 4] [--style <style>] [--seed <n>] [--account <id>] [--dry-run] | use <name> <number> --alt "<text>" [--by "<model>"]');
   process.exit(2);
 }

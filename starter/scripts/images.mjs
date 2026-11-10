@@ -12,8 +12,8 @@
 //       [--allow-small] [--crop left,top,right,bottom]
 //       → src/assets/images/<file name>.jpg (at most 2000 px wide, metadata stripped) + its design/credits.json entry.
 //         `--for` records where the photo goes and why it fits, so the choice can be reviewed. The credit records
-//         what AI did ("ai": chose, cropped, treated, alt) for the Website assets page; name the model once as
-//         "aiBy" in design/credits.json. A loc: photo comes from
+//         what AI did ("ai": chose, cropped, treated, alt) for the Website assets page; `--by "<model>"` (on add,
+//         crop and treat) names the model once as "aiBy" in design/credits.json. A loc: photo comes from
 //         its master scan; its mat, frame and edge markings are found and cropped (design/image-candidates/<name>-crop.png
 //         shows the box; look at it); `--crop` gives the share to cut from each edge instead (0.05 = 5%).
 //   node scripts/images.mjs treat <file in src/assets/images>
@@ -53,6 +53,8 @@ const opt = (name) => {
 };
 // The steps AI took with an image, for the Website assets page (src/lib/ai-use.js): each recorded once.
 const step = (entry, ...names) => (entry.ai = [...new Set([...(entry.ai || []), ...names])]);
+// `--by "<model>"` names the model doing this once, as "aiBy" (kept if already set).
+const named = (ledger) => { if (typeof opt("by") === "string" && !ledger.aiBy) ledger.aiBy = opt("by"); };
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -227,6 +229,7 @@ if (cmd === "search" && arg && opt("source") === "loc") {
     ai: ["chose", "cropped", ...(changes ? ["treated"] : []), "alt"],
     ...(changes ? { treated: changes } : {}),
   });
+  named(ledger);
   writeLedger(LEDGER, ledger);
   const final = await sharp(out).metadata();
   console.log(`${file}: ${final.width}×${final.height}, ${Math.round(out.length / 1024)} KB, from loc:${id}. Look at design/image-candidates/${as}-crop.png (the red box is what's kept). Use it as { "src": "${as}.jpg", "alt": "${alt}" }.`);
@@ -269,6 +272,7 @@ if (cmd === "search" && arg && opt("source") === "loc") {
     alt, ...(forSlot ? { for: forSlot } : {}), changes: ["Resized and compressed.", changes].filter(Boolean).join(" "),
     ai: ["chose", ...(changes ? ["treated"] : []), "alt"], ...(changes ? { treated: changes } : {}),
   });
+  named(ledger);
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   const final = await sharp(out).metadata();
   console.log(`${file}: ${final.width}×${final.height}, ${Math.round(out.length / 1024)} KB, ${licenseName(r)} by ${r.creator || "unknown"}. Use it as { "src": "${as}.jpg", "alt": "${alt}" }.`);
@@ -288,6 +292,7 @@ if (cmd === "search" && arg && opt("source") === "loc") {
   entry.treated = changes;
   entry.changes = [entry.changes, changes].filter(Boolean).join(" ");
   step(entry, "treated");
+  named(ledger);
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   console.log(`${file}: ${changes}`);
 } else if (cmd === "crop" && arg) {
@@ -321,6 +326,7 @@ if (cmd === "search" && arg && opt("source") === "loc") {
   entry.cropped = total;
   step(entry, "cropped");
   if (!again) entry.changes = [entry.changes, "Cropped."].filter(Boolean).join(" ");
+  named(ledger);
   writeFileSync(LEDGER, JSON.stringify(ledger, null, 2) + "\n");
   console.log(`${file}: cropped ${size}; the uncropped photo is in design/image-candidates/.`);
 } else if ((cmd === "shelve" || cmd === "unshelve") && arg) {

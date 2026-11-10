@@ -129,7 +129,7 @@ for (const c of ledger) {
   // What AI did with the image, for the Website assets page (src/lib/ai-use.js; the tools write it).
   if (c.ai !== undefined && (!Array.isArray(c.ai) || c.ai.some((s) => !AI_STEPS.includes(s)))) errors.push(`${where}: "ai" lists the steps AI took, from ${AI_STEPS.join(", ")}`);
 }
-if (ledger.some((c) => (Array.isArray(c.ai) && c.ai.length) || c.spot) && !creditsFile.aiBy) errors.push('design/credits.json: name the model that did the AI work on the images as "aiBy" (as --by names it for spot colour), for the Website assets page');
+if (ledger.some((c) => (Array.isArray(c.ai) && c.ai.length) || c.spot) && !creditsFile.aiBy) errors.push('design/credits.json: name the model that did the AI work on the images as "aiBy" (or pass --by "<model>" to the tool that recorded it), for the Website assets page');
 
 // The style guide (SPEC section 12, "Style guide"): every section heading, so the rendered guide is complete.
 if (existsSync("STYLE-GUIDE.md")) {

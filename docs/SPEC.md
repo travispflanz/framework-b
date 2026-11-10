@@ -1006,9 +1006,9 @@ What's built (`starter/src/lib/ai-use.js`, `src/pages/credits.astro`):
 - The tools record what AI did with each image as `ai` in `design/credits.json`: `images.mjs add` writes `chose`,
   `alt`, `treated` when the design's treatment was applied, and `cropped` for an archive scan trimmed inside its
   borders; `images.mjs crop` adds `cropped`, `images.mjs treat` adds `treated`, `logo.mjs pick` writes `drew` on the
-  logo and everything made from it, and `generate-image.mjs use` writes `generated`. `aiBy` names the model once;
-  `spot-colour.mjs apply --by` sets it when it is missing, and the content check fails an `ai` record or a spot with no
-  `aiBy`, and any step it doesn't know. A record is only ever what a tool did or what the agent says it did: nothing is
+  logo and everything made from it, and `generate-image.mjs use` writes `generated`. `aiBy` names the model once:
+  `--by "<model>"` on any of these tools (and `spot-colour.mjs apply --by`) sets it when it is missing, and the content
+  check fails an `ai` record or a spot with no `aiBy`, and any step it doesn't know (CI's logo test picks with `--by`). A record is only ever what a tool did or what the agent says it did: nothing is
   claimed for an image without one, so an owner's photo edited by hand says nothing about AI.
 - The page opens with a line beside its title, then "Where the pictures come from" (the attributions, across the page),
   then "How AI was used": a summary of what the model did across the pictures (chose them from which archives, cropped
