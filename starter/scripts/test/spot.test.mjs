@@ -1,12 +1,13 @@
 // Spot colour (scripts/lib/spot.mjs, scripts/lib/spot-tool.mjs) and accent words (src/sections/text.js): the
-// arithmetic, the masks, the visitor's script and prompt, without the segmentation model.
+// arithmetic, the masks, the repeat crop, the visitor's script and prompt, without the segmentation model.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { coverage, dye, oklab, parseShares, tint, tintPixel, toneGamma, toneMask } from "../lib/spot.mjs";
+import sharp from "sharp";
+import { coverage, dye, fillHoles, oklab, open, parseShares, spots, tint, tintPixel, toneGamma, toneMask } from "../lib/spot.mjs";
 import { promptText, standaloneScript } from "../lib/spot-tool.mjs";
 import { accent, inline, plain } from "../../src/sections/text.js";
 
@@ -52,6 +53,69 @@ test("a tone mask takes the dark pixels inside a four-cornered shape only", () =
   assert.equal(coverage(mask), 0.02);
   assert.deepEqual(parseShares("0.1,0.2", 2), [0.1, 0.2]);
   assert.throws(() => parseShares("1.2,0.3", 2), /0 to 1/);
+});
+
+test("holes inside an outline fill; a big gap or one open to the edge stays", () => {
+  const W = 20, H = 20, mask = Buffer.alloc(W * H);
+  for (let y = 2; y < 18; y++) for (let x = 2; x < 18; x++) mask[y * W + x] = 255;
+  mask[5 * W + 5] = 0; // a speck of a hole: a printed logo
+  for (let y = 8; y < 16; y++) for (let x = 8; x < 16; x++) mask[y * W + x] = 0; // a gap a quarter the size of the outline
+  const out = fillHoles(mask, W, H);
+  assert.equal(out[5 * W + 5], 255, "the small hole is filled");
+  assert.equal(out[10 * W + 10], 0, "the big gap stays open");
+  assert.equal(out[0], 0, "outside stays outside");
+});
+
+test("round spots are found beside a flat panel as bright as they are, and touching spots stay apart", () => {
+  const W = 60, H = 30, rgb = Buffer.alloc(W * H * 3, 20);
+  const paint = (x0, y0, x1, y1, v) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) rgb.fill(v, (y * W + x) * 3, (y * W + x) * 3 + 3); };
+  paint(30, 0, 60, 30, 235); // a lit sign, even
+  for (const cx of [5, 14, 23]) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if ((x - cx) ** 2 + (y - 15) ** 2 <= 9) rgb.fill(250, (y * W + x) * 3, (y * W + x) * 3 + 3);
+  const mask = spots(rgb, W, H, [0, 0, 1, 1], "light", 0.6, 3);
+  for (const cx of [5, 14, 23]) assert.equal(mask[15 * W + cx], 255, `the bulb at ${cx} is found`);
+  assert.equal(mask[15 * W + 45], 0, "the middle of the even sign is not a spot");
+  assert.equal(mask[15 * W + 9], 0, "the gap between two bulbs stays out");
+  assert.equal(mask[2 * W + 5], 0, "a spot keeps to its own size");
+});
+
+test("opening drops a thin line and keeps a thick shape whole", () => {
+  const W = 30, H = 20, mask = Buffer.alloc(W * H);
+  for (let x = 0; x < W; x++) mask[3 * W + x] = 255; // the sliver of shadow under a sign's edge, one pixel high
+  for (let y = 8; y < 18; y++) for (let x = 5; x < 15; x++) mask[y * W + x] = 255; // a letter
+  const out = open(mask, W, H, 2);
+  assert.equal(out[3 * W + 10], 0, "the line is gone");
+  for (const [x, y] of [[5, 8], [14, 17], [10, 12]]) assert.equal(out[y * W + x], 255, `the letter keeps ${x},${y}`);
+});
+
+test("a local tone mask follows a thin bright tube across a ceiling lit unevenly", () => {
+  const W = 60, H = 20, rgb = Buffer.alloc(W * H * 3);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const v = Math.round(120 + x * 2) + (y === 10 ? 30 : 0); // a ceiling growing lighter to the right, and a tube along it
+    rgb.fill(Math.min(255, v), (y * W + x) * 3, (y * W + x) * 3 + 3);
+  }
+  const plainMask = toneMask(rgb, W, H, [0, 0, 1, 1], "light", 0.75);
+  assert.equal(plainMask[10 * W + 5], 0, "a fixed lightness misses the tube at the dim end");
+  assert.equal(plainMask[5 * W + 55], 255, "and takes the ceiling at the bright end");
+  const local = toneMask(rgb, W, H, [0, 0, 1, 1], "light", 0.05, 3);
+  for (const x of [5, 30, 55]) assert.equal(local[10 * W + x], 255, `the tube at ${x}`);
+  for (const x of [5, 30, 55]) assert.equal(local[5 * W + x], 0, `not the ceiling at ${x}`);
+});
+
+test("a photo cropped twice is cut once from its uncropped copy, and its credit records the whole cut", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "crop-"));
+  mkdirSync(join(dir, "src/assets/images"), { recursive: true });
+  mkdirSync(join(dir, "design"), { recursive: true });
+  await sharp({ create: { width: 200, height: 100, channels: 3, background: { r: 128, g: 128, b: 128 } } }).jpeg().toFile(join(dir, "src/assets/images/team.jpg"));
+  writeFileSync(join(dir, "design/credits.json"), JSON.stringify({ images: [{ file: "src/assets/images/team.jpg", source: "owner", alt: "The team" }] }));
+  const crop = (cut) => execFileSync(process.execPath, [new URL("../images.mjs", import.meta.url).pathname, "crop", "team.jpg", "--cut", cut], { cwd: dir, stdio: "pipe" });
+  crop("0.1,0,0.1,0");
+  crop("0,0,0.25,0");
+  const meta = await sharp(join(dir, "src/assets/images/team.jpg")).metadata();
+  assert.deepEqual([meta.width, meta.height], [120, 100], "160 wide after the first cut, then a quarter of that off the right");
+  const entry = JSON.parse(readFileSync(join(dir, "design/credits.json"), "utf8")).images[0];
+  assert.deepEqual(entry.cropped, [0.1, 0, 0.3, 0]);
+  assert.equal(entry.changes, "Cropped.", "said once");
+  assert.equal((await sharp(join(dir, "design/image-candidates/team-uncropped.jpg")).metadata()).width, 200, "the uncropped copy is the original");
 });
 
 test("the visitor's script carries the same arithmetic and parses, and the prompt says how", () => {

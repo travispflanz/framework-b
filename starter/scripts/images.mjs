@@ -15,6 +15,11 @@
 //         its master scan; its mat, frame and edge markings are found and cropped (design/image-candidates/<name>-crop.png
 //         shows the box; look at it); `--crop` gives the share to cut from each edge instead (0.05 = 5%).
 //   node scripts/images.mjs treat <file in src/assets/images>
+//   node scripts/images.mjs crop <file in src/assets/images> --cut left,top,right,bottom [--also <file>]
+//       → cuts that share from each edge (0.2 = a fifth), for a frame every layout keeps (a second person half out of
+//         frame), where a focal point only moves the crop. The uncropped photo is kept in design/image-candidates/;
+//         --also crops another version of it (its colour original) the same way. A photo with spot colour is
+//         cropped after `node scripts/spot-colour.mjs undo`, then outlined again.
 //       → applies the DESIGN.md imagery treatment to an owner photo (once; the credit records it)
 //   node scripts/images.mjs shelve <file> | unshelve <file> | library
 //       → the image library, design/library/: photos taken off the pages but kept, credit and all, to use again.
@@ -277,6 +282,38 @@ if (cmd === "search" && arg && opt("source") === "loc") {
   entry.changes = [entry.changes, changes].filter(Boolean).join(" ");
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
   console.log(`${file}: ${changes}`);
+} else if (cmd === "crop" && arg) {
+  const file = arg.startsWith("src/") ? arg : `src/assets/images/${arg}`;
+  if (!existsSync(file)) throw new Error(`${file} doesn't exist`);
+  const name = file.split("/").pop().replace(/\.[a-z]+$/i, "");
+  if (existsSync(`design/spot/${name}`)) throw new Error(`${file} carries spot colour: node scripts/spot-colour.mjs undo ${name}, crop, then outline and apply again`);
+  const cut = String(opt("cut") || "").split(",").map(Number);
+  if (cut.length !== 4 || cut.some((v) => !(v >= 0 && v < 0.5))) throw new Error("--cut left,top,right,bottom: the share to cut from each edge, each under 0.5");
+  const ledger = JSON.parse(readFileSync(LEDGER, "utf8"));
+  const entry = (ledger.images || []).find((c) => c.file === file);
+  if (!entry) throw new Error(`${file} has no entry in ${LEDGER}; credit it first`);
+  // A photo cropped before is cropped again from the kept uncropped copy, the two cuts made into one, so it is
+  // compressed once and the credit records the whole cut.
+  const kept = `design/image-candidates/${file.split("/").pop().replace(/(\.[a-z]+)$/i, "-uncropped$1")}`;
+  const again = Array.isArray(entry.cropped) && existsSync(kept);
+  const [l0, t0, r0, b0] = again ? entry.cropped : [0, 0, 0, 0];
+  const total = again ? [l0 + cut[0] * (1 - l0 - r0), t0 + cut[1] * (1 - t0 - b0), r0 + cut[2] * (1 - l0 - r0), b0 + cut[3] * (1 - t0 - b0)].map((v) => Math.round(v * 1e4) / 1e4) : cut;
+  const cropOne = async (from, to, by, keep) => {
+    const buf = readFileSync(from), m = await sharp(buf).metadata();
+    const left = Math.round(by[0] * m.width), top = Math.round(by[1] * m.height);
+    const width = Math.round(m.width * (1 - by[0] - by[2])), height = Math.round(m.height * (1 - by[1] - by[3]));
+    if (keep) { mkdirSync("design/image-candidates", { recursive: true }); writeFileSync(kept, buf); }
+    const out = sharp(buf).extract({ left, top, width, height });
+    writeFileSync(to, await (m.format === "png" ? out.png() : out.jpeg({ quality: 90, mozjpeg: true })).toBuffer());
+    return `${m.width}x${m.height} to ${width}x${height}`;
+  };
+  const size = again ? await cropOne(kept, file, total, false) : await cropOne(file, file, cut, true);
+  // Another version of the same photo (a colour original kept for outlining) takes this cut from where it stands.
+  if (typeof opt("also") === "string") await cropOne(opt("also"), opt("also"), cut, false);
+  entry.cropped = total;
+  if (!again) entry.changes = [entry.changes, "Cropped."].filter(Boolean).join(" ");
+  writeFileSync(LEDGER, JSON.stringify(ledger, null, 2) + "\n");
+  console.log(`${file}: cropped ${size}; the uncropped photo is in design/image-candidates/.`);
 } else if ((cmd === "shelve" || cmd === "unshelve") && arg) {
   // The library keeps a photo and its credit together, off the pages: shelve moves both out of src/ and
   // design/credits.json into design/library/; unshelve brings them back.
