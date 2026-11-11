@@ -64,11 +64,18 @@ const pagePath = (file) => {
 const textOf = (html) => html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ");
 
 // ---------- 1. Content check (built HTML and source) ----------
-// Static builds put pages in dist/; with client editing on, prerendered pages are in dist/client/ and the
-// EmDash-driven home page is rendered on request, so it is added to the browser checks by hand.
+// Static builds put pages in dist/; with client editing on, prerendered pages are in dist/client/ and the pages that
+// read their content through src/lib/page-content.js (the home page, every src/content page, privacy and contact) are
+// rendered on request, so they are added to the browser checks by hand.
 const DIST = existsSync("dist/client") ? "dist/client" : "dist";
 const files = htmlFiles(DIST);
-const pages = [...new Set([...(DIST === "dist/client" ? ["/"] : []), ...files.map(pagePath)])].filter((p) => p !== "/404");
+const contentSlugs = existsSync("src/content") ? readdirSync("src/content").filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)) : [];
+const onRequest = DIST === "dist/client" ? ["/", "/privacy", "/contact", ...contentSlugs.filter((s) => !["home", "privacy", "not-found", "contact"].includes(s)).map((s) => `/${s}`)] : [];
+const pages = [...new Set([...onRequest, ...files.map(pagePath)])].filter((p) => p !== "/404");
+if (onRequest.length) {
+  const sourceText = contentSlugs.map((s) => JSON.stringify(JSON.parse(readFileSync(join("src/content", `${s}.json`), "utf8")))).join(" ");
+  check("content src/content: no TODO, TBD or lorem ipsum", !/\b(TODO|TBD|FIXME)\b|lorem ipsum/i.test(sourceText));
+}
 for (const file of files) {
   const html = readFileSync(file, "utf8");
   const text = textOf(html);

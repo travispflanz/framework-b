@@ -322,6 +322,8 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     one because a rest route would also match `/_emdash` ([route caching](https://docs.emdashcms.com/deployment/route-caching),
     checked 2026-11-11). The sitemap lists the content pages from `src/content`, since the integration can't list a
     dynamic route rendered on request.
+  - The QA gate lists those pages itself (they aren't in the build output): on a copy of the starter with the
+    full-site fixture, an editing build went from 116 checks to 219 once they were (the static build: 223).
   - Proven in CI (the full-site fixture's `/about` page through EmDash, the hourly job run with
     `wrangler dev --test-scheduled`, an editor-made page, a 404, and the round trip below); live on the first adopted
     site is untested until its rollout.
