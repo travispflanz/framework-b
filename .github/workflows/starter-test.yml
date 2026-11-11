@@ -37,9 +37,10 @@ jobs:
         if: matrix.editing == 'off'
         run: node --test scripts/test/*.test.mjs
         working-directory: starter
-      - name: Switch client editing on
+      - name: Switch client editing on (with the full-site fixture's /about page, so every page is tested through EmDash)
         if: matrix.editing == 'on'
         run: |
+          node scripts/test/fixture-full-site.mjs
           node scripts/editing.mjs on
           node scripts/fill-test-placeholders.mjs
         working-directory: starter
@@ -97,7 +98,7 @@ jobs:
         if: matrix.editing == 'off'
         run: node scripts/test/logo.mjs
         working-directory: starter
-      - name: Switch client editing off (an editor's change and image come back as files), then test the static site
+      - name: Switch client editing off (editors' changes, a new page and an image come back as files), then test the static site
         if: matrix.editing == 'on'
         run: |
           node scripts/test/editing-round-trip.mjs

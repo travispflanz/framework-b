@@ -266,9 +266,12 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
 
 - **Switching it on:**
   - `node scripts/editing.mjs on` in a site (`create` runs it when `EDITING=on`) does the following:
-    - Copies `starter/editing/` over the site: the Astro config, the Worker, the live collection and the home page.
-    - Marks every other page prerendered.
-    - Writes `seed/seed.json`: the content model, plus the current copy.
+    - Copies `starter/editing/` over the site: the Astro config, the Worker, the live collection, the page-content
+      helper (`src/lib/page-content.js`), the home page, the content pages' route (`src/pages/[page].astro`) and the
+      pages sync (`starter/editing/src/pages/fb-sync-pages.js`).
+    - Marks every other page prerendered, except privacy, contact and 404, which read their content through the
+      helper and render on request.
+    - Writes `seed/seed.json`: the content model, plus every page in `src/content` (the home page first).
     - Adds the EmDash packages, pinned to exact versions.
     - Adds the bindings EmDash needs.
     - Keeps the static versions of the files it replaces in `editing/static/`. Site updates keep them current; a site switched on before `off` existed gets them from its next update.
@@ -299,14 +302,39 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
   checked 2026-11-11).
 - **The home page's title and description** stay as the static home page has them until an editor sets a title (the
   editing home page used the site name and tagline before, 2026-11-11).
+- **Every page is editable** (2026-11-11; before then only the home page came from EmDash, on every site):
+  - Each page that reads content (the home page, every `src/content/<slug>.json` page, and privacy, contact and 404)
+    asks `pageContent(slug)`. With editing on, that is EmDash's published page of the same slug (a preview link shows its
+    draft): its title and sections, and the description and noindex an editor sets in its SEO panel. Otherwise it is
+    the file, so a page EmDash doesn't have yet is still live, and the file keeps its description and noindex.
+  - `src/pages/[page].astro` renders any slug on request: a page an editor creates in the admin is served at
+    `/<slug>` at once (it isn't in the navigation or the sitemap until it is a file). A slug with no page, or one of the
+    reserved ones (home, privacy, not-found, contact, anything starting with `_`), is a 404.
+  - The seed carries every page, so the setup wizard's sample content brings them all in. Pages added to the files
+    later reach EmDash with the Worker's hourly job: after EmDash's own scheduled work, the scheduled handler calls
+    `/fb-sync-pages` inside the Worker (the public path answers 404), which applies the bundled seed with EmDash's own
+    `applySeed` and `onConflict: "skip"`. EmDash matches pages by slug and skips any it has, in its trash too (read in
+    EmDash 1.3.1's `seed/apply`, 2026-11-11), so an editor's work always wins. A new section type in the seed is
+    added the same way; a changed one still needs EmDash's guide to evolving a deployed site.
+  - To remove a page, take its file out of `src/content` (and the navigation), then put the page in EmDash's trash:
+    trashing it alone brings back the file's version.
+  - Every page that renders on request has a route rule (`/`, `/[page]`, `/privacy`, `/contact`, `/404`), listed one by
+    one because a rest route would also match `/_emdash` ([route caching](https://docs.emdashcms.com/deployment/route-caching),
+    checked 2026-11-11). The sitemap lists the content pages from `src/content`, since the integration can't list a
+    dynamic route rendered on request.
+  - The QA gate lists those pages itself (they aren't in the build output): on a copy of the starter with the
+    full-site fixture, an editing build went from 116 checks to 219 once they were (the static build: 223).
+  - Proven in CI (the full-site fixture's `/about` page through EmDash, the hourly job run with
+    `wrangler dev --test-scheduled`, an editor-made page, a 404, and the round trip below); live on the first adopted
+    site is untested until its rollout.
 - **Switching it off:**
   - `node scripts/editing.mjs off --remote` (or `--local`, or `--database <file.sqlite>`) in a site:
     - Reads the content database. `--remote` runs `wrangler d1 export` on `CMS_DB` and loads the SQL into a temporary SQLite file ([D1 import and export](https://developers.cloudflare.com/d1/best-practices/import-export-data/), checked 2026-10-27: a running export blocks other requests to that database, and a database with virtual tables can't be exported; the section model creates none).
-    - Runs EmDash's own `emdash export-seed --with-content pages` on it and writes the published home page to `src/content/home.json`, dropping EmDash's `_version`. Other EmDash pages are listed, not exported, because only the home page was served from EmDash. Unpublished drafts are listed too. With no published home page, `home.json` stays as it was, since that is what the site was showing.
-    - Copies each media-library image the home page uses from the `MEDIA` bucket (`wrangler r2 object get`) or `--media-dir` into `src/assets/images/`, and credits it in `design/credits.json` as the owner's, with a note to confirm the source. Images from other providers keep their URL.
+    - Runs EmDash's own `emdash export-seed --with-content pages` on it and writes each published page to `src/content/<slug>.json`, dropping EmDash's `_version`. A page keeps its file's description and noindex; a page an editor created becomes a new file, listed with a note to add it to the navigation. A page EmDash doesn't publish keeps its file. Unpublished drafts are listed. With no published home page, `home.json` stays as it was, since that is what the site was showing.
+    - Copies each media-library image the pages use from the `MEDIA` bucket (`wrangler r2 object get`) or `--media-dir` into `src/assets/images/`, and credits it in `design/credits.json` as the owner's, with a note to confirm the source. Images from other providers keep their URL.
     - Puts back `editing/static/`, removes `src/live.config.ts`, the added prerender lines, the EmDash packages and the `emdash` key, the `CMS_DB`/`MEDIA`/`SESSION` bindings (previews too), the cron, `nodejs_compat` and `seed/`, restores the assets 404 page, removes `editing` from `site.config.json`, then runs the content check.
     - Deletes nothing in Cloudflare. It lists the content database, media bucket, session namespace, the editor Access application and the two editing secrets for the owner to remove.
-  - CI switches the starter on, edits the content database the way an editor would (new headline, a media-library image), switches off, checks every file `on` changed is back byte for byte, then runs the build, e2e and QA gate on the static site (`starter/scripts/test/editing-round-trip.mjs`). Since 2026-11-11 it also seeds one of the site's own pictures and checks it comes back as the same file with its focal point. It was also run against a copy of a live editing site's deployed content on 2026-10-27; `--remote` with media-library images is untested.
+  - CI switches the starter on (with the full-site fixture's `/about` page), edits the content database the way an editor would (new headlines on the home page and `/about`, a media-library image, a new page), switches off, checks every file `on` changed is back byte for byte, then runs the build, e2e and QA gate on the static site (`starter/scripts/test/editing-round-trip.mjs`). Since 2026-11-11 it also seeds one of the site's own pictures and checks it comes back as the same file with its focal point. It was also run against a copy of a live editing site's deployed content on 2026-10-27; `--remote` with media-library images is untested.
 - **How the Worker is wired:**
   - Core runs first: `createWorker(config, { fallback })` (since core 0.2.0). `/api/*`, `/admin` and `/u` behave exactly as on a static site.
   - Everything else goes to the Astro/EmDash handler, including the pages and `/_emdash`.
@@ -324,7 +352,7 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     request. To remove one, take their email off that application's policy in Cloudflare Zero Trust.
   - On preview URLs, the previews Access application signs people in, and its audience is set as the previews' `CF_ACCESS_AUDIENCE`.
 - **Performance on the Free plan (10 ms CPU a request):**
-  - Only pages that read EmDash content render on request: the home page in the starter.
+  - Only pages that read EmDash content render on request: the home page, the content pages, privacy, contact and 404.
   - They are cached in Workers Cache (`maxAge` 300 s, `swr` 1 day). EmDash invalidates the `pages` tag on publish.
   - With Workers Cache on, every request, including static assets, counts toward the Free plan's 100,000 requests a day ([Workers Cache pricing](https://developers.cloudflare.com/workers/cache/), checked 2026-10-23).
 - **Account budget on the Free plan:** each editing site uses 1 Cron Trigger (EmDash's hourly maintenance and scheduled publishing; 5 per account) and 2 D1 databases (10 per account). `create` checks both before it creates anything ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/), checked 2026-10-23).

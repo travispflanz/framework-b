@@ -67,22 +67,19 @@ const slugify = (s) =>
     .slice(0, 60) || "image";
 const EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" };
 
-// The home page as src/content/home.json from an `emdash export-seed` file.
+// Every published EmDash page as src/content/<slug>.json, from an `emdash export-seed` file.
 //   seed:    the export (content.pages[] with { slug, status, data: { title, sections } })
-//   current: the site's src/content/home.json now (kept as it is when EmDash has no published home page)
+//   current: the site's pages now, { <slug>: <src/content/<slug>.json> } (a page EmDash doesn't publish stays as it is)
 //   media:   rows of EmDash's media table ({ id, filename, mime_type, alt, storage_key })
 //   taken:   file names already in src/assets/images
-// Returns { home, images: [{ storageKey, file, alt, id }], notes: [] }. EmDash media in any section field (an object
-// with the id of a media row) becomes a file in src/assets/images; the caller copies each storageKey to its file.
-export function homeFromExport(seed, current, media = [], taken = []) {
+// Returns { pages: { <slug>: page }, images: [{ storageKey, file, alt, id }], notes: [], changed: [<slug>] }. A page
+// keeps its file's description, noindex and anything else EmDash doesn't hold; a page an editor created gets a new
+// file (and a note: it isn't in the navigation). EmDash media in any section field (an object with the id of a media
+// row) becomes a file in src/assets/images; the caller copies each storageKey to its file.
+export function pagesFromExport(seed, current, media = [], taken = []) {
   const notes = [];
-  const pages = seed?.content?.pages || [];
-  const page = pages.find((p) => p.slug === "home" && (p.status || "published") === "published");
-  for (const p of pages) if (p.slug !== "home") notes.push(`EmDash page "${p.slug}" isn't exported: with editing on, only the home page was served from EmDash`);
-  if (!page) {
-    notes.push("EmDash has no published home page, so src/content/home.json stays as it is (it is what the site was showing)");
-    return { home: current, images: [], notes, changed: false };
-  }
+  const published = (seed?.content?.pages || []).filter((p) => p.slug && (p.status || "published") === "published");
+  if (!published.some((p) => p.slug === "home")) notes.push("EmDash has no published home page, so src/content/home.json stays as it is (it is what the site was showing)");
   const byId = new Map(media.map((m) => [m.id, m]));
   const used = new Set(taken);
   const images = [];
@@ -128,9 +125,23 @@ export function homeFromExport(seed, current, media = [], taken = []) {
     }
     return out;
   };
-  const sections = walk(page.data?.sections || [], "sections");
-  const home = { ...current, title: page.data?.title || current.title, sections };
-  return { home, images, notes, changed: JSON.stringify(home) !== JSON.stringify(current) };
+  const pages = structuredClone(current || {});
+  const changed = [];
+  for (const entry of published) {
+    const slug = entry.slug;
+    const before = current?.[slug];
+    const sections = walk(entry.data?.sections || [], `${slug}.sections`);
+    // The home page's title "Home" is EmDash's label for it; the file keeps its own title (or none).
+    const title = slug === "home" && entry.data?.title === "Home" ? before?.title : entry.data?.title || before?.title;
+    const page = { ...(before || {}), ...(title ? { title } : {}), sections };
+    if (slug === "home" && !title) delete page.title;
+    if (!before) notes.push(`/${slug} is a page an editor created: it is now src/content/${slug}.json; add it to "nav" in site.config.json if it belongs in the menu, and give it a description`);
+    if (JSON.stringify(page) !== JSON.stringify(before)) {
+      pages[slug] = page;
+      changed.push(slug);
+    }
+  }
+  return { pages, images, notes, changed };
 }
 
 // design/credits.json with an entry for each image brought over from EmDash's media library.

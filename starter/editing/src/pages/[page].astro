@@ -1,0 +1,16 @@
+---
+// Content pages with client editing on (installed from editing/ by scripts/editing.mjs). Every page is rendered on
+// request from EmDash's page of the same slug, with src/content/<slug>.json as the fallback, so every page an editor
+// can open in the admin is live, a page added to the files later shows at once (and reaches the editor with the next
+// hourly sync, editing/src/pages/fb-sync-pages.js), and a page an editor creates in the admin is served at /<slug>.
+import { decodeSlug } from "emdash";
+import ContentPage from "../components/ContentPage.astro";
+import { OWN_ROUTE, pageContent } from "../lib/page-content.js";
+
+const slug = decodeSlug(Astro.params.page);
+// The slugs with their own routes, and anything that looks like an internal path, are never content pages.
+if (!slug || OWN_ROUTE.includes(slug) || slug.startsWith("_")) return Astro.rewrite("/404");
+const page = await pageContent(slug, Astro);
+if (!page?.sections?.length) return Astro.rewrite("/404");
+---
+<ContentPage page={page} />

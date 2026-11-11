@@ -4,7 +4,9 @@
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 import Sections from "../sections/Sections.astro";
-const custom = Object.values(import.meta.glob<{ default: any }>("../content/not-found.json", { eager: true }))[0]?.default;
+import { pageContent } from "../lib/page-content.js";
+// With client editing on, an editor's page "not-found" in EmDash comes first (and this page is rendered on request).
+const custom: any = await pageContent("not-found", Astro);
 ---
 {custom ? (
 <Base title={custom.title || "Page not found"} description={custom.description} noindex bleed>

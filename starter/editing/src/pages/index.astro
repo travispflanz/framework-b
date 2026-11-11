@@ -1,18 +1,15 @@
 ---
 // Home page with client editing on (installed from editing/ by scripts/editing.mjs). The sections come from the
 // EmDash page "home" (field "sections"), rendered by the same section library as a static site. Until an editor
-// publishes that page, the sections in src/content/home.json are shown.
-import { getEmDashEntry } from "emdash";
+// publishes that page, the sections in src/content/home.json are shown (src/lib/page-content.js).
 import Base from "../layouts/Base.astro";
 import Sections from "../sections/Sections.astro";
-import fallback from "../content/home.json";
+import { pageContent } from "../lib/page-content.js";
 
-const { entry: page, cacheHint } = await getEmDashEntry("pages", "home");
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
-const sections = page?.data.sections?.length ? page.data.sections : fallback.sections;
-// The page's <title> and description stay as the static home page has them until an editor sets a title.
-const title = page?.data.title && page.data.title !== "Home" ? page.data.title : fallback.title;
+const page = await pageContent("home", Astro);
+// The page's whole <title>, as the static home page has it, until an editor writes another title.
+const title = page?.title && page.title !== "Home" ? page.title : undefined;
 ---
-<Base bleed exactTitle={title && title !== "Home" ? title : undefined} description={fallback.description}>
-  <Sections sections={sections} />
+<Base bleed exactTitle={title} description={page?.description}>
+  <Sections sections={page?.sections || []} />
 </Base>

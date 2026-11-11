@@ -3,13 +3,16 @@
 //   node scripts/editing.mjs on     switches it on
 //   node scripts/editing.mjs seed   rewrites seed/seed.json only, after the section library or src/content changes
 //   node scripts/editing.mjs off --remote | --local | --database <file.sqlite> [--media-dir <dir>]
-//                                   switches it off, bringing the editors' published home page back into files
+//                                   switches it off, bringing the editors' published pages back into files
 //
 // What `on` changes:
 // - keeps the static versions of the files it replaces in editing/static/ (for `off`);
-// - copies editing/ over the site (astro.config.mjs, src/worker.js, src/live.config.ts, src/pages/index.astro);
-// - marks every other page prerendered, so only EmDash-driven pages run on request;
-// - writes seed/seed.json (the section library as EmDash block types, plus src/content/home.json as the first content);
+// - copies editing/ over the site (astro.config.mjs, src/worker.js, src/live.config.ts, src/lib/page-content.js, and
+//   src/pages/index.astro, [page].astro and fb-sync-pages.js);
+// - marks every other page prerendered, except those that read page content (src/lib/page-content.js: privacy,
+//   contact and 404), so only EmDash-driven pages run on request;
+// - writes seed/seed.json (the section library as EmDash block types, and every src/content page as the first content;
+//   the Worker's hourly run brings pages added later into EmDash, src/pages/fb-sync-pages.js);
 // - adds the EmDash packages (exact versions in editing/packages.json) and runs npm install;
 // - adds the bindings EmDash needs to wrangler.jsonc (CMS_DB, MEDIA, SESSION, the hourly cron);
 // - sets "editing" in site.config.json.
@@ -18,8 +21,9 @@
 // What `off` changes (the reverse, after exporting the content):
 // - reads the content database: --remote exports the deployed CMS_DB with wrangler (needs CLOUDFLARE_API_TOKEN and
 //   CLOUDFLARE_ACCOUNT_ID), --local exports wrangler dev's copy, --database reads a SQLite file you already have;
-// - writes EmDash's published home page to src/content/home.json, and copies each media-library image it uses into
-//   src/assets/images (from the MEDIA bucket, or --media-dir) with an entry in design/credits.json;
+// - writes each of EmDash's published pages to src/content/<slug>.json (a page an editor created becomes a new file),
+//   and copies each media-library image they use into src/assets/images (from the MEDIA bucket, or --media-dir) with
+//   an entry in design/credits.json;
 // - puts back the files in editing/static/, removes src/live.config.ts, the prerender lines, the EmDash packages,
 //   the bindings and the cron, seed/ and "editing" in site.config.json, then checks the content.
 // Nothing in Cloudflare is deleted: the content database, media bucket, session namespace and the editor Access
@@ -30,13 +34,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { stripJsonc } from "./lib/jsonc.mjs";
-import { creditsWith, homeFromExport, leftovers, staticPackage, staticPage, staticWrangler } from "./lib/editing-off.mjs";
+import { creditsWith, leftovers, pagesFromExport, staticPackage, staticPage, staticWrangler } from "./lib/editing-off.mjs";
 
 // Exact package versions live in editing/packages.json, so the site update script can read them too.
 export const EMDASH_PACKAGES = JSON.parse(readFileSync("editing/packages.json", "utf8")).dependencies;
 export const EMDASH_CRON = "17 * * * *";
 // The files editing/ puts over the site (everything in it except packages.json and static/).
-const OVERLAY = ["astro.config.mjs", "src/worker.js", "src/live.config.ts", "src/pages/index.astro"].filter((f) => existsSync(join("editing", f)));
+const OVERLAY = ["astro.config.mjs", "src/worker.js", "src/live.config.ts", "src/lib/page-content.js", "src/pages/index.astro", "src/pages/[page].astro", "src/pages/fb-sync-pages.js"].filter((f) => existsSync(join("editing", f)));
+// A page that reads its content through src/lib/page-content.js is rendered on request with editing on.
+const readsPageContent = (text) => /from "\.\.\/lib\/page-content(\.js)?"/.test(text);
 
 const [mode] = process.argv.slice(2);
 if (!["on", "seed", "off"].includes(mode)) {
@@ -76,17 +82,19 @@ if (mode === "on") {
     if (overlayPages.has(name)) continue;
     const path = join("src/pages", name);
     const text = readFileSync(path, "utf8");
-    if (/export const prerender/.test(text)) continue;
+    if (/export const prerender/.test(text) || readsPageContent(text)) continue;
     if (name.endsWith(".astro")) writeFileSync(path, text.replace(/^---\n/, "---\nexport const prerender = true;\n"));
     else if (/\.(js|ts)$/.test(name)) writeFileSync(path, `export const prerender = true;\n${text}`);
   }
 }
 
-// 3. Seed: the content model (the section library's block types) and the site's current page content.
-// EmDash applies the model on first request; the owner brings the content in by choosing the sample content in
-// the setup wizard.
+// 3. Seed: the content model (the section library's block types) and every page's current content (src/content).
+// EmDash applies the model on first request. The content comes in when the owner chooses the sample content in the
+// setup wizard, or with the Worker's next hourly run (src/pages/fb-sync-pages.js), which also brings in pages added
+// to the files later. Neither touches a page EmDash already has.
 const { SECTIONS, SECTION_TYPES } = await import(pathToFileURL(join(process.cwd(), "src/sections/schema.js")).href);
-const home = JSON.parse(readFileSync("src/content/home.json", "utf8"));
+const slugs = readdirSync("src/content").filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)).sort((a, b) => (a === "home" ? -1 : b === "home" ? 1 : a.localeCompare(b)));
+const pages = slugs.map((slug) => [slug, JSON.parse(readFileSync(join("src/content", `${slug}.json`), "utf8"))]);
 // EmDash image fields hold media values ({ id, src, provider, ... }); EmDash refuses a bare { src } ("image.id: expected
 // string", EmDash 1.3.1, 2026-11-11). A static site's images are files in src/assets/images, so each goes into the
 // seed as an external media value: id "local:<file>", src "/media/<file>" (the build copies those files there, so the
@@ -128,15 +136,17 @@ writeFileSync("seed/seed.json", JSON.stringify({
     ],
   }],
   content: {
-    pages: [{
-      id: "home",
-      slug: "home",
+    // The home page first; a page's description and noindex stay in its file (an editor can set both in the page's
+    // SEO panel, which wins: src/lib/page-content.js).
+    pages: pages.map(([slug, page]) => ({
+      id: slug,
+      slug,
       status: "published",
-      data: { title: home.title || "Home", sections: home.sections.map((section) => ({ _version: 1, ...withLocalMedia(section) })) },
-    }],
+      data: { title: page.title || (slug === "home" ? "Home" : slug), sections: (page.sections || []).map((section) => ({ _version: 1, ...withLocalMedia(section) })) },
+    })),
   },
 }, null, 2) + "\n");
-if (seededImages) console.log(`${seededImages} image(s) from src/content/home.json are in the seed as the site's own files (served at ${LOCAL_MEDIA}<file>).`);
+console.log(`${pages.length} page(s) in the seed${seededImages ? `, with ${seededImages} image(s) as the site's own files (served at ${LOCAL_MEDIA}<file>)` : ""}.`);
 
 if (mode === "seed") {
   console.log("Wrote seed/seed.json. A deployed site keeps the model it already has: see EmDash's guide to evolving a deployed site.");
@@ -210,12 +220,12 @@ async function switchOff() {
     db.close();
 
     // 2. Content and images.
-    const current = JSON.parse(readFileSync("src/content/home.json", "utf8"));
+    const current = Object.fromEntries(readdirSync("src/content").filter((f) => f.endsWith(".json")).map((f) => [f.slice(0, -5), JSON.parse(readFileSync(join("src/content", f), "utf8"))]));
     const taken = existsSync("src/assets/images") ? readdirSync("src/assets/images") : [];
-    const { home, images, notes, changed } = homeFromExport(exported, current, media, taken);
+    const { pages, images, notes, changed } = pagesFromExport(exported, current, media, taken);
     for (const slug of drafts) notes.push(`EmDash page "${slug}" has an unpublished draft; only the published version was exported`);
     if (images.length) {
-      if (!mediaDir && !where) throw new Error(`The home page uses ${images.length} media-library image(s): add --media-dir <dir> (files named by storage key), --remote or --local`);
+      if (!mediaDir && !where) throw new Error(`The pages use ${images.length} media-library image(s): add --media-dir <dir> (files named by storage key), --remote or --local`);
       mkdirSync("src/assets/images", { recursive: true });
       for (const img of images) {
         const dest = join("src/assets/images", img.file);
@@ -226,7 +236,7 @@ async function switchOff() {
       mkdirSync("design", { recursive: true });
       writeFileSync("design/credits.json", JSON.stringify(creditsWith(credits, images), null, 2) + "\n");
     }
-    writeFileSync("src/content/home.json", JSON.stringify(home, null, 2) + "\n");
+    for (const slug of changed) writeFileSync(join("src/content", `${slug}.json`), JSON.stringify(pages[slug], null, 2) + "\n");
 
     // 3. Files back to the static site.
     for (const target of OVERLAY) {
@@ -253,7 +263,7 @@ async function switchOff() {
     delete site.editing;
     writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
 
-    console.log(`Client editing is off. ${changed ? "src/content/home.json now holds the editors' published home page" : "src/content/home.json is unchanged"}${images.length ? `, with ${images.length} image(s) in src/assets/images (credited in design/credits.json; confirm each source)` : ""}.`);
+    console.log(`Client editing is off. ${changed.length ? `${changed.map((s) => `src/content/${s}.json`).join(", ")} now hold the editors' published pages` : "The pages in src/content are unchanged"}${images.length ? `, with ${images.length} image(s) in src/assets/images (credited in design/credits.json; confirm each source)` : ""}.`);
     for (const n of notes) console.log(`! ${n}`);
     console.log(`Kept in Cloudflare until the owner deletes them: ${[...left, "the site's editor Access application", "Worker secrets CF_ACCESS_AUDIENCE and EMDASH_ENCRYPTION_KEY"].join("; ")}.`);
     execFileSync("node", ["scripts/check-content.mjs"], { stdio: "inherit" });

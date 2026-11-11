@@ -122,22 +122,59 @@ try {
     check("file bytes in R2 match", local.r2get(lead.upload_key).includes("% e2e test file"));
   }
 
-  // Client editing on: EmDash serves its admin and the home page, and content an editor publishes reaches the page.
+  // Client editing on: EmDash serves its admin and every page. A page EmDash doesn't have yet shows from its file; the
+  // hourly job brings every page into EmDash without touching one it has; what an editor publishes reaches the page,
+  // including a page made in the admin; the sync is never reachable from outside.
   if (local.editing) {
     const admin = await fetch(`${base}/_emdash/admin`, { redirect: "manual" });
     check("EmDash admin answers (setup or login)", [302, 303].includes(admin.status), `${admin.status} ${admin.headers.get("location") || ""}`);
     check("home page renders through EmDash", (await fetch(`${base}/`)).status === 200);
     const cms = findCmsDatabase(local.state);
     check("EmDash created its tables in its own database", !!cms);
-    if (cms) {
-      const seed = JSON.parse(readFileSync("seed/seed.json", "utf8"));
-      seed.content.pages[0].data.sections[0].headline = "Edited through EmDash";
-      const seedPath = join(mkdtempSync(join(tmpdir(), "e2e-seed-")), "seed.json");
-      writeFileSync(seedPath, JSON.stringify(seed));
-      execFileSync("npx", ["emdash", "seed", "-d", cms, seedPath, "--skip-media"], { stdio: "ignore" });
-      const html = await (await fetch(`${base}/`)).text();
-      check("published EmDash content shows on the home page", html.includes("Edited through EmDash"));
+    const seed = JSON.parse(readFileSync("seed/seed.json", "utf8"));
+    const inner = seed.content.pages.find((p) => p.slug !== "home" && !["privacy", "contact", "not-found"].includes(p.slug) && p.data.sections?.[0]?.headline);
+    check("the seed carries every page in src/content", seed.content.pages.length === readdirSync("src/content").filter((f) => f.endsWith(".json")).length, `${seed.content.pages.length} in the seed`);
+    if (inner) {
+      const before = await fetch(`${base}/${inner.slug}`);
+      check(`/${inner.slug} shows from its file before EmDash has it`, before.status === 200 && (await before.text()).includes(inner.data.sections[0].headline.split("*").join("").slice(0, 20)));
     }
+    check("the pages sync is closed from outside", (await fetch(`${base}/fb-sync-pages`, { method: "POST" })).status === 404);
+    const scheduled = async () => {
+      for (const path of ["/cdn-cgi/local/scheduled", "/cdn-cgi/handler/scheduled", "/__scheduled"]) {
+        const r = await fetch(`${base}${path}?cron=${encodeURIComponent("17 * * * *")}`);
+        if (r.status !== 404) return r.status;
+      }
+      return 404;
+    };
+    if (cms) {
+      const slugs = () => {
+        const db = new DatabaseSync(cms, { readOnly: true });
+        const rows = db.prepare("select slug from ec_pages where deleted_at is null").all().map((r) => r.slug);
+        db.close();
+        return rows;
+      };
+      const ran = await scheduled();
+      let have = [];
+      for (let i = 0; i < 20 && have.length < seed.content.pages.length; i++, await new Promise((r) => setTimeout(r, 500))) have = slugs();
+      check("the hourly job brings every page into EmDash", ran === 200 && seed.content.pages.every((p) => have.includes(p.slug)), `scheduled ${ran}; ${have.length}/${seed.content.pages.length} pages`);
+
+      // An editor's work: the home page and an inner page edited, and a new page made in the admin.
+      const edited = structuredClone(seed);
+      edited.content.pages[0].data.sections[0].headline = "Edited through EmDash";
+      const edit = inner && edited.content.pages.find((p) => p.slug === inner.slug);
+      if (edit) edit.data.sections[0].headline = "Inner page edited through EmDash";
+      edited.content.pages.push({ id: "e2e-new", slug: "e2e-new-page", status: "published", data: { title: "Made in the editor", sections: [{ ...structuredClone(seed.content.pages[0].data.sections[0]), headline: "A page made in the editor" }] } });
+      const seedPath = join(mkdtempSync(join(tmpdir(), "e2e-seed-")), "seed.json");
+      writeFileSync(seedPath, JSON.stringify(edited));
+      execFileSync("npx", ["emdash", "seed", "-d", cms, seedPath, "--skip-media", "--on-conflict", "update"], { stdio: "ignore" });
+      check("published EmDash content shows on the home page", (await (await fetch(`${base}/`)).text()).includes("Edited through EmDash"));
+      if (inner) check(`published EmDash content shows on /${inner.slug}`, (await (await fetch(`${base}/${inner.slug}`)).text()).includes("Inner page edited through EmDash"));
+      const made = await fetch(`${base}/e2e-new-page`);
+      check("a page made in the editor is served at its slug", made.status === 200 && (await made.text()).includes("A page made in the editor"), String(made.status));
+      await scheduled();
+      check("the hourly job never overwrites an editor's page", (await (await fetch(`${base}/`)).text()).includes("Edited through EmDash"));
+    }
+    check("a slug with no page is a 404", (await fetch(`${base}/no-such-page-e2e`)).status === 404);
   }
 } catch (e) {
   console.error(e);

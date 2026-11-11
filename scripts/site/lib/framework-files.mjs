@@ -7,8 +7,9 @@
 //   package.json merged key by key (dependencies, devDependencies, scripts, emdash)
 //   framework    everything else from starter/, plus core/: updated with a three-way merge
 // With client editing on, a few framework files come from starter/editing/ instead, their static versions live in
-// editing/static/ (for `editing.mjs off`), and the other pages get the `export const prerender = true;` line,
-// exactly as scripts/editing.mjs installs them.
+// editing/static/ (for `editing.mjs off`), and the other pages get the `export const prerender = true;` line (except
+// the ones that read page content through src/lib/page-content.js, which run on request), exactly as
+// scripts/editing.mjs installs them.
 import { execFileSync } from "node:child_process";
 
 export const SITE_OWNED = [
@@ -26,8 +27,9 @@ export const SITE_OWNED = [
 export const SEEDED = [/^design\/credits\.json$/, /^design\/research\.md$/, /^STYLE-GUIDE\.md$/];
 export const GENERATED = [/^src\/styles\/tokens\.css$/, /^src\/styles\/fonts\.js$/, /^src\/styles\/design\.json$/, /^seed\//, /^package-lock\.json$/];
 const IGNORED = [/(^|\/)(node_modules|dist|\.astro|\.wrangler|qa-output)\//, /^core\//, /^\.dev\.vars$/];
-// The overlay targets: with editing on, these come from starter/editing/<path>.
-const OVERLAY = ["astro.config.mjs", "src/worker.js", "src/live.config.ts", "src/pages/index.astro"];
+// The overlay targets: with editing on, these come from starter/editing/<path> (at a commit where that file exists).
+const OVERLAY = ["astro.config.mjs", "src/worker.js", "src/live.config.ts", "src/lib/page-content.js", "src/pages/index.astro", "src/pages/[page].astro", "src/pages/fb-sync-pages.js"];
+const readsPageContent = (text) => /from "\.\.\/lib\/page-content(\.js)?"/.test(text);
 
 const isIn = (rules, path) => rules.some((re) => re.test(path));
 export const classify = (path) =>
@@ -35,9 +37,11 @@ export const classify = (path) =>
 
 export function framework(dir) {
   const git = (...args) => execFileSync("git", ["-C", dir, ...args], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  // `git cat-file`, not `git show`: for a path that doesn't exist, `git show <commit>:<path>` with glob characters in it
+  // ("src/pages/[page].astro") falls back to treating the argument as a pathspec and prints nothing with exit 0.
   const show = (commit, path) => {
     try {
-      return execFileSync("git", ["-C", dir, "show", `${commit}:${path}`], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
+      return execFileSync("git", ["-C", dir, "cat-file", "-p", `${commit}:${path}`], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
     } catch {
       return null;
     }
@@ -101,7 +105,7 @@ export function framework(dir) {
     let text = show(commit, entry.from);
     if (text === null) return null;
     const isOtherPage = path.startsWith("src/pages/") && !OVERLAY.includes(path);
-    if (editing && isOtherPage && !/export const prerender/.test(text)) {
+    if (editing && isOtherPage && !/export const prerender/.test(text) && !readsPageContent(text)) {
       if (path.endsWith(".astro")) text = text.replace(/^---\n/, "---\nexport const prerender = true;\n");
       else if (/\.(js|ts)$/.test(path)) text = `export const prerender = true;\n${text}`;
     }

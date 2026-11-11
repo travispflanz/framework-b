@@ -36,7 +36,8 @@ export async function startLocalSite({ port = 8799, name = "local" } = {}) {
     ["wrangler", "dev", "--config", configPath, "--port", String(port), "--persist-to", state,
       "--var", "TURNSTILE_SECRET:1x0000000000000000000000000000000AA",
       "--var", `SIGNING_SECRET:${name}-signing-secret-at-least-32-characters`,
-      ...(editing ? ["--var", "CF_ACCESS_AUDIENCE:local", "--var", `EMDASH_ENCRYPTION_KEY:${localEmdashKey()}`] : [])],
+      // --test-scheduled: the e2e test runs the hourly job (EmDash's maintenance and the pages sync) on demand.
+      ...(editing ? ["--var", "CF_ACCESS_AUDIENCE:local", "--var", `EMDASH_ENCRYPTION_KEY:${localEmdashKey()}`, "--test-scheduled"] : [])],
     { stdio: ["ignore", "pipe", "pipe"], detached: true },
   );
   let log = "";
