@@ -5,6 +5,10 @@
 //
 //   node scripts/site/editing-on.mjs --site <site checkout> [--editors "a@example.com,b@example.com"] [--dry-run]
 //
+// On a site where editing is already on, it only adds the editors named to the "<id> editor" Access application,
+// keeping everyone already there, and changes nothing in the site (so the workflow opens no pull request). Removing
+// an editor is done in that application's policy in Cloudflare Zero Trust.
+//
 // In the account (idempotent, so a rerun reuses what an earlier run made):
 //   - checks the Free plan's budget first: 2 more D1 databases (10 per account) and the hourly Cron Trigger (5 per
 //     account; the site's own schedule doesn't count, because the deploy replaces it);
@@ -42,16 +46,56 @@ const read = (f) => readFileSync(join(SITE, f), "utf8");
 const site = JSON.parse(read("site.config.json"));
 const id = site.site.id;
 if (!/^[a-z][a-z0-9-]{1,40}[a-z0-9]$/.test(id || "")) throw new Error(`site.config.json site.id "${id}" isn't a site id`);
-if (site.editing?.enabled) {
-  did("client editing is already on in this site; nothing to do");
-  process.exit(0);
-}
+const already = Boolean(site.editing?.enabled);
 const { stripJsonc } = await import(join(SITE, "scripts/lib/jsonc.mjs"));
 const wrangler = JSON.parse(stripJsonc(read("wrangler.jsonc")));
 const worker = wrangler.name;
 const adopt = existsSync(join(SITE, "adopt.json")) ? JSON.parse(read("adopt.json")) : null;
 const editors = [...new Set([site.site.ownerEmail, ...String(arg("editors", "")).split(",")].map((e) => e.trim().toLowerCase()).filter(Boolean))];
 for (const e of editors) if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error(`"${e}" isn't an email address`);
+const out = arg("report", "");
+const finish = () => {
+  if (out) writeFileSync(out, report.map((r) => `- ${r}`).join("\n") + "\n");
+  process.exit(0);
+};
+
+// Access on /_emdash: EmDash checks the Access JWT on all of /_emdash/*, so the application covers the whole path.
+// The emails already on the application's "editors" policy are kept, so naming a new editor never drops one.
+async function editorApp() {
+  const sub = (await cf(`${A}/workers/subdomain`, { allow404: true }))?.subdomain;
+  const hosts = [...new Set([site.site.canonicalHost, wrangler.workers_dev !== false && sub ? `${worker}.${sub}.workers.dev` : null].filter(Boolean))];
+  const existing = ((await cf(`${A}/access/apps`)) || []).find((a) => a.name === `${id} editor`);
+  const current = existing ? await cf(`${A}/access/apps/${existing.id}`) : null;
+  const kept = (current?.policies || []).filter((p) => p.name === "editors").flatMap((p) => p.include || []).map((i) => i.email?.email?.toLowerCase()).filter(Boolean);
+  const all = [...new Set([...kept, ...editors])];
+  const body = {
+    type: "self_hosted",
+    name: `${id} editor`,
+    domain: `${hosts[0]}/_emdash`,
+    destinations: hosts.map((h) => ({ type: "public", uri: `${h}/_emdash` })),
+    session_duration: "24h",
+    policies: [{ name: "editors", decision: "allow", include: all.map((email) => ({ email: { email } })) }],
+  };
+  const app = existing ? await cf(`${A}/access/apps/${existing.id}`, { method: "PUT", body }) : await cf(`${A}/access/apps`, { method: "POST", body });
+  const added = all.filter((e) => !kept.includes(e));
+  did(`Access application "${id} editor" ${existing ? "updated" : "created"} on ${hosts.map((h) => `${h}/_emdash`).join(" and ")}: ${all.length} editor(s), ${added.length ? `added ${added.join(", ")}` : "no one new"}`);
+  return app;
+}
+
+if (already) {
+  if (!String(arg("editors", "")).trim()) {
+    did("client editing is already on in this site; name editors to add them to its editor login");
+    finish();
+  }
+  if (DRY) {
+    did(`dry run: would let ${editors.join(", ")} sign in through the Access application "${id} editor", keeping the editors already there`);
+    finish();
+  }
+  if (!((await cf(`${A}/access/apps`)) || []).some((a) => a.name === `${id} editor`)) throw new Error(`client editing is on in this site, but the Access application "${id} editor" doesn't exist`);
+  await editorApp();
+  did("site: client editing was already on; nothing in the site changed");
+  finish();
+}
 
 // 1. Budget (https://developers.cloudflare.com/d1/platform/limits/ and
 // https://developers.cloudflare.com/workers/platform/limits/, checked 2026-10-23).
@@ -87,20 +131,8 @@ await ensureBucket(`${id}-media`);
 await ensureBucket(`${id}-media-preview`);
 did(`resources: D1 ${id}-cms (+ preview), R2 ${id}-media (+ preview), KV ${id}-session (+ preview)`);
 
-// 3. Access on /_emdash: EmDash checks the Access JWT on all of /_emdash/*, so the application covers the whole path.
-const sub = (await cf(`${A}/workers/subdomain`, { allow404: true }))?.subdomain;
-const hosts = [...new Set([site.site.canonicalHost, wrangler.workers_dev !== false && sub ? `${worker}.${sub}.workers.dev` : null].filter(Boolean))];
-const body = {
-  type: "self_hosted",
-  name: `${id} editor`,
-  domain: `${hosts[0]}/_emdash`,
-  destinations: hosts.map((h) => ({ type: "public", uri: `${h}/_emdash` })),
-  session_duration: "24h",
-  policies: [{ name: "editors", decision: "allow", include: editors.map((email) => ({ email: { email } })) }],
-};
-const existing = ((await cf(`${A}/access/apps`)) || []).find((a) => a.name === `${id} editor`);
-const editorApp = existing ? await cf(`${A}/access/apps/${existing.id}`, { method: "PUT", body }) : await cf(`${A}/access/apps`, { method: "POST", body });
-did(`Access application "${id} editor" ${existing ? "updated" : "created"} on ${hosts.map((h) => `${h}/_emdash`).join(" and ")}, for ${editors.join(", ")}`);
+// 3. The editor login.
+const editorAppResult = await editorApp();
 
 const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { cwd: SITE, stdio: ["ignore", "inherit", "inherit"], ...opts });
 // 4. Secrets, set with the site's wrangler config as it is (before `on` changes it). The key is generated once, in
@@ -110,7 +142,7 @@ const secret = (name, value, preview = false) => {
   const args = preview ? ["wrangler", "preview", "base-config", "secret", "put", name] : ["wrangler", "secret", "put", name, "--name", worker];
   sh("npx", args, { input: value, stdio: ["pipe", "ignore", "inherit"] });
 };
-secret("CF_ACCESS_AUDIENCE", editorApp.aud);
+secret("CF_ACCESS_AUDIENCE", editorAppResult.aud);
 let key = null;
 if (!names.includes("EMDASH_ENCRYPTION_KEY")) {
   const version = JSON.parse(read("editing/packages.json")).dependencies.emdash;
@@ -145,5 +177,4 @@ if (/<[a-z-]+>/.test(JSON.stringify(w))) throw new Error("wrangler.jsonc still h
 writeFileSync(join(SITE, "wrangler.jsonc"), "// Client editing on (scripts/site/editing-on.mjs). Resource IDs are not secrets.\n" + JSON.stringify(w, null, 2) + "\n");
 did("site: editing switched on (scripts/editing.mjs on), bindings filled in wrangler.jsonc for production and previews");
 
-const out = arg("report", "");
-if (out) writeFileSync(out, report.map((r) => `- ${r}`).join("\n") + "\n");
+finish();

@@ -319,7 +319,9 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
 - **Sign-in:**
   - Cloudflare Access on `<host>/_emdash`, with the application `<id> editor`. EmDash's `access()` mode checks the Access JWT, so there are no passkeys and no email is needed.
   - The first person to open the admin becomes its administrator and runs the setup wizard. Choosing the sample content there brings in the site's current copy.
-  - To add an editor, add their email to the `<id> editor` policy.
+  - To add an editor, run **site editing** with `mode: on` and their email in `editors`. On a site where editing is
+    already on, that only adds them to the `<id> editor` application, keeps everyone already there, and opens no pull
+    request. To remove one, take their email off that application's policy in Cloudflare Zero Trust.
   - On preview URLs, the previews Access application signs people in, and its audience is set as the previews' `CF_ACCESS_AUDIENCE`.
 - **Performance on the Free plan (10 ms CPU a request):**
   - Only pages that read EmDash content render on request: the home page in the starter.

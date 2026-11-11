@@ -8,7 +8,7 @@ on:
     inputs:
       site_id: { description: "site id", required: true }
       mode: { description: "on = switch client editing on; off = switch it off", required: true, default: "off", type: choice, options: ["on", "off"] }
-      editors: { description: "with on: editors' emails besides the owner, comma-separated", required: false, default: "" }
+      editors: { description: "with on: editors' emails besides the owner, comma-separated (if editing is already on, this only adds them)", required: false, default: "" }
 jobs:
   editing:
     uses: OWNER/framework-b/.github/workflows/site-editing.yml@main
