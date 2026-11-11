@@ -1,0 +1,14 @@
+---
+// fb_doors (the poster route): two or three image panels side by side (stacked on phones). Each is a title, a line of
+// text and a link, so a visitor picks the path that is theirs. No section heading: each door's title is the heading.
+import Panel from "./Panel.astro";
+
+interface Props { value: Record<string, any>; blockKey?: string }
+const { value, blockKey } = Astro.props;
+const items = value.items || [];
+---
+<section id={value.anchor_id || undefined} class:list={["doors grid gap-1.5", items.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2", { "max-sm:hidden": value.phone === "hide" }]}>
+  {items.map((item, i) => (
+    <Panel title={item.title} body={item.body} ctaLabel={item.cta_label} ctaUrl={item.cta_url} image={item.image} side="left" size="half" headingId={`h-${blockKey || "doors"}-${i}`} />
+  ))}
+</section>

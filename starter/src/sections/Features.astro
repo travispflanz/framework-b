@@ -1,26 +1,40 @@
 ---
 import { inline, paragraphs } from "./text.js";
 // fb_features: reasons to choose the business, each with an icon. Layouts: "grid" (icons in columns), "bento"
-// (the first reason large, the rest as tiles), "list" (a compact two-column list), "cards" (a card each).
+// (the first reason large, the rest as tiles), "list" (a compact two-column list), "cards" (a card each), "posters" (the
+// poster route: tall cards, the title large over the item's photo, or type only on the accent or outlined).
 // On phones they fold into an accordion by default, so six reasons take one screen instead of three.
 import Icon from "./Icon.astro";
+import Picture from "./Picture.astro";
 import PhoneAccordion from "./PhoneAccordion.astro";
 import SwipeCue from "./SwipeCue.astro";
 import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
-import { phoneOf, variantOf } from "./design.js";
+import { composition, phoneOf, variantOf } from "./design.js";
 
-interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" | "inverse" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "features"}`;
 const variant = variantOf("fb_features", value);
-const phone = phoneOf("fb_features", value);
+// Poster cards carry their photos on phones too, so "auto" stacks them rather than folding them into an accordion.
+const phone = variant === "posters" && (!value.phone || value.phone === "auto") ? "stack" : phoneOf("fb_features", value);
 const collapse = phone === "collapse";
 const hideWide = { "max-sm:hidden": collapse };
+const titleCase = { uppercase: composition.titleCase === "upper" };
 ---
 <Section id={value.anchor_id} tone={tone} labelledby={headingId} phone={phone}>
   <SectionIntro eyebrow={value.eyebrow} headline={value.headline} subheadline={value.subheadline} id={headingId} />
-  {variant === "bento" ? (
+  {variant === "posters" ? (
+    <ul class:list={["poster-grid phone-list grid", hideWide]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
+      {value.items.map((item, i) => (
+        <li class:list={["poster", item.image?.src ? "poster-photo" : i % 2 === 0 ? "poster-accent" : "poster-outline"]}>
+          {item.image?.src && <Picture image={item.image} sizes="(min-width: 768px) 33vw, 100vw" class="poster-image" />}
+          <h3 class:list={["poster-title font-display text-headline", titleCase]}>{item.title}</h3>
+          {paragraphs(item.body).map((p) => <p class="poster-body text-small" set:html={inline(p)} />)}
+        </li>
+      ))}
+    </ul>
+  ) : variant === "bento" ? (
     <ul class:list={["phone-list grid gap-4 md:grid-cols-4", hideWide]} data-phone={phone} tabindex={phone === "swipe" ? 0 : undefined} aria-label={phone === "swipe" ? value.headline : undefined} data-reveal>
       {value.items.map((item, i) => (
         <li class:list={["card grid content-start gap-3 p-6", { "md:col-span-2 md:row-span-2 md:content-end md:p-8": i === 0, "md:col-span-2": i > 0 && value.items.length % 2 === 0 && i === value.items.length - 1 }]}>

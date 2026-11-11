@@ -28,9 +28,9 @@ const image = (slug, label, required = false) => ({ slug, label, type: "image", 
 // Layout variants (docs/SPEC.md section 12, "Section variants"): how a section is drawn, chosen per section, so
 // two sites with the same content can look structurally different. The first option is the default.
 export const VARIANTS = {
-  fb_hero: ["split", "full-bleed", "statement", "editorial", "bento", "fade"],
+  fb_hero: ["split", "full-bleed", "statement", "editorial", "bento", "fade", "poster", "poster-page", "poster-card", "poster-edge"],
   fb_steps: ["cards", "timeline", "numerals"],
-  fb_features: ["grid", "bento", "list", "cards"],
+  fb_features: ["grid", "bento", "list", "cards", "posters"],
   fb_pricing: ["cards"],
   fb_area: ["chips", "columns"],
   fb_faq: ["stack", "two-column"],
@@ -38,13 +38,16 @@ export const VARIANTS = {
   fb_form: ["split", "stacked"],
   fb_split: ["side", "overlap"],
   fb_gallery: ["grid", "masonry", "strip"],
-  fb_text: ["split", "prose", "lead", "center", "wide"],
+  fb_text: ["split", "prose", "lead", "center", "wide", "statement"],
   fb_list: ["columns", "split", "stack"],
   fb_people: ["grid", "row", "aside"],
 };
 // How a section behaves on a phone (under 640 px). "auto" picks the section's own default (PHONE_AUTO).
 export const PHONE = ["auto", "stack", "swipe", "collapse", "hide"];
 export const PHONE_AUTO = { fb_steps: "swipe", fb_features: "collapse", fb_pricing: "swipe", fb_gallery: "swipe", fb_area: "collapse" };
+// Band colour: the page's own tone, or the inverse tone (DESIGN.md `inverse-*` colours) for one light band in a dark
+// design or one dark band in a light one (the poster route). Heroes, panels and doors carry their own pictures.
+export const TONES = ["page", "inverse"];
 
 const block = (slug, label, description, fields) => ({
   slug,
@@ -58,6 +61,7 @@ const block = (slug, label, description, fields) => ({
       ...fields,
       ...(VARIANTS[slug]?.length > 1 ? [{ slug: "variant", label: "Layout", type: "select", validation: { options: VARIANTS[slug] } }] : []),
       ...(slug === "fb_hero" ? [] : [{ slug: "phone", label: "On phones", type: "select", validation: { options: PHONE } }]),
+      ...(slug === "fb_hero" || slug === "fb_panel" || slug === "fb_doors" ? [] : [{ slug: "tone", label: "Band colour", type: "select", validation: { options: TONES } }]),
       anchor,
     ],
   }],
@@ -110,6 +114,7 @@ export const SECTIONS = [
           { slug: "icon", label: "Icon", type: "select", required: true, options: ICON_NAMES },
           { slug: "title", label: "Title", type: "string", required: true },
           { slug: "body", label: "Details", type: "text", required: true },
+          image("image", "Poster image (posters layout only, optional)"),
         ],
       },
     },
@@ -208,6 +213,33 @@ export const SECTIONS = [
       },
     },
     { slug: "note", label: "Small print under the images", type: "text" },
+  ]),
+  block("fb_panel", "Image panel", "A photograph across the full width of the page with a large title over it and a short text block on a scrim block", [
+    { slug: "headline", label: "Title (set very large, over the photo)", type: "string", required: true },
+    { slug: "body", label: "Text on the scrim (leave a blank line between paragraphs)", type: "text" },
+    { slug: "cta_label", label: "Button text", type: "string" },
+    link("cta_url", "Button link"),
+    image("image", "Photograph", true),
+    { slug: "text_side", label: "Text block on the", type: "select", validation: { options: ["right", "left"] } },
+  ]),
+  block("fb_doors", "Image doors", "Two or three image panels side by side, each a title, a line of text and a link", [
+    {
+      slug: "items",
+      label: "Doors",
+      type: "repeater",
+      required: true,
+      validation: {
+        minItems: 2,
+        maxItems: 3,
+        subFields: [
+          image("image", "Photograph", true),
+          { slug: "title", label: "Title (set very large, over the photo)", type: "string", required: true },
+          { slug: "body", label: "Text on the scrim", type: "text" },
+          { slug: "cta_label", label: "Link text", type: "string" },
+          link("cta_url", "Link"),
+        ],
+      },
+    },
   ]),
   block("fb_text", "Text", "Plain paragraphs under a headline", [
     { slug: "eyebrow", label: "Small label above the headline", type: "string" },

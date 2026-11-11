@@ -69,10 +69,13 @@ const PAGE = `<!doctype html><html lang="en"><head><title>Image text</title><sty
   <div class="panel"><img src="/dark.svg" alt=""><p>Light text on a dark picture</p></div>
   <p>Ordinary text beside no picture at all</p>
   <ul class="strip">${[1, 2, 3].map((n) => `<li><img src="/bright.svg" alt=""><p>Strip card ${n} on a bright picture</p></li>`).join("")}</ul>
+  <div class="panel" style="overflow:hidden;height:200px"><img src="/dark.svg" alt=""><h2 style="position:absolute;bottom:-40px;left:0;margin:0;font-size:96px;line-height:1;color:#f6f4f0">Bleeds clipped</h2></div>
+  <div class="panel" style="height:200px"><img src="/dark.svg" alt=""><h2 style="position:absolute;bottom:-40px;left:0;margin:0;font-size:96px;line-height:1;color:#f6f4f0">Bleeds loose</h2></div>
+  <div style="height:80px"></div>
   <div class="fixed">A fixed bar over the first picture</div>
 </main></body></html>`;
 
-test("in a browser: loose text on a bright picture fails (also in a sideways strip), the scrim and the dark picture pass, other text is skipped", async () => {
+test("in a browser: loose text on a bright picture fails (also in a sideways strip), the scrim and the dark picture pass, clipped text is measured where it shows, other text is skipped", async () => {
   const server = createServer((req, res) => {
     if (req.url === "/bright.svg") { res.setHeader("content-type", "image/svg+xml"); return res.end(svg("#e8e8e8")); }
     if (req.url === "/dark.svg") { res.setHeader("content-type", "image/svg+xml"); return res.end(svg("#1a1a1a")); }
@@ -88,7 +91,11 @@ test("in a browser: loose text on a bright picture fails (also in a sideways str
     const scratch = await context.newPage();
     const rows = await measureImageText(page, scratch);
     const by = (t) => rows.find((r) => r.text.startsWith(t));
-    assert.equal(rows.length, 6, JSON.stringify(rows));
+    assert.equal(rows.length, 8, JSON.stringify(rows));
+    // A title that bleeds off the bottom of a picture that clips it (the poster route's panels) is measured only
+    // where it shows; the same title running loose onto the white page below is measured there too, and fails.
+    assert.equal(by("Bleeds clipped")?.ok, true, JSON.stringify(by("Bleeds clipped")));
+    assert.equal(by("Bleeds loose")?.ok, false, JSON.stringify(by("Bleeds loose")));
     for (const n of [1, 2, 3]) assert.equal(by(`Strip card ${n}`)?.ok, false, `strip card ${n} is measured even off screen`);
     assert.equal(by("Loose").ok, false);
     assert.ok(by("Loose").ratio < 1.5);

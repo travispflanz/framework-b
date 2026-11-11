@@ -151,3 +151,140 @@ details[open] > summary .accordion-cue::after { display: none; }
 .accent-word { color: var(--color-accent); }
 .bg-accent .accent-word { color: inherit; text-decoration: underline; text-decoration-thickness: 0.08em; text-underline-offset: 0.12em; }
 
+
+/* ---------- The poster route (docs/SPEC.md section 12, "The poster route") ----------
+   Full-bleed photo panels with very large titles, poster cards, a statement band, an inverse band, and a hero family
+   built from them. Text on a picture is set in on-scrim colours over a scrim (scripts/design-tokens.mjs derives them
+   from ink and bg unless DESIGN.md names its own), so the route reads the same in a light design and a dark one. */
+
+/* Optional type levels: a route that sets display-xl, display-l or lede in DESIGN.md gets them; otherwise the nearest
+   required level stands in. */
+.type-display-xl { font-size: var(--text-display-xl, var(--text-display)); line-height: var(--text-display-xl--line-height, var(--text-display--line-height)); letter-spacing: var(--text-display-xl--letter-spacing, var(--text-display--letter-spacing, normal)); font-weight: var(--text-display-xl--font-weight, var(--text-display--font-weight)); }
+.type-display-l { font-size: var(--text-display-l, var(--text-display)); line-height: var(--text-display-l--line-height, var(--text-display--line-height)); letter-spacing: var(--text-display-l--letter-spacing, var(--text-display--letter-spacing, normal)); font-weight: var(--text-display-l--font-weight, var(--text-display--font-weight)); }
+.type-lede { font-size: var(--text-lede, var(--text-body)); line-height: var(--text-lede--line-height, var(--text-body--line-height)); font-weight: var(--text-lede--font-weight, var(--text-body--font-weight)); }
+
+/* Inverse band (a section's `tone: "inverse"`): swaps the colour variables, so every token utility inside it (text-ink,
+   bg-surface, border-line, the accent button) follows. The inverse colours come from DESIGN.md (`inverse-*`). */
+.tone-inverse {
+  --color-bg: var(--color-inverse-bg);
+  --color-surface: var(--color-inverse-surface);
+  --color-ink: var(--color-inverse-ink);
+  --color-ink-muted: var(--color-inverse-ink-muted);
+  --color-line: var(--color-inverse-line);
+  --color-field: var(--color-inverse-field);
+  --color-accent: var(--color-inverse-accent);
+  --color-accent-ink: var(--color-inverse-accent-ink);
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+}
+
+/* Text over a photograph always sits on a scrim block, so it stays readable whatever the picture. */
+.scrim-block { background: color-mix(in srgb, var(--color-scrim) 62%, transparent); padding: 18px 22px; }
+
+/* Image panel: a photograph across the full width, the title bleeding off the bottom edge, a scrim block of text.
+   Used by fb_panel, fb_doors and the poster heroes. Two gradients and a flat dim keep titles readable on bright
+   areas. */
+.panel { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 2rem; padding: 1.5rem var(--spacing-gutter) 0; min-height: min(92svh, 58rem); background-color: var(--color-scrim); color: var(--color-on-scrim); }
+.panel-half { min-height: min(80svh, 46rem); }
+.panel-image { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; }
+.panel-dim {
+  position: absolute; inset: 0; z-index: -1;
+  background:
+    linear-gradient(to top, color-mix(in srgb, var(--color-scrim) 78%, transparent), transparent 50%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-scrim) 55%, transparent), transparent 30%),
+    color-mix(in srgb, var(--color-scrim) 28%, transparent);
+}
+.panel-copy { max-width: 30rem; align-self: flex-end; }
+.panel[data-side="left"] .panel-copy { align-self: flex-start; }
+.panel-copy > * + * { margin-top: 1rem; }
+.panel-title { margin: 0 0 -0.12em -0.04em; overflow-wrap: anywhere; }
+/* A panel title never breaks inside a word: its size is capped so the longest word fits across the panel.
+   --title-fit is the display face's average capital width in em (composition.titleFit in DESIGN.md: measure the
+   alphabet with `node scripts/logo.mjs measure "ABCDEFGHIJKLMNOPQRSTUVWXYZ"`, divide the width by 26 and by the size,
+   and add a tenth; the default suits the widest common faces). */
+.panel-title[data-fit] { --fit-width: 100vw; font-size: min(var(--fit-max), calc((var(--fit-width) - 2 * var(--spacing-gutter)) / (var(--longest) * var(--title-fit, 0.75)))); }
+.panel-title.type-display-xl[data-fit] { --fit-max: var(--text-display-xl, var(--text-display)); }
+.panel-title.type-display-l[data-fit] { --fit-max: var(--text-display-l, var(--text-display)); }
+@media (min-width: 768px) { .panel-half .panel-title[data-fit] { --fit-width: 50vw; } }
+/* The poster hero is a sentence, not one word, so it fits the first screen whole (the viewport less the header,
+   whose height follows composition.logo: --header-height in Base.astro) and does not bleed off the edge. */
+@media (min-width: 640px) {
+  .panel-hero { min-height: min(calc(100svh - var(--header-height, 5rem)), 58rem); padding-bottom: 1.25rem; }
+  .panel-hero .panel-title { margin-bottom: 0; }
+}
+.panel-link { display: inline-block; border: 1px solid currentColor; padding: 11px 16px; font-size: var(--text-label); font-weight: var(--text-label--font-weight); letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none; color: var(--color-ink); background-color: var(--color-bg); }
+@media (max-width: 639px) {
+  .panel { min-height: min(78svh, 40rem); padding-top: 1rem; }
+  .panel-half { min-height: min(52svh, 30rem); }
+  .panel-copy { max-width: none; align-self: stretch; }
+}
+
+/* Poster grid (features, "posters" layout): tall cards with the title large over a photo, or type only on the poster
+   colour (DESIGN.md `poster` and `poster-ink`, else the accent) or outlined. Three columns from 768 px. */
+/* display comes from the grid utility, so the phone settings (hide, the accordion) can still hide the grid. */
+.poster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; list-style: none; padding: 0; margin: 0; }
+.poster { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 2 / 3; display: flex; flex-direction: column; justify-content: flex-end; gap: 0.6rem; padding: 16px; background-color: var(--color-surface); color: var(--color-ink); }
+.poster-title { overflow-wrap: anywhere; }
+.poster-image { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; }
+.poster-photo { background-color: var(--color-scrim); color: var(--color-on-scrim); }
+.poster-photo::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, color-mix(in srgb, var(--color-scrim) 90%, transparent) 0%, color-mix(in srgb, var(--color-scrim) 70%, transparent) 50%, transparent 78%); }
+.poster-accent { background-color: var(--color-poster); color: var(--color-poster-ink); }
+.poster-outline { border: 1px solid var(--color-line); background-color: transparent; }
+@media (min-width: 768px) {
+  .poster-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-gutter); }
+}
+
+/* Statement text (fb_text "statement"): the headline very large, the body in two columns beneath it (one on a phone). */
+.statement-body { columns: 2 24rem; column-gap: 3rem; max-width: var(--container-content); }
+.statement-body > p { break-inside: avoid; margin: 0 0 1rem; }
+
+/* Phones: poster cards run one to a row (two across is too narrow for a large title), and the poster hero leaves
+   room for the fixed action bar so its last line of title is never covered. */
+@media (max-width: 767px) {
+  .poster-grid { grid-template-columns: minmax(0, 1fr); }
+  .poster { aspect-ratio: auto; min-height: 0; }
+  .poster-photo { min-height: 15rem; }
+  /* The poster hero puts its title first on a phone, so the fixed action bar never covers it. */
+  .panel-hero { justify-content: flex-start; padding-bottom: 2rem; }
+  .panel-hero .panel-title { order: -1; margin: 0 0 0 -0.04em; }
+  /* With the title at the top, the top of the photo is darkened enough for the brightest picture (measured on the
+     first adopted site: white paper behind a 62 px title needed this to stay above 3:1). */
+  .panel-hero .panel-dim {
+    background:
+      linear-gradient(to bottom, color-mix(in srgb, var(--color-scrim) 78%, transparent), color-mix(in srgb, var(--color-scrim) 70%, transparent) 40%, transparent 65%),
+      color-mix(in srgb, var(--color-scrim) 28%, transparent);
+  }
+  /* A photo poster on a phone is too short for its text to sit over the picture: the photo fills the top of the
+     card and fades into the card's own colour, and the title starts where the fade is nearly solid, in ink. */
+  .poster-photo { padding-top: 10rem; background-color: var(--color-surface); color: var(--color-ink); }
+  .poster-photo .poster-image { bottom: auto; height: 12rem; }
+  .poster-photo::after { background: linear-gradient(to bottom, transparent 3rem, var(--color-surface) 11rem); }
+}
+
+/* Inner-page heroes from the poster route (composition.heroes.page), so the inner pages vary within one language:
+   poster-page  the poster hero, shorter: the title on the photo, the text on a scrim block.
+   poster-card  the title beside a photo in the 4:5 frame the poster cards use; for form pages, so the form comes up
+                quickly.
+   poster-edge  the title beside a photo that runs to the edge of the window, the full height of the hero. */
+.panel-page { min-height: min(68svh, 40rem); }
+.hero-card { padding-block: 3rem; }
+.hero-card-grid { display: grid; gap: 2rem; }
+.hero-card-photo { position: relative; overflow: hidden; aspect-ratio: 4 / 5; background-color: var(--color-surface); }
+.hero-card-photo img, .hero-edge-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero-edge { position: relative; display: grid; }
+.hero-edge-photo { position: relative; overflow: hidden; }
+@media (min-width: 1024px) {
+  .hero-card-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: end; gap: 3rem; }
+  .hero-card-copy { padding-bottom: 1rem; }
+  .hero-edge { min-height: min(72svh, 42rem); }
+  .hero-edge-photo { position: absolute; inset-block: 0; right: 0; width: 40%; }
+  .hero-edge-copy { width: 60%; padding-block: 3rem; padding-right: 3rem; }
+}
+@media (max-width: 1023px) {
+  .hero-edge-photo { height: 14rem; }
+  .hero-edge-copy { padding-block: 2rem 2.5rem; }
+}
+@media (max-width: 639px) {
+  .hero-card-photo { aspect-ratio: 3 / 2; }
+  .panel-page { min-height: min(70svh, 34rem); }
+}

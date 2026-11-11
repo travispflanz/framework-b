@@ -27,8 +27,17 @@
 //                variants in src/sections/schema.js; a hero without a variant takes the first of the family, and
 //                scripts/check-content.mjs holds every page to it), closing (the section type every content page
 //                ends on, as the home page does, for example fb_cta; pages with a form end on the form)
+//                titleFit (the display face's average capital width in em, 0.3 to 1, for the poster route's
+//                panel titles that must never break inside a word; default 0.75, which suits the widest common faces;
+//                measure it with `node scripts/logo.mjs measure "ABCDEFGHIJKLMNOPQRSTUVWXYZ"`: width / 26 / size,
+//                plus a tenth)
 //   imagery:     style (see IMAGERY_STYLES), secondary (optional), treatment (none|duotone|tint|warm|cool|mono),
 //                grain (true|false), prompt (one line of art direction reused for every generated image)
+// Optional colours for the poster route (docs/SPEC.md section 12, "The poster route"): scrim (what darkens a
+// picture under text; default the darker of ink and bg), on-scrim and on-scrim-muted (text on it; default the lighter
+// of ink and bg, and in a dark design ink-muted), poster and poster-ink (type-only poster cards; default accent and
+// accent-ink), and the inverse set (inverse-bg, -surface, -ink, -ink-muted, -line, -field, -accent, -accent-ink:
+// all eight or none) for a section whose tone is "inverse". Each is checked for contrast when it is used.
 // Extra tokens are allowed and exported too. Components (button-primary, button-secondary, ...) become classes
 // in @layer components. Fonts must be installed Fontsource packages (self-hosted, OFL), for example
 // `npm i @fontsource-variable/figtree`; the script imports the variable package when present.
@@ -103,6 +112,8 @@ for (const [k, allowed] of Object.entries(COMPOSITION)) {
 }
 if (!(Number(composition.phoneBudget) >= 2 && Number(composition.phoneBudget) <= 20)) throw new Error("composition.phoneBudget must be a number of screens from 2 to 20");
 composition.phoneBudget = Number(composition.phoneBudget);
+if (composition.titleFit !== undefined && !(Number(composition.titleFit) >= 0.3 && Number(composition.titleFit) <= 1)) throw new Error("composition.titleFit must be the display face's average capital width in em, from 0.3 to 1");
+if (composition.titleFit !== undefined) composition.titleFit = Number(composition.titleFit);
 // One design language (SPEC section 12): the title treatment and the hero layouts are part of the route, so every
 // page, including the ones added later, gets them from here rather than from whoever writes the page.
 if (!["as-written", "upper"].includes(composition.titleCase)) throw new Error(`composition.titleCase must be as-written or upper (got ${composition.titleCase})`);
@@ -141,7 +152,26 @@ const ratio = (a, b) => {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 };
-const lowContrast = CONTRAST.map(([fg, bg, min]) => [fg, bg, min, ratio(tokens.colors[fg], tokens.colors[bg])]).filter(([, , min, r]) => r < min);
+// The poster route's colours (see the header): derived when DESIGN.md doesn't name them, so the route works in any
+// design, and checked like the rest. Text on a scrim block sits on the scrim at 62% over a photo; the QA gate measures
+// the real picture (scripts/lib/image-text.mjs), so the pair here is the floor for a black-and-white photo's darkest
+// part. In a dark design (ink lighter than bg) the scrim is bg and the text ink; in a light one the reverse.
+const colors = { ...tokens.colors };
+const darkDesign = luminance(colors.ink) > luminance(colors.bg);
+const derived = {
+  scrim: darkDesign ? colors.bg : colors.ink,
+  "on-scrim": darkDesign ? colors.ink : colors.bg,
+  "on-scrim-muted": darkDesign ? colors["ink-muted"] : colors.bg,
+  poster: colors.accent,
+  "poster-ink": colors["accent-ink"],
+};
+for (const [name, value] of Object.entries(derived)) if (colors[name] === undefined) colors[name] = value;
+CONTRAST.push(["on-scrim", "scrim", 4.5], ["on-scrim-muted", "scrim", 4.5], ["poster-ink", "poster", 4.5]);
+const INVERSE = ["inverse-bg", "inverse-surface", "inverse-ink", "inverse-ink-muted", "inverse-line", "inverse-field", "inverse-accent", "inverse-accent-ink"];
+const inverseNamed = INVERSE.filter((n) => tokens.colors[n] !== undefined);
+if (inverseNamed.length && inverseNamed.length < INVERSE.length) throw new Error(`DESIGN.md names some inverse colours but not ${INVERSE.filter((n) => !inverseNamed.includes(n)).join(", ")}: the inverse band needs all eight`);
+if (inverseNamed.length) CONTRAST.push(["inverse-ink", "inverse-bg", 4.5], ["inverse-ink", "inverse-surface", 4.5], ["inverse-ink-muted", "inverse-bg", 4.5], ["inverse-ink-muted", "inverse-surface", 4.5], ["inverse-accent", "inverse-bg", 4.5], ["inverse-accent-ink", "inverse-accent", 4.5], ["inverse-field", "inverse-bg", 3]);
+const lowContrast = CONTRAST.map(([fg, bg, min]) => [fg, bg, min, ratio(colors[fg], colors[bg])]).filter(([, , min, r]) => r < min);
 for (const [fg, bg, min, r] of lowContrast) console.log(`ERROR  colors.${fg} on colors.${bg} is ${r.toFixed(2)}:1, needs ${min}:1`);
 if (lowContrast.length) throw new Error("DESIGN.md colours fail WCAG AA contrast");
 
@@ -202,7 +232,7 @@ for (const pkg of imports) lines.push(`@import "${pkg}";`);
 lines.push("", "@theme {");
 lines.push("  /* Only the design's own colours exist: Tailwind's default palette is switched off. */");
 lines.push("  --color-*: initial;");
-for (const [name, value] of Object.entries(tokens.colors)) lines.push(`  --color-${name}: ${resolve(value)};`);
+for (const [name, value] of Object.entries(colors)) lines.push(`  --color-${name}: ${resolve(value)};`);
 lines.push("");
 lines.push(`  --font-display: ${stack(tokens.typography.display.fontFamily)};`);
 lines.push(`  --font-body: ${stack(tokens.typography.body.fontFamily)};`);
@@ -240,6 +270,8 @@ lines.push("  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance;
 lines.push("  p { text-wrap: pretty; }");
 lines.push("  :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }");
 lines.push("  a { color: var(--color-accent); text-underline-offset: 0.15em; }");
+// The display face's average capital width (composition.titleFit), for the poster route's panel titles (sections.css).
+if (composition.titleFit !== undefined) lines.push(`  :root { --title-fit: ${composition.titleFit}; }`);
 lines.push("}", "");
 
 const props = {

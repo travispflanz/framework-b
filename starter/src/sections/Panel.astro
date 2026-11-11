@@ -1,0 +1,29 @@
+---
+// One full-bleed image panel (the poster route, docs/SPEC.md section 12, "The poster route"): a photograph across the
+// whole band, a large title bleeding off the bottom edge, and a short text block on a scrim block, never loose on the
+// picture, so it stays readable on any photo. Used by fb_panel (full width) and fb_doors (side by side). `level` is the
+// title's heading level. Text on the picture is set in `on-scrim` (scripts/design-tokens.mjs: the lighter of ink and
+// bg, unless DESIGN.md names its own), so the panel reads the same in a light design and a dark one.
+import Picture from "./Picture.astro";
+import { paragraphs, inline } from "./text.js";
+import { composition } from "./design.js";
+
+interface Props { title: string; body?: string; ctaLabel?: string; ctaUrl?: string; image: Record<string, any>; side?: string; size?: "wide" | "half"; headingId?: string; level?: "h2" | "h3"; eager?: boolean }
+const { title, body, ctaLabel, ctaUrl, image, side = "right", size = "wide", headingId, level = "h2", eager = false } = Astro.props;
+const Tag = level;
+const copy = paragraphs(body);
+// The title never breaks inside a word: its size is capped so the longest word fits across the panel (sections.css,
+// with the display face's average capital width from composition.titleFit).
+const longest = Math.max(...String(title).split(/\s+/).map((w) => w.length), 1);
+---
+<div class:list={["panel", `panel-${size}`]} data-side={side}>
+  <Picture image={image} sizes={size === "wide" ? "100vw" : "(min-width: 768px) 50vw, 100vw"} class="panel-image" eager={eager} />
+  <div class="panel-dim" aria-hidden="true"></div>
+  {(copy.length > 0 || (ctaLabel && ctaUrl)) && (
+    <div class="panel-copy scrim-block reveal">
+      {copy.map((p) => <p class="type-lede text-on-scrim" set:html={inline(p)} />)}
+      {ctaLabel && ctaUrl && <a href={ctaUrl} class="panel-link">{ctaLabel}</a>}
+    </div>
+  )}
+  <Tag id={headingId} class:list={["panel-title font-display text-on-scrim", size === "wide" ? "type-display-xl" : "type-display-l", { uppercase: composition.titleCase === "upper" }]} data-fit style={`--longest: ${longest}`}>{title}</Tag>
+</div>

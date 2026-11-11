@@ -380,7 +380,7 @@ The design phase's foundation and its tools are in `starter/`. The intake conver
     - DESIGN.md components as classes, such as `.button-primary` and its `-hover` state.
   - The CLI's own `export --format css-tailwind` drops line-heights and font fallbacks, which is why the framework writes its own export.
 - **Section library (`src/sections/`):**
-  - The sections are hero (with an optional image), steps, features, pricing, area, faq, cta, form, text, split (text beside an image), gallery, list (up to three lists side by side, each with check, cross, number or dot markers) and people (the owner's own photos, names and roles; added 2026-10-28 for adopting an existing site).
+  - The sections are hero (with an optional image), steps, features, pricing, area, faq, cta, form, text, split (text beside an image), gallery, list (up to three lists side by side, each with check, cross, number or dot markers), people (the owner's own photos, names and roles; added 2026-10-28 for adopting an existing site), and the poster route's image panel and image doors (section 12, "The poster route").
   - Text fields take inline `**bold**`, `*italic*` and `[label](link)` (links starting with `/`, `#`, `https://`, `mailto:` or `tel:`). Everything else is escaped (`src/sections/text.js`), so content can't inject markup.
   - Pages: `home.json` is `/`; every other `src/content/<slug>.json` is `/<slug>`, rendered by `src/pages/[page].astro` and checked like the home page (title required, hero first, no clash with a page in `src/pages/`). With client editing on, only the home page comes from EmDash; the others stay static.
   - Each is defined once in `schema.js`, in EmDash's block-type format. That one definition:
@@ -1045,6 +1045,48 @@ What's built (`starter/src/lib/ai-use.js`, `src/pages/credits.astro`):
   when a picture tops a page). The page's layout passes the QA gate on the first adopted site; more than four entries
   sit under a heading across the page, because a long list beside a short heading failed Impeccable's "one column
   stretches the first viewport" there (2026-11-10).
+
+### The poster route (2026-11-11)
+
+The first adopted site's route, built there first as site-only sections and moved into the starter at the owner's
+request (2026-11-11), so any site can choose it. It suits a site whose pictures carry the page: archive or owner
+photographs, a strong display face, and few words.
+
+- **Sections and layouts:**
+  - `fb_panel` (image panel): a photograph across the full width, the title set very large and bleeding off its bottom
+    edge, a short text and a link on a scrim block (`text_side` left or right).
+  - `fb_doors` (image doors): two or three panels side by side, each a title, a line and a link, so a visitor picks
+    their path; stacked on phones. A route can make it the closing section (`composition.closing: fb_doors`).
+  - Hero `poster` (the home page's): the photo across the first screen, the title along the bottom edge, the sentence
+    and actions on a scrim block; on phones the title comes first, so the fixed action bar never covers it.
+    `poster-page` (an inner page's): the same, shorter, the title a step smaller. `poster-card`: the title beside a photo
+    in a 4:5 frame, for form pages, so the form comes up quickly. `poster-edge`: the title beside a photo that runs to
+    the edge of the window.
+  - Features `posters`: tall cards, the title over the item's photo (`image` on each item), or type only on the poster
+    colour or outlined. Phones stack them one to a row by default, the photo above the title.
+  - Text `statement`: the headline very large, the text in two columns beneath it.
+  - A section's `tone: "inverse"`: one band in DESIGN.md's inverse colours (a light band in a dark design, a dark one
+    in a light design); it doesn't count as one of the alternating bands.
+- **Any design, light or dark.** Text on a picture is set in `on-scrim` over `scrim`. `design-tokens.mjs` derives them
+  when DESIGN.md doesn't name them: the scrim is the darker of ink and bg, the text the lighter (and `on-scrim-muted`
+  is ink-muted in a dark design, bg in a light one), and checks each pair at 4.5:1. `poster` and `poster-ink` default to
+  accent and accent-ink. The inverse colours (`inverse-bg`, `-surface`, `-ink`, `-ink-muted`, `-line`, `-field`,
+  `-accent`, `-accent-ink`) come all eight or none, with their own contrast pairs; the content check fails an inverse
+  band without them. Optional type levels `display-xl`, `display-l` and `lede` are used when DESIGN.md has them;
+  otherwise display and body stand in. The title case follows `composition.titleCase`.
+- **Panel titles never break inside a word.** Their size is capped so the longest word fits across the panel, from the
+  display face's average capital width (`composition.titleFit`, em). Measured with `node scripts/logo.mjs measure
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"` (2026-11-11): a condensed face at 800 is 0.45 (the first adopted site sets 0.5), Oswald
+  700 0.53, DM Serif Display 0.61, Space Grotesk 700 0.63, Roboto 700 0.64, Hanken Grotesk 800 0.65, Playfair Display
+  700 0.68, Inter 700 0.70, Fraunces 800 0.75, Archivo Black 0.77. The default, 0.75, keeps all but the widest whole;
+  a route sets its face's width plus about a tenth.
+- **Text over pictures, clipped:** a title that bleeds off a panel is clipped by it, so the QA gate's text-over-picture
+  check now measures a line only where it shows (`scripts/lib/image-text.mjs`). Before, the hidden part was measured
+  against the next section's background: 1:1 on a light page. `image-text.test.mjs` checks a clipped title passes and
+  the same title running loose onto the page below fails.
+- **Tested:** the layout test's four poster pages (`scripts/test/variants.mjs`: every layout above, an inverse band and
+  doors, in the second composition, a light design) pass the whole QA gate (505 checks, locally, 2026-11-11). The first
+  adopted site ran the route live, in a dark design, from 2026-11-03.
 
 Rules:
 
