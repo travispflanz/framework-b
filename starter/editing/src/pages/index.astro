@@ -10,7 +10,9 @@ import fallback from "../content/home.json";
 const { entry: page, cacheHint } = await getEmDashEntry("pages", "home");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 const sections = page?.data.sections?.length ? page.data.sections : fallback.sections;
+// The page's <title> and description stay as the static home page has them until an editor sets a title.
+const title = page?.data.title && page.data.title !== "Home" ? page.data.title : fallback.title;
 ---
-<Base bleed title={page?.data.title && page.data.title !== "Home" ? page.data.title : undefined}>
+<Base bleed exactTitle={title && title !== "Home" ? title : undefined} description={fallback.description}>
   <Sections sections={sections} />
 </Base>

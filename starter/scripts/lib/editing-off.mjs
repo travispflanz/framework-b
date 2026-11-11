@@ -97,6 +97,12 @@ export function homeFromExport(seed, current, media = [], taken = []) {
   const walk = (value, where) => {
     if (Array.isArray(value)) return value.map((v, i) => walk(v, `${where}[${i}]`));
     if (!value || typeof value !== "object") return value;
+    // A focal point an editor set (or the site set before editing) carries back to the file.
+    const focal = Object.fromEntries(["focalX", "focalY"].filter((k) => typeof value[k] === "number").map((k) => [k, value[k]]));
+    // The site's own files, seeded as external media values (scripts/editing.mjs): back to { src: "<file>" }.
+    if (value.provider === "external" && typeof value.id === "string" && value.id.startsWith("local:")) {
+      return { src: value.id.slice(6), alt: value.alt || "", ...focal };
+    }
     if (typeof value.id === "string" && (value.provider ?? "local") === "local" && byId.has(value.id)) {
       const row = byId.get(value.id);
       if (!fromRow.has(row.id)) {
@@ -104,7 +110,7 @@ export function homeFromExport(seed, current, media = [], taken = []) {
         fromRow.set(row.id, file);
         images.push({ id: row.id, storageKey: row.storage_key, file, alt: value.alt || row.alt || "" });
       }
-      return { src: fromRow.get(row.id), alt: value.alt || row.alt || "" };
+      return { src: fromRow.get(row.id), alt: value.alt || row.alt || "", ...focal };
     }
     if (typeof value.id === "string" && typeof value.src === "string" && /^https?:\/\//.test(value.src)) {
       notes.push(`${where}: image from ${value.provider || "an external provider"} kept as its URL (${value.src})`);

@@ -87,19 +87,26 @@ if (mode === "on") {
 // the setup wizard.
 const { SECTIONS, SECTION_TYPES } = await import(pathToFileURL(join(process.cwd(), "src/sections/schema.js")).href);
 const home = JSON.parse(readFileSync("src/content/home.json", "utf8"));
-// EmDash image fields hold media-library entries ({ id, src, ... }); a static site's images are files in
-// src/assets/images. Those can't be seeded as media, so they're left out of the seed: editors add images in the
-// admin's media library instead. (Untested: carrying local images into EmDash media.)
+// EmDash image fields hold media values ({ id, src, provider, ... }); EmDash refuses a bare { src } ("image.id: expected
+// string", EmDash 1.3.1, 2026-11-11). A static site's images are files in src/assets/images, so each goes into the
+// seed as an external media value: id "local:<file>", src "/media/<file>" (the build copies those files there, so the
+// admin can show them; editing/astro.config.mjs), with its alt text and focal point. Picture.astro still serves the
+// file through Astro's image pipeline, and `off` turns the value back into { src: "<file>" }. An editor can keep a
+// picture or replace it from the media library. (EmDash's own $media import needs a URL it can download while the
+// seed is applied, which the site doesn't serve until it is deployed.)
 const isLocalImage = (v) => v && typeof v === "object" && typeof v.src === "string" && !v.id && !/^(https?:)?\/\//.test(v.src);
-let droppedImages = 0;
-function withoutLocalImages(value) {
-  if (Array.isArray(value)) return value.map(withoutLocalImages);
+const LOCAL_MEDIA = "/media/";
+let seededImages = 0;
+function withLocalMedia(value) {
+  if (Array.isArray(value)) return value.map(withLocalMedia);
   if (!value || typeof value !== "object") return value;
-  const out = {};
-  for (const [k, v] of Object.entries(value)) {
-    if (isLocalImage(v)) droppedImages++;
-    else out[k] = withoutLocalImages(v);
+  if (isLocalImage(value)) {
+    seededImages++;
+    const { src, alt = "", ...rest } = value;
+    return { provider: "external", id: `local:${src}`, src: `${LOCAL_MEDIA}${src}`, filename: src, alt, ...rest };
   }
+  const out = {};
+  for (const [k, v] of Object.entries(value)) out[k] = withLocalMedia(v);
   return out;
 }
 mkdirSync("seed", { recursive: true });
@@ -125,11 +132,11 @@ writeFileSync("seed/seed.json", JSON.stringify({
       id: "home",
       slug: "home",
       status: "published",
-      data: { title: home.title || "Home", sections: home.sections.map((section) => ({ _version: 1, ...withoutLocalImages(section) })) },
+      data: { title: home.title || "Home", sections: home.sections.map((section) => ({ _version: 1, ...withLocalMedia(section) })) },
     }],
   },
 }, null, 2) + "\n");
-if (droppedImages) console.log(`! ${droppedImages} image(s) from src/content/home.json were left out of the seed; add them in the EmDash media library after setup.`);
+if (seededImages) console.log(`${seededImages} image(s) from src/content/home.json are in the seed as the site's own files (served at ${LOCAL_MEDIA}<file>).`);
 
 if (mode === "seed") {
   console.log("Wrote seed/seed.json. A deployed site keeps the model it already has: see EmDash's guide to evolving a deployed site.");

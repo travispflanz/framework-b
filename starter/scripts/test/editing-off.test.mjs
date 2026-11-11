@@ -86,3 +86,16 @@ test("media-library images become files with credits; external ones keep their U
   assert.equal(credits.images[1].source, "owner");
   assert.equal(creditsWith(credits, images).images.length, 2, "no duplicate entries");
 });
+
+test("the site's own files, seeded as external media values, come back as files with their focal points", () => {
+  const sections = [
+    { _type: "fb_hero", _key: "hero", headline: "H", image: { provider: "external", id: "local:hero.jpg", src: "/media/hero.jpg", filename: "hero.jpg", alt: "The crew", focalX: 0.6, focalY: 0.2 } },
+    { _type: "fb_split", _key: "s", image: { provider: "local", id: "m1", src: "/_emdash/api/media/file/01ABC.jpg", alt: "Chosen in the editor", focalY: 0.3 } },
+  ];
+  const media = [{ id: "m1", filename: "Porch.jpg", mime_type: "image/jpeg", alt: "", storage_key: "01ABC.jpg" }];
+  const { home, images, notes } = homeFromExport(exported(sections), current, media, []);
+  assert.deepEqual(home.sections[0].image, { src: "hero.jpg", alt: "The crew", focalX: 0.6, focalY: 0.2 });
+  assert.deepEqual(home.sections[1].image, { src: "porch.jpg", alt: "Chosen in the editor", focalY: 0.3 });
+  assert.equal(images.length, 1, "only the media-library image is copied; the site's own file is already there");
+  assert.deepEqual(notes, []);
+});

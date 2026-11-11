@@ -1,14 +1,20 @@
-# Reusable: switches client editing (EmDash) off for a site with the site's own `scripts/editing.mjs off --remote`,
-# then opens a pull request in the site's repo. The published home page and its media-library images come back as
-# files; nothing in Cloudflare is deleted (the report lists what the owner can remove). Production changes when the
-# owner merges the pull request. Called only from the owner's private ops repo.
+# Reusable: switches client editing (EmDash) on or off for a site, then opens a pull request in the site's repo.
+#   on:  scripts/site/editing-on.mjs makes the editing resources (two D1 databases, two R2 buckets, two KV namespaces),
+#        the "<id> editor" Access application for the owner and any editors named, and the two secrets, then runs the
+#        site's `scripts/editing.mjs on` and fills in the resource ids. The site's own pictures go into the seed.
+#   off: the site's own `scripts/editing.mjs off --remote`: the published home page and its media-library images come
+#        back as files; nothing in Cloudflare is deleted (the report lists what the owner can remove).
+# Production changes when the owner merges the pull request. Called only from the owner's private ops repo.
 # A site switched on before `editing off` existed needs the ops repo's "Site update" first.
 name: site editing
 on:
   workflow_call:
     inputs:
       site_id: { type: string, required: true }
-      mode: { type: string, default: "off", description: '"off" (the only mode so far; site create switches editing on)' }
+      mode: { type: string, default: "off", description: '"on" or "off"' }
+      editors: { type: string, default: "", description: 'with "on": editors' email addresses besides the owner, comma-separated' }
+      framework_repo: { type: string, default: "", description: 'with "on": this repo (owner/framework-b)' }
+      framework_ref: { type: string, default: main }
     secrets:
       CLOUDFLARE_API_TOKEN: { required: true }
       CLOUDFLARE_ACCOUNT_ID: { required: true }
@@ -24,7 +30,16 @@ jobs:
       - name: Check the mode
         env:
           MODE: ${{ inputs.mode }}
-        run: '[ "$MODE" = "off" ] || { echo "Unknown mode \"$MODE\"; only \"off\" is supported." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }'
+          FRAMEWORK_REPO: ${{ inputs.framework_repo }}
+        run: |
+          case "$MODE" in on|off) ;; *) echo "Unknown mode \"$MODE\"; use \"on\" or \"off\"." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1;; esac
+          if [ "$MODE" = on ] && [ -z "$FRAMEWORK_REPO" ]; then echo "mode on needs framework_repo (owner/framework-b)." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; fi
+      - uses: actions/checkout@v4
+        if: inputs.mode == 'on'
+        with:
+          repository: ${{ inputs.framework_repo }}
+          ref: ${{ inputs.framework_ref }}
+          path: framework
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -39,7 +54,17 @@ jobs:
           git -C site config user.name "Framework B"
           git -C site config user.email "framework-b@users.noreply.github.com"
           cd site && npm ci --no-audit --no-fund > /dev/null
+      - name: Switch editing on
+        if: inputs.mode == 'on'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EDITORS: ${{ inputs.editors }}
+        run: |
+          node framework/scripts/site/editing-on.mjs --site site --editors "$EDITORS" --report report.md > on.log 2>&1 || { cat on.log; exit 1; }
+          cat report.md | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Switch editing off
+        if: inputs.mode == 'off'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -50,9 +75,9 @@ jobs:
             exit 1
           fi
           node scripts/editing.mjs off --remote > ../off.log 2>&1 || { cat ../off.log; exit 1; }
-          grep -E '^(Client editing|!|Kept in Cloudflare|Content matches)' ../off.log | tee ../report.md
+          grep -E '^(Client editing|!|Kept in Cloudflare|Content matches)' ../off.log | sed 's/^/- /' | tee ../report.md
           cat ../report.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Build the static site
+      - name: Build the site
         working-directory: site
         run: npm run build > ../build.log 2>&1 || { tail -n 40 ../build.log; exit 1; }
       - name: Open a pull request
@@ -60,14 +85,22 @@ jobs:
           GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
           SITE_ID: ${{ inputs.site_id }}
         run: |
-          branch="editing/off"
+          MODE="${{ inputs.mode }}"
+          branch="editing/$MODE"
           git -C site checkout -q -b "$branch"
           git -C site add -A
-          git -C site commit -qm "Switch client editing off"
+          git -C site commit -qm "Switch client editing $MODE"
           git -C site push -q -f origin "$branch"
-          body=$( { echo "Switches client editing (EmDash) off. The published home page and the images it uses are now files in this repo; the site builds as a static site again. Check the content and every image credit before merging."; echo; sed 's/^/- /' report.md; echo; echo "Editors lose /_emdash/admin when this is merged. Nothing in Cloudflare was deleted."; } | jq -Rs . )
+          if [ "$MODE" = on ]; then
+            intro="Switches client editing (EmDash) on. Editors sign in at /_emdash/admin through Cloudflare Access. The first person to open the admin runs EmDash's setup wizard: choose the sample content to bring in the home page as it is now, with the site's own pictures. Until then, and until an editor publishes, the home page shows the same content as today. Only the home page comes from EmDash; the other pages stay as files."
+            outro="The resources and secrets below already exist; nothing changes on the live site until this is merged."
+          else
+            intro="Switches client editing (EmDash) off. The published home page and the images it uses are now files in this repo; the site builds as a static site again. Check the content and every image credit before merging."
+            outro="Editors lose /_emdash/admin when this is merged. Nothing in Cloudflare was deleted."
+          fi
+          body=$( { echo "$intro"; echo; cat report.md; echo; echo "$outro"; } | jq -Rs . )
           code=$(curl -s -o pr.json -w '%{http_code}' -X POST -H "Authorization: Bearer $GH_SITES_TOKEN" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${OWNER}/site-${SITE_ID}/pulls" -d "{\"title\":\"Switch client editing off\",\"head\":\"$branch\",\"base\":\"main\",\"body\":$body}")
+            "https://api.github.com/repos/${OWNER}/site-${SITE_ID}/pulls" -d "{\"title\":\"Switch client editing $MODE\",\"head\":\"$branch\",\"base\":\"main\",\"body\":$body}")
           if [ "$code" = "201" ]; then echo "Pull request: $(jq -r .html_url pr.json)" | tee -a "$GITHUB_STEP_SUMMARY";
           else echo "Branch pushed, but the pull request wasn't opened (HTTP $code). Open one from $branch by hand." | tee -a "$GITHUB_STEP_SUMMARY"; fi
           [ "$code" = "201" ]

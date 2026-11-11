@@ -281,7 +281,7 @@ pull request first. The inputs for each workflow are in `ops/ops-repo/README.md`
 | Send a newsletter | "write a newsletter about …" (**site newsletter**: test, you merge, send) | Launch sites only; you get the test copy first |
 | Follow up automatically | "add a drip: day 1 …, day 7 …" | Launch sites with Resend; written only from what you supply |
 | Copy leads to a Sheet or CRM | "turn on the CRM copy" (**site crm sync** for older leads) | The webhook URL is set as a secret, never in the repo |
-| Edit the site yourself | "switch client editing on" or "off" (**site editing** for off) | Uses 2 databases and 1 Cron Trigger while on |
+| Edit the site yourself | "switch client editing on" or "off" (**site editing**, `mode` on or off; or at create) | Uses 2 databases and 1 Cron Trigger while on. Only the home page is edited in EmDash; the other pages stay files |
 | Get framework fixes | "update the site" (**site update**) | A tested pull request; your changes are kept |
 | Take it offline without losing it | "snapshot and park it" (**site snapshot**, **site park**) | `undo` puts it back exactly |
 | Delete it | "tear it down" (**site teardown**) | You type `delete <id>`; data is exported to backups first |
