@@ -5,7 +5,9 @@ import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 import Form from "../components/Form.astro";
 import Sections from "../sections/Sections.astro";
-const custom = Object.values(import.meta.glob<{ default: any }>("../content/contact.json", { eager: true }))[0]?.default;
+import { pageContent } from "../lib/page-content.js";
+// With client editing on, an editor's page "contact" in EmDash comes first (and this page is rendered on request).
+const custom: any = await pageContent("contact", Astro);
 ---
 {custom ? (
 <Base title={custom.title} description={custom.description} noindex={custom.noindex === true} bleed>

@@ -2,7 +2,7 @@
 #   on:  scripts/site/editing-on.mjs makes the editing resources (two D1 databases, two R2 buckets, two KV namespaces),
 #        the "<id> editor" Access application for the owner and any editors named, and the two secrets, then runs the
 #        site's `scripts/editing.mjs on` and fills in the resource ids. The site's own pictures go into the seed.
-#   off: the site's own `scripts/editing.mjs off --remote`: the published home page and its media-library images come
+#   off: the site's own `scripts/editing.mjs off --remote`: the published pages and their media-library images come
 #        back as files; nothing in Cloudflare is deleted (the report lists what the owner can remove).
 #   on, for a site where editing is already on: only adds the editors named to the editor login (no pull request).
 # Production changes when the owner merges the pull request. Called only from the owner's private ops repo.
@@ -100,10 +100,10 @@ jobs:
           git -C site commit -qm "Switch client editing $MODE"
           git -C site push -q -f origin "$branch"
           if [ "$MODE" = on ]; then
-            intro="Switches client editing (EmDash) on. Editors sign in at /_emdash/admin through Cloudflare Access. The first person to open the admin runs EmDash's setup wizard: choose the sample content to bring in the home page as it is now, with the site's own pictures. Until then, and until an editor publishes, the home page shows the same content as today. Only the home page comes from EmDash; the other pages stay as files."
+            intro="Switches client editing (EmDash) on. Editors sign in at /_emdash/admin through Cloudflare Access. The first person to open the admin runs EmDash's setup wizard: choose the sample content to bring in every page as it is now, with the site's own pictures. Until then, and until an editor publishes, every page shows the same content as today. Every page is editable; a page added to the files later reaches the editor within the hour."
             outro="The resources and secrets below already exist; nothing changes on the live site until this is merged."
           else
-            intro="Switches client editing (EmDash) off. The published home page and the images it uses are now files in this repo; the site builds as a static site again. Check the content and every image credit before merging."
+            intro="Switches client editing (EmDash) off. The published pages and the images they use are now files in this repo; the site builds as a static site again. Check the content and every image credit before merging."
             outro="Editors lose /_emdash/admin when this is merged. Nothing in Cloudflare was deleted."
           fi
           body=$( { echo "$intro"; echo; cat report.md; echo; echo "$outro"; } | jq -Rs . )

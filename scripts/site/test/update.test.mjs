@@ -157,6 +157,31 @@ test("an editing site switched on before `editing.mjs off` existed gets the stat
   assert.equal(existsSync(join(plain.site, "editing/static")), false, "a static site gets no editing/static");
 });
 
+test("an editing site gets every page from EmDash: the new overlay files, and privacy rendered on request", () => {
+  const { fw, site } = setup({ editing: true });
+  const priv = lines("---", 'import { pageContent } from "../lib/page-content.js";', "// privacy v2", "---", "<p>privacy</p>");
+  release(fw, {
+    "starter/scripts/lib/editing-off.mjs": "// off\n",
+    "starter/src/lib/page-content.js": "// static page content\n",
+    "starter/editing/src/lib/page-content.js": "// EmDash page content\n",
+    "starter/src/pages/[page].astro": lines("---", "export const prerender = true;", "// static pages", "---", "<p>page</p>"),
+    "starter/editing/src/pages/[page].astro": lines("---", "// pages from EmDash", "---", "<p>page</p>"),
+    "starter/editing/src/pages/fb-sync-pages.js": "// sync\n",
+    "starter/src/pages/privacy.astro": priv,
+  });
+  const { code, out } = update(fw, site);
+  const read = (p) => readFileSync(join(site, p), "utf8");
+  assert.equal(code, 0, out);
+  assert.equal(read("src/lib/page-content.js"), "// EmDash page content\n");
+  assert.equal(read("editing/static/src/lib/page-content.js"), "// static page content\n");
+  assert.ok(existsSync(join(site, "src/pages/[page].astro")), out);
+  assert.match(read("src/pages/[page].astro"), /pages from EmDash/);
+  assert.match(read("editing/static/src/pages/[page].astro"), /static pages/);
+  assert.equal(read("src/pages/fb-sync-pages.js"), "// sync\n");
+  assert.equal(read("src/pages/privacy.astro"), priv, "a page that reads page content gets no prerender line");
+  assert.equal(read("src/pages/thanks.astro"), lines("---", "export const prerender = true;", "// thanks", "---", "<p>thanks</p>"));
+});
+
 test("a file the site took from a later framework version is updated, not treated as a local edit", () => {
   const { fw, site } = setup();
   release(fw, { "starter/scripts/a.mjs": lines("// a v2", "one") });

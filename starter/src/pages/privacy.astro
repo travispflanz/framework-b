@@ -5,7 +5,9 @@
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 import Sections from "../sections/Sections.astro";
-const custom = Object.values(import.meta.glob<{ default: any }>("../content/privacy.json", { eager: true }))[0]?.default;
+import { pageContent } from "../lib/page-content.js";
+// With client editing on, an editor's page "privacy" in EmDash comes first (and this page is rendered on request).
+const custom: any = await pageContent("privacy", Astro);
 import raw from "../../site.config.json";
 import { loadConfig } from "../../core/src/config.js";
 const config = loadConfig(raw);

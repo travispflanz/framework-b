@@ -12,3 +12,12 @@ export function sitemapFilter(root) {
   }
   return (page) => !noindex.has(new URL(page).pathname.replace(/\/$/, "") || "/");
 }
+
+// With client editing on, content pages are rendered on request through the dynamic route src/pages/[page].astro,
+// so the sitemap integration can't list them (it still lists /, /privacy and /contact, which have their own routes):
+// their URLs come from src/content, without home, privacy, not-found and contact. The filter drops the noindex ones.
+export function contentPageUrls(root, origin) {
+  const contentDir = new URL("./src/content/", root);
+  const slugs = existsSync(contentDir) ? readdirSync(contentDir).filter((n) => n.endsWith(".json")).map((n) => n.replace(/\.json$/, "")) : [];
+  return slugs.filter((s) => !["home", "privacy", "not-found", "contact"].includes(s)).map((s) => `${origin}/${s}`);
+}

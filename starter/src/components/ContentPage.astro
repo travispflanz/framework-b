@@ -1,0 +1,20 @@
+---
+// A content page (src/content/<slug>.json, or with client editing on its EmDash page): the layout and the sections.
+// A page with "noindex" (a thanks page and the like) also carries the note shown when an upload failed.
+import Base from "../layouts/Base.astro";
+import Sections from "../sections/Sections.astro";
+
+interface Props { page: { title?: string; description?: string; noindex?: boolean; sections: Array<Record<string, any>> } }
+const { page } = Astro.props;
+---
+<Base title={page.title} description={page.description} noindex={page.noindex === true} bleed>
+  <Sections sections={page.sections} />
+  {page.noindex === true && (
+    <>
+      <p id="file-failed" class="mx-auto hidden max-w-[var(--container-content)] px-[var(--spacing-gutter)] pb-10 text-[var(--color-error)]">
+        Your message was saved, but your file didn't upload. Reply to our email and attach it there.
+      </p>
+      <script is:inline>if (location.hash === "#file-failed") document.getElementById("file-failed").classList.remove("hidden");</script>
+    </>
+  )}
+</Base>
