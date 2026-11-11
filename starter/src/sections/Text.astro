@@ -25,7 +25,7 @@ const single = wide && paragraphs(value.body).length < 2;
 <Section id={value.anchor_id} tone={tone} labelledby={value.headline ? headingId : undefined} phone={phoneOf("fb_text", value)}>
   {variant === "statement" ? (
     <div class="reveal grid gap-8">
-      {value.eyebrow && <Eyebrow text={value.eyebrow} class={composition.titleCase === "upper" ? "uppercase" : undefined} />}
+      {value.eyebrow && <Eyebrow text={value.eyebrow} />}
       {value.headline && <h2 id={headingId} class:list={["font-display type-display-l text-ink", { uppercase: composition.titleCase === "upper" }]} set:html={accent(value.headline)} />}
       <div class="statement-body text-body text-ink">
         {paragraphs(value.body).map((p) => <p set:html={inline(p)} />)}
