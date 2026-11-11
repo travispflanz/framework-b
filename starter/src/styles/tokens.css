@@ -16,6 +16,11 @@
   --color-highlight-ink: #1b1b1b;
   --color-error: #a4161a;
   --color-focus: #1f5f8b;
+  --color-scrim: #1b1b1b;
+  --color-on-scrim: #ffffff;
+  --color-on-scrim-muted: #ffffff;
+  --color-poster: #1f5f8b;
+  --color-poster-ink: #ffffff;
 
   --font-display: system-ui, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-body: system-ui, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

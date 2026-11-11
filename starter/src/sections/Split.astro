@@ -5,7 +5,7 @@ import Section from "./Section.astro";
 import { accent, paragraphs, inline } from "./text.js";
 import { phoneOf, variantOf } from "./design.js";
 
-interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" | "inverse" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "split"}`;
 const imageLeft = value.image_side === "left";

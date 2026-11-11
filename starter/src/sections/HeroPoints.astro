@@ -1,13 +1,14 @@
 ---
 import { inline } from "./text.js";
-// The hero's short reassurances (fb_hero), each with a tick.
+// The hero's short reassurances (fb_hero), each with a tick. `onScrim`: on the poster route's scrim block.
 import Icon from "./Icon.astro";
 
-interface Props { points: string[]; onDark?: boolean; center?: boolean }
-const { points, onDark = false, center = false } = Astro.props;
+interface Props { points: string[]; onDark?: boolean; onScrim?: boolean; center?: boolean }
+const { points, onDark = false, onScrim = false, center = false } = Astro.props;
+const ink = onDark ? "text-bg" : onScrim ? "text-on-scrim" : "text-ink";
 ---
-<ul class:list={["flex flex-wrap gap-x-6 gap-y-2 text-small", onDark ? "text-bg" : "text-ink", { "justify-center": center }]}>
+<ul class:list={["flex flex-wrap gap-x-6 gap-y-2 text-small", ink, { "justify-center": center }]}>
   {points.map((p) => (
-    <li class="flex items-center gap-2"><Icon name="check" class:list={["size-5 shrink-0", onDark ? "text-bg" : "text-accent"]} /><span set:html={inline(p)} /></li>
+    <li class="flex items-center gap-2"><Icon name="check" class:list={["size-5 shrink-0", onDark || onScrim ? ink : "text-accent"]} /><span set:html={inline(p)} /></li>
   ))}
 </ul>

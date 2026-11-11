@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CI check of every section layout variant and the second set of composition options. It adds four temporary
+// CI check of every section layout variant and the second set of composition options. It adds eight temporary
 // pages that use each variant at least once (with generated test images), switches DESIGN.md to a composition that
 // differs from the starter's on every axis (hairlines, outlined cards, centred, compact, square images, expressive
 // motion, a duotone imagery treatment with grain), regenerates the tokens, builds, and runs the full QA gate on every page. Everything it changed is put back
@@ -10,7 +10,7 @@ import sharp from "sharp";
 import { applyTreatment, readImagery, readPalette } from "../lib/treatment.mjs";
 
 const BACKUP = ["DESIGN.md", "src/styles/tokens.css", "src/styles/fonts.js", "src/styles/design.json", "design/credits.json", "site.config.json"];
-const PAGES = ["variants-a", "variants-b", "variants-c", "variants-d", "variants-thanks", "not-found", "privacy"];
+const PAGES = ["variants-a", "variants-b", "variants-c", "variants-d", "variants-e", "variants-f", "variants-g", "variants-h", "variants-thanks", "not-found", "privacy"];
 const IMAGES = ["variant-1.jpg", "variant-2.jpg", "variant-3.jpg", "variant-4.jpg"];
 const saved = new Map(BACKUP.map((f) => [f, existsSync(f) ? readFileSync(f) : null]));
 const imageDirExisted = existsSync("src/assets/images");
@@ -29,7 +29,9 @@ try {
   // A composition that differs from the starter's on every axis, and an imagery treatment (duotone with grain).
   const design = readFileSync("DESIGN.md", "utf8");
   const composition = "composition:\n  align: center\n  density: compact\n  separation: hairlines\n  cards: outlined\n  imageShape: square\n  motion: expressive\n  phoneBudget: 6\nimagery:\n  style: abstract\n  treatment: duotone\n  grain: true\n";
-  writeFileSync("DESIGN.md", design.replace(/^(composition|imagery):\n(  .*\n)+/gm, "").replace(/\ncomponents:\n/, `\n${composition}components:\n`));
+  // The poster route's inverse band needs the eight inverse colours: a dark band in this light design.
+  const inverse = '  inverse-bg: "#1b1b1b"\n  inverse-surface: "#262626"\n  inverse-ink: "#ffffff"\n  inverse-ink-muted: "#d0d0d0"\n  inverse-line: "#444444"\n  inverse-field: "#9a9a9a"\n  inverse-accent: "#8fc3e8"\n  inverse-accent-ink: "#1b1b1b"\n';
+  writeFileSync("DESIGN.md", design.replace(/^(composition|imagery):\n(  .*\n)+/gm, "").replace(/\ncomponents:\n/, `\n${composition}components:\n`).replace(/^(  focus: .*\n)/m, `$1${inverse}`));
   run("node", ["scripts/design-tokens.mjs"]);
 
   // Test images: plain gradients, given the design's treatment, credited as generated. Two are marked photorealistic
@@ -112,6 +114,27 @@ try {
       { _type: "fb_text", _key: "wide-one", variant: "wide", eyebrow: "One paragraph", headline: "A ==short== statement", body: "A single paragraph sits beside the headline rather than leaving the right half of the band empty." },
       { _type: "fb_cta", _key: "cta", variant: "band", headline: "A band that is ==itself== the accent", body: "Accent words on an accent band take the band's own text colour.", cta_label: "Get in touch", cta_url: "/#contact" },
     ],
+    // The poster route: a poster hero, an image panel, poster cards (most with photos, one type-only on the accent),
+    // a statement on an inverse band, image doors, and the three inner-page poster heroes.
+    "variants-e": [
+      { _type: "fb_hero", _key: "hero", variant: "poster", eyebrow: "Poster route", headline: "A poster title along the bottom edge", subheadline: "One sentence on a scrim block over the photo.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", secondary_cta_label: "See the first layouts", secondary_cta_url: "/variants-a", points: "First reassurance\nSecond reassurance", image: img(1) },
+      { _type: "fb_panel", _key: "panel", headline: "Panel", body: "A short paragraph on a scrim block beside the title.", cta_label: "See layouts B", cta_url: "/variants-b", image: img(2), text_side: "left" },
+      { _type: "fb_features", _key: "posters", variant: "posters", headline: "Poster cards", items: [{ icon: "clock", title: "Type only", body: "A card on the poster colour." }, { icon: "sparkles", title: "Photo card", body: "A title over its photo.", image: img(3) }, { icon: "map-pin", title: "Second photo", body: "Another card with a picture.", image: img(4) }] },
+      { _type: "fb_text", _key: "statement", variant: "statement", tone: "inverse", eyebrow: "Statement", headline: "A ==statement== band", body: "The first paragraph under a very large headline, on the inverse band.\n\nA second paragraph in the next column." },
+      { _type: "fb_doors", _key: "doors", items: [{ title: "First", body: "One line for this door.", cta_label: "See layouts C", cta_url: "/variants-c", image: img(3) }, { title: "Second", body: "One line for that door.", cta_label: "See layouts D", cta_url: "/variants-d", image: img(4) }] },
+    ],
+    "variants-f": [
+      { _type: "fb_hero", _key: "hero", variant: "poster-page", eyebrow: "Poster route", headline: "An inner page's poster", subheadline: "The poster hero, shorter.", image: img(2) },
+      { _type: "fb_text", _key: "text", variant: "split", headline: "Text after a poster page hero", body: "A paragraph beside its headline." },
+    ],
+    "variants-g": [
+      { _type: "fb_hero", _key: "hero", variant: "poster-card", eyebrow: "Poster route", headline: "A title beside a framed photo", subheadline: "For form pages, so the form comes up quickly.", image: img(3) },
+      { _type: "fb_form", _key: "form", variant: "split", headline: "The form under a poster card hero", form: Object.keys(JSON.parse(readFileSync("site.config.json", "utf8")).forms)[0] },
+    ],
+    "variants-h": [
+      { _type: "fb_hero", _key: "hero", variant: "poster-edge", eyebrow: "Poster route", headline: "A title beside a photo to the edge", subheadline: "The photo runs to the edge of the window.", image: img(4) },
+      { _type: "fb_text", _key: "text", variant: "split", headline: "Text after a poster edge hero", body: "A paragraph beside its headline." },
+    ],
     "variants-thanks": [
       { _type: "fb_hero", _key: "hero", variant: "statement", headline: "Thanks, that's arrived", subheadline: "A thanks page kept out of search results." },
       { _type: "fb_form", _key: "again", form: "survey" },
@@ -144,6 +167,11 @@ try {
   // A fade hero's headline of a whole sentence is set at the headline size (Impeccable's oversized-h1).
   if (!/<h1 class="font-display text-balance text-ink text-headline/.test(d)) throw new Error("the fade hero's long headline isn't set at the headline size");
   if (/==/.test(d.replace(/<script[\s\S]*?<\/script>/g, ""))) throw new Error("an ==accent== mark was left in the page as typed");
+  const e = readFileSync("dist/variants-e.html", "utf8");
+  for (const want of ["panel-hero", "panel-title", "text-on-scrim", "scrim-block", "poster-grid", "poster-photo", "poster-accent", "tone-inverse", "statement-body", "doors grid", 'data-fit']) if (!e.includes(want)) throw new Error(`variants-e (the poster route) is missing ${want}`);
+  if (!readFileSync("dist/variants-f.html", "utf8").includes("panel-page")) throw new Error("the poster-page hero is missing");
+  if (!readFileSync("dist/variants-g.html", "utf8").includes("hero-card-photo")) throw new Error("the poster-card hero is missing");
+  if (!readFileSync("dist/variants-h.html", "utf8").includes("hero-edge-photo")) throw new Error("the poster-edge hero is missing");
   if (!/data-focal-x="0.5"/.test(hero)) throw new Error("a picture with a focal point doesn't say so (data-focal-x), so the crop check can't see it");
   if (!readFileSync("dist/variants-thanks.html", "utf8").includes('content="noindex')) throw new Error("the noindex page has no robots noindex");
   if (!readFileSync("dist/404.html", "utf8").includes("in the owner")) throw new Error("not-found.json didn't replace the 404 page");

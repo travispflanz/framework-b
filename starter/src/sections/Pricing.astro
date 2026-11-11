@@ -7,7 +7,7 @@ import SwipeCue from "./SwipeCue.astro";
 import { lines, paragraphs, inline } from "./text.js";
 import { phoneOf } from "./design.js";
 
-interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" | "inverse" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "pricing"}`;
 const phone = phoneOf("fb_pricing", value) === "collapse" ? "stack" : phoneOf("fb_pricing", value);

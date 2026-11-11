@@ -6,7 +6,7 @@ import Section from "./Section.astro";
 import SectionIntro from "./SectionIntro.astro";
 import { phoneOf, variantOf } from "./design.js";
 
-interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" | "inverse" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "form"}`;
 // Split needs an introduction to put beside the form; without one the form is centred.

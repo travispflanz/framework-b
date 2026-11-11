@@ -7,6 +7,12 @@
 //   bento       tiles: the headline, the image, each reassurance and the main action
 //   fade        the photo fills the band's height on the right and fades into the background towards the headline (on
 //               phones it sits above the headline and fades into it); the text stays on the plain background
+// The poster route (docs/SPEC.md section 12, "The poster route"; styles in sections.css):
+//   poster      the image across the full width, the headline enormous along the bottom edge, the supporting
+//               sentence and actions on a scrim block above it (a home page's hero)
+//   poster-page the poster hero, shorter, with the title a step smaller (an inner page's)
+//   poster-card the title beside a photo in a 4:5 frame (a form page's: the form comes up quickly)
+//   poster-edge the title beside a photo that runs to the edge of the window
 import Actions from "./HeroActions.astro";
 import Icon from "./Icon.astro";
 import Points from "./HeroPoints.astro";
@@ -42,7 +48,43 @@ const statementSplit = !center && statementRest;
 // same as every other page's title.
 const longTitle = plain(value.headline).length > 40;
 ---
-{variant === "full-bleed" ? (
+{variant === "poster" || variant === "poster-page" ? (
+  <section id={value.anchor_id || undefined} class:list={["panel panel-wide panel-hero", { "panel-page": variant === "poster-page" }]} data-side="left">
+    <Picture image={value.image} sizes="100vw" class="panel-image" eager />
+    <div class="panel-dim" aria-hidden="true"></div>
+    <div class="panel-copy scrim-block grid gap-4">
+      {value.eyebrow && <p class:list={["text-label text-on-scrim-muted", eyebrowCase]}>{value.eyebrow}</p>}
+      {value.subheadline && <p class:list={["text-on-scrim", variant === "poster" ? "type-lede" : "text-body"]} set:html={inline(value.subheadline)} />}
+      <Actions value={value} onScrim />
+      {points.length > 0 && <Points points={points} onScrim />}
+    </div>
+    <h1 class:list={["panel-title font-display text-on-scrim", variant === "poster" ? "type-display-l" : "text-display", titleCase]} set:html={accent(value.headline)} />
+  </section>
+) : variant === "poster-card" ? (
+  <section id={value.anchor_id || undefined} class="hero-card bg-surface px-gutter">
+    <div class="hero-card-grid mx-auto w-full max-w-content">
+      <div class="hero-card-copy grid content-end gap-6">
+        {value.eyebrow && <Eyebrow text={value.eyebrow} class={eyebrowCase} />}
+        <h1 class:list={["font-display text-display text-ink", titleCase]} set:html={accent(value.headline)} />
+        {value.subheadline && <p class="max-w-(--container-prose) text-body text-ink-muted" set:html={inline(value.subheadline)} />}
+        <Actions value={value} />
+        {points.length > 0 && <Points points={points} />}
+      </div>
+      <div class="hero-card-photo"><Picture image={value.image} sizes="(min-width: 1024px) 34vw, 100vw" eager /></div>
+    </div>
+  </section>
+) : variant === "poster-edge" ? (
+  <section id={value.anchor_id || undefined} class="hero-edge bg-surface">
+    <div class="hero-edge-photo"><Picture image={value.image} sizes="(min-width: 1024px) 40vw, 100vw" eager /></div>
+    <div class="hero-edge-copy grid content-end gap-6 px-gutter">
+      {value.eyebrow && <Eyebrow text={value.eyebrow} class={eyebrowCase} />}
+      <h1 class:list={["font-display text-display text-ink", titleCase]} set:html={accent(value.headline)} />
+      {value.subheadline && <p class="max-w-(--container-prose) text-body text-ink-muted" set:html={inline(value.subheadline)} />}
+      <Actions value={value} />
+      {points.length > 0 && <Points points={points} />}
+    </div>
+  </section>
+) : variant === "full-bleed" ? (
   <section id={value.anchor_id || undefined} class="hero-bleed relative isolate overflow-hidden bg-ink px-gutter py-section">
     <Picture image={value.image} sizes="100vw" class="parallax absolute inset-0 -z-20 size-full object-cover" eager />
     <div class="hero-scrim absolute inset-0 -z-10" aria-hidden="true"></div>

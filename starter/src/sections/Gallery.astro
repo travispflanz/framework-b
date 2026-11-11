@@ -8,7 +8,7 @@ import SwipeCue from "./SwipeCue.astro";
 import { paragraphs, inline } from "./text.js";
 import { phoneOf, variantOf } from "./design.js";
 
-interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" | "inverse" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "gallery"}`;
 const variant = variantOf("fb_gallery", value);

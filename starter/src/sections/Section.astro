@@ -1,10 +1,11 @@
 ---
 // Full-width band with the content column inside. `tone` picks the band's background from the tokens; the
 // composition's `separation` (DESIGN.md) decides whether bands alternate, sit between hairlines or run together.
-// `phone: "hide"` removes the section on phones (under 640 px).
+// `phone: "hide"` removes the section on phones (under 640 px). `inverse` (the poster route) swaps in DESIGN.md's
+// `inverse-*` colours for one light band in a dark design, or one dark band in a light one (sections.css).
 import { composition } from "./design.js";
 
-interface Props { id?: string; tone?: "bg" | "surface"; labelledby?: string; phone?: string; class?: string }
+interface Props { id?: string; tone?: "bg" | "surface" | "inverse"; labelledby?: string; phone?: string; class?: string }
 const { id, tone = "bg", labelledby, phone, class: extra } = Astro.props;
 ---
 <section
@@ -13,7 +14,7 @@ const { id, tone = "bg", labelledby, phone, class: extra } = Astro.props;
   class:list={[
     "px-gutter py-section scroll-mt-20",
     tone === "surface" ? "bg-surface" : "bg-bg",
-    { "border-t border-line": composition.separation === "hairlines", "max-sm:hidden": phone === "hide" },
+    { "tone-inverse": tone === "inverse", "border-t border-line": composition.separation === "hairlines", "max-sm:hidden": phone === "hide" },
     extra,
   ]}
 >
