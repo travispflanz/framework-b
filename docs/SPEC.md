@@ -95,13 +95,19 @@ A copied starter never gets later fixes on its own, so `site update` brings an e
 - Each framework-owned file gets a three-way merge between the base version, the site's file and the new version. Unchanged files are replaced; a file equal to any framework version between base and the new ref counts as unchanged. Site-only changes are kept. Changes on both sides are merged with `git merge-file`; overlapping changes keep the site's file, write the framework's as `<file>.framework-new` and are reported as conflicts. Files the site deleted stay deleted. `core/` is always replaced.
 - Afterwards it runs `npm install`, regenerates tokens.css (and the EmDash seed when editing is on), checks the content and writes the new lock. A changed EmDash content model is reported, because a deployed content database keeps its model until it is migrated.
 - The workflow commits on `framework/update-<commit>`, tests a copy of the site with Turnstile test keys (build, e2e, QA gate), and opens a pull request in `site-<id>` with the report and the test results. The preview build runs on that branch; production changes only when the owner merges.
+- A rerun for the same framework version finds the earlier run's branch: the push was refused, because the new commit doesn't build on it (three of four runs on one site on 2026-11-06). A rerun now takes the next free name (`framework/update-<commit>-2`, `-3`, ...), never force-pushes, and its report names the earlier branch to close. The branch naming was tested against a local remote; a live rerun is untested.
 
 Fixture tests (`scripts/site/test/update.test.mjs`, run by `site-scripts-test.yml`) cover a static site and an editing site. First live run (2026-10-23, an editing site created before the lock existed): 4 files updated or added, no conflicts; build, e2e and QA passed on the copy; the branch was pushed, but opening the pull request needed `GH_SITES_TOKEN` to have "Pull requests: write" (docs/TOKENS.md). The step now fails when the pull request can't be opened. After the permission was added, a second run (lock-only change) opened its own pull request, with 14 e2e and 80 QA checks passing. A static site was updated live on 2026-10-27 (27 files, opened and merged as a pull request, no conflicts). A live run with a conflict is untested; conflicts are covered by the fixture tests.
 
 ### Adopting an existing site
 
 For a site that runs on its own Worker but wasn't built with Framework B (`scripts/site/adopt.mjs`, ops workflow
-`site adopt`; built 2026-10-28, untested end to end until the first adoption). The new site is a normal Framework B
+`site adopt`; built and proven live on 2026-10-28 on the first adopted site: `prepare` copied its 4 leads and 9
+subscribers, checked one for one; `preview` passed the QA gate on the Worker's preview through the site's own previews
+Access application (376 checks); `cutover` connected the new repo to Workers Builds, built and deployed main, found
+nothing new in the old database during the switch, checked `/`, `/go`, `/api/health` and `/admin`, and passed the
+launch QA gate (418 checks). `rollback` is untested, and needs the old database, which the first adopted site's owner
+had deleted on 2026-11-11 (its weekly backups stay in `framework-backups`). The new site is a normal Framework B
 site in its own repo, in launch mode on the old site's domain. It takes over the old Worker by name, so the Worker's
 custom domains, secrets, Access applications and Turnstile widget stay as they are.
 

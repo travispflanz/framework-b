@@ -277,7 +277,7 @@ pull request first. The inputs for each workflow are in `ops/ops-repo/README.md`
 | You want to | Ask for | Notes |
 |---|---|---|
 | Put the site on your domain | "promote it to `<domain>`" (**site promote**: prepare, you merge, finish) | The domain must already be in your Cloudflare account. It needs your postal address (US anti-spam law) and your inbox verified for Email Routing |
-| Bring an older site onto Framework B | "adopt `<site>`" (**site adopt**: prepare, preview, you merge, cutover) | Keeps the site's Worker, domains and logins; copies its leads into new databases and never changes the old one. `rollback` switches back |
+| Bring an older site onto Framework B | "adopt `<site>`" (**site adopt**: prepare, preview, you merge, cutover) | Keeps the site's Worker, domains and logins; copies its leads into new databases and never changes the old one. `rollback` switches back while the old database is kept (*untested*) |
 | Send a newsletter | "write a newsletter about …" (**site newsletter**: test, you merge, send) | Launch sites only; you get the test copy first |
 | Follow up automatically | "add a drip: day 1 …, day 7 …" | Launch sites with Resend; written only from what you supply |
 | Copy leads to a Sheet or CRM | "turn on the CRM copy" (**site crm sync** for older leads) | The webhook URL is set as a secret, never in the repo |
