@@ -108,6 +108,21 @@ function collectInPage() {
     pictures.push({ x: r.left + sx, y: r.top + sy, w: r.width, h: r.height });
   }
   const overlaps = (a) => pictures.some((p) => a.x < p.x + p.w && a.x + a.w > p.x && a.y < p.y + p.h && a.y + a.h > p.y);
+  // A box that clips what overflows it (overflow hidden or clip) hides the part of a line that runs past it: a title
+  // set to bleed off the bottom of a photo panel shows only inside the panel, so only that part is measured. Without
+  // this, the hidden part was measured against the next section's background (1:1 on a light page, 2026-11-11).
+  const clipped = (el, r) => {
+    let { x, y, w, h } = r;
+    for (let e = el.parentElement; e && e !== document.body; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
+      const b = e.getBoundingClientRect();
+      const bx = b.left + sx, by = b.top + sy;
+      if (cs.overflowX !== "visible") { const right = Math.min(x + w, bx + b.width); x = Math.max(x, bx); w = right - x; }
+      if (cs.overflowY !== "visible") { const bottom = Math.min(y + h, by + b.height); y = Math.max(y, by); h = bottom - y; }
+    }
+    return { x, y, w, h };
+  };
   const groups = new Map();
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -118,7 +133,7 @@ function collectInPage() {
     const range = document.createRange();
     range.selectNodeContents(node);
     const rects = [...range.getClientRects()].filter((r) => r.width >= 4 && r.height >= 4)
-      .map((r) => ({ x: r.left + sx, y: r.top + sy, w: r.width, h: r.height })).filter(overlaps);
+      .map((r) => clipped(el, { x: r.left + sx, y: r.top + sy, w: r.width, h: r.height })).filter((r) => r.w >= 4 && r.h >= 4).filter(overlaps);
     if (!rects.length) continue;
     const cs = getComputedStyle(el);
     if (!groups.has(el)) groups.set(el, { text: "", color: cs.color, px: parseFloat(cs.fontSize), weight: +cs.fontWeight || 400, rects: [] });

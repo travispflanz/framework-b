@@ -14,6 +14,8 @@ import { FILE as RESEARCH, missingLenses, undatedLenses, unwrittenLenses } from 
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
 const design = existsSync("src/styles/design.json") ? JSON.parse(readFileSync("src/styles/design.json", "utf8")) : {};
+// The inverse band needs all eight inverse colours (scripts/design-tokens.mjs checks the set and its contrast).
+const inverseColours = existsSync("src/styles/tokens.css") && /--color-inverse-accent-ink:/.test(readFileSync("src/styles/tokens.css", "utf8"));
 const heroes = design.composition?.heroes;
 const bySlug = Object.fromEntries(SECTIONS.map((s) => [s.slug, s.versions.at(-1).fields]));
 const errors = [];
@@ -82,6 +84,8 @@ for (const file of readdirSync("src/content").filter((f) => f.endsWith(".json"))
     checkFields(fields, section, where);
     if (section._type === "fb_form" && !site.forms[section.form]) errors.push(`${where}.form "${section.form}" is not in site.config.json`);
     if (section._type === "fb_hero" && i !== 0) errors.push(`${where}: the hero must be the first section`);
+    // The inverse band (the poster route) swaps in DESIGN.md's inverse colours; without them the band would be unstyled.
+    if (section.tone === "inverse" && !inverseColours) errors.push(`${where}: tone "inverse" needs DESIGN.md's inverse colours (inverse-bg, -surface, -ink, -ink-muted, -line, -field, -accent, -accent-ink)`);
     // One design language (SPEC section 12): a photo goes with the page's title, never in a bare band under it, and
     // every page's hero is the route's (composition.heroes in DESIGN.md); a hero with no picture may also be a
     // statement, which keeps the same title treatment.

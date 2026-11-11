@@ -69,9 +69,10 @@ A site has two modes:
 - One-prompt build: the agent writes a kickoff brief, creates the site, designs it, writes the content, runs the
   gates and sends you a preview (`docs/BUILD.md`).
 - Landing page, full site or hybrid. Every page is a JSON file of sections: hero, steps, features, pricing, service
-  area, FAQ, call to action, form, text, text-and-image, gallery, lists (checks, crosses or numbers side by side) and
-  people (with your own photos). Any text can carry **bold**, *italic* and [links](/about). Each section has several layouts (the hero
-  alone has five: split, full-bleed, statement, editorial and bento) and its own phone behaviour (stack, swipe
+  area, FAQ, call to action, form, text, text-and-image, gallery, lists (checks, crosses or numbers side by side),
+  people (with your own photos), and the poster route's image panels and image doors. Any text can carry **bold**, *italic* and [links](/about). Each section has several layouts (the hero
+  alone has ten: split, full-bleed, statement, editorial, bento, fade, and the poster route's poster, poster-page,
+  poster-card and poster-edge) and its own phone behaviour (stack, swipe
   sideways, fold into an accordion, or hide).
 - Design phase:
   - the design is written as one `DESIGN.md` file (Google's format) and turned into the site's colour, type and

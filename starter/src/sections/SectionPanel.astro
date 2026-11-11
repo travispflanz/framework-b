@@ -1,0 +1,11 @@
+---
+// fb_panel: one full-bleed image panel between sections (see Panel.astro).
+import Panel from "./Panel.astro";
+
+interface Props { value: Record<string, any>; blockKey?: string }
+const { value, blockKey } = Astro.props;
+const headingId = `h-${blockKey || value.anchor_id || "panel"}`;
+---
+<section id={value.anchor_id || undefined} aria-labelledby={headingId} class:list={{ "max-sm:hidden": value.phone === "hide" }}>
+  <Panel title={value.headline} body={value.body} ctaLabel={value.cta_label} ctaUrl={value.cta_url} image={value.image} side={value.text_side === "left" ? "left" : "right"} headingId={headingId} />
+</section>

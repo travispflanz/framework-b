@@ -8,7 +8,7 @@ import SectionIntro from "./SectionIntro.astro";
 import { paragraphs, inline } from "./text.js";
 import { phoneOf, variantOf } from "./design.js";
 
-interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" }
+interface Props { value: Record<string, any>; blockKey?: string; tone?: "bg" | "surface" | "inverse" }
 const { value, blockKey, tone } = Astro.props;
 const headingId = `h-${blockKey || value.anchor_id || "people"}`;
 const variant = variantOf("fb_people", value);
