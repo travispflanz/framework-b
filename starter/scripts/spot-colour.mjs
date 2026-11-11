@@ -40,8 +40,9 @@
 //   node scripts/spot-colour.mjs apply <file> --by "<the model that chose the object>" [--strength 0.9] [--keep-tone]
 //       → keeps the untinted photo in design/spot/<name>/original.<ext> (the first time), writes the tinted photo in
 //         its place and records it in design/credits.json (spot: what, colour, model, segmenter, date). The Website
-//         assets page lists it under "Colour added with AI", with the script (public/tools/spot-colour.mjs, standalone)
-//         and a prompt for any AI model or agent (public/tools/spot-colour-prompt.md) for visitors to do the same.
+//         assets page says what was coloured and how in the photo's entry, and under "How the colour was added" offers
+//         the script (public/tools/spot-colour.mjs, standalone) and a prompt for any AI model or agent
+//         (public/tools/spot-colour-prompt.md) for visitors to do the same.
 //   node scripts/spot-colour.mjs undo <file>    → the untinted photo back, the record removed
 //   node scripts/spot-colour.mjs sheet          → design/spot/sheet.jpg: every tinted photo, before and after
 //   node scripts/spot-colour.mjs tools          → writes the visitor's script and prompt again (after editing spotNote)

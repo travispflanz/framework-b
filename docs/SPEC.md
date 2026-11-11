@@ -922,10 +922,11 @@ What's built (`starter/scripts/spot-colour.mjs`, `scripts/lib/spot.mjs`, `script
   tone curve that moves the object's middle tone halfway to the accent's lightness, so a pale object reads red rather
   than pink and a dark one red rather than near black), and records what, colour, the model that chose it, the outline method and the date in
   `design/credits.json`. `undo` restores the photo; `sheet` draws every photo before and after.
-- The Website assets page lists the owner's own photographs, and every tinted photo under "Colour added with AI":
-  the site's note (`spotNote` in `design/credits.json`, the owner's brief in plain words), how it was made, each
-  object, a download of the script (`public/tools/spot-colour.mjs`, standalone: `sharp` and Transformers.js only, MIT)
-  and of a prompt for any AI model or agent (`public/tools/spot-colour-prompt.md`), shown on the page as well.
+- The Website assets page says, in each picture's one entry, what was coloured and how its outline was made, then,
+  under "How the colour was added", the site's note (`spotNote` in `design/credits.json`, the owner's brief in plain
+  words), how it was done, a download of the script (`public/tools/spot-colour.mjs`, standalone: `sharp` and
+  Transformers.js only, MIT) and of a prompt for any AI model or agent (`public/tools/spot-colour-prompt.md`), shown on
+  the page as well. It doesn't list the photographs again.
 - Never a face or skin, never something random, one object per photo; generated detail is never added.
 - Tests: `starter/scripts/test/spot.test.mjs` (the dye keeps lightness and hue and stays in sRGB, a fold in a dark
   cloth stays visible, the tone curve, the tone mask in a
@@ -1010,22 +1011,29 @@ What's built (`starter/src/lib/ai-use.js`, `src/pages/credits.astro`):
   `--by "<model>"` on any of these tools (and `spot-colour.mjs apply --by`) sets it when it is missing, and the content
   check fails an `ai` record or a spot with no `aiBy`, and any step it doesn't know (CI's logo test picks with `--by`). A record is only ever what a tool did or what the agent says it did: nothing is
   claimed for an image without one, so an owner's photo edited by hand says nothing about AI.
-- The page opens with a line beside its title, then "Where the pictures come from" (the attributions, across the page),
-  then "How AI was used": a summary of what the model did across the pictures (chose them from which archives, cropped
-  and framed them, gave them one look, wrote their descriptions for screen readers, added the spot of colour, drew the
-  logo), that no photograph was made up when none was generated, and, where a photo tops a page, that the page lays a
-  dark gradient over it or fades it so its words can be read while the file is unchanged. Each picture follows with
-  where it appears (from the pages' content: the top of a page, or the card, person or door it sits in, each spot once
-  with its pages) and what the model did with it, in the order the work was done; framing comes from the focal points
-  the pages give it. The logo and its icons are one entry.
-- The colour section says how each outline was made from its record (SlimSAM, its tone, round spots of light, shapes
-  the model drew itself); the tool's "drawn by hand" means shapes whose corners the agent gave, so the page doesn't call
-  them hand-drawn.
+- The page opens with a line beside its title, then "The pictures": a summary of what the model did across them (chose
+  the archive photographs from which archives, cropped them and framed them for each layout, gave them one look, wrote
+  their descriptions for screen readers, added the spot of colour, drew the logo), that the owner provided their own
+  pictures and the model didn't choose those, that no photograph was made up when none was generated, and, where a
+  photo tops a page, that the page lays a dark gradient over it or fades it so its words can be read while the file is
+  unchanged. Then every picture once, in the order the site shows them: its description, where it appears (from the
+  pages' content: the top of a page, or the card, person or door it sits in, each spot once with its pages), where it
+  comes from (title, creator and licence or rights statement with links; the owner's own, in the owner's words
+  (`credit`); or the generator), what the model did with it in the order the work was done (framing comes from the
+  focal points the pages give it), and, for a spot of colour, how its outline was made from its record (SlimSAM, its
+  tone, round spots of light, shapes the model drew itself; the tool's "drawn by hand" means shapes whose corners the
+  agent gave, so the page doesn't call them hand-drawn). The logo and its icons are one entry. A picture with no AI
+  record shows its `changes` instead.
+- Round 4 (2026-11-10): the first adopted site's owner saw the sources, the AI use and the colour listed in three
+  places and asked to "put all of these together so we're not mentioning each photo multiple times", and pointed out
+  that a still from their own film was provided, not chosen; the summary had said the model "chose the photographs",
+  which read as every one.
 - With client editing on, "where it appears" comes from the content files, not later edits in the editor (untested).
-- Tests: `starter/scripts/test/ai-use.test.mjs` (where each picture is, only recorded steps are claimed, the summary,
-  and the gradient only when a picture tops a page). The page's layout passes the QA gate on the first adopted site;
-  the sources sit above a list across the page because a long list beside a short heading failed Impeccable's
-  "one column stretches the first viewport" there (2026-11-10).
+- Tests: `starter/scripts/test/ai-use.test.mjs` (where each picture is, only recorded steps are claimed, the brief
+  wording for an entry, the summary, the owner's pictures set apart, how an outline was made, and the gradient only
+  when a picture tops a page). The page's layout passes the QA gate on the first adopted site; more than four entries
+  sit under a heading across the page, because a long list beside a short heading failed Impeccable's "one column
+  stretches the first viewport" there (2026-11-10).
 
 Rules:
 
@@ -1043,7 +1051,7 @@ Rules:
 - **One design language.** A route is a page family: the home page may be louder, but every page shares the title treatment, the image treatment and the way type meets a picture. Pages vary within the route's family of layouts, and the flow (the rhythm of pictures, the ending) runs the whole length of every page. A photo goes with the title or with text beside it, never in a bare band (owner's decisions, 2026-11-04).
 - **Accent words sparingly.** A word or a short phrase of a big headline in the accent colour (`==word==`), not every headline and never a whole sentence.
 - **Spot colour: one object, chosen for the story, all of it.** Clothing, a camera and its tripod, film, a ticket, a sign, the bulbs round a marquee; never a face or skin; the whole object, built from pieces where it has several, and nothing beside it; the untinted photo kept; listed on the Website assets page with how it was made.
-- **Say what AI did with every picture.** The tools record each step (chosen, cropped, given the look, described, coloured, drawn, generated) and the Website assets page lists them with where each picture appears and the model's name; nothing is claimed without a record.
+- **Say what AI did with every picture, once per picture.** The tools record each step (chosen, cropped, given the look, described, coloured, drawn, generated) and the Website assets page gives each picture one entry: where it comes from, where it appears and what the model did; the owner's own pictures are provided, never "chosen"; nothing is claimed without a record.
 - **Balanced sections, chosen crops, a logo at least as tall as the buttons.** No section leaves one side of a wide screen empty: the headline goes beside the text, the text is centred, or pictures go beside it, and lines keep the prose width. A picture cropped by a third or more names its focal point, and the crop sheets are looked at before the owner sees anything (owner's request, 2026-11-05).
 - **Photos in a card set: most cards, not some.** A type-only card is a deliberate accent; each photo is picked for what its card says (owner's decision, 2026-11-03).
 - **Ban list in `AGENTS.md`:** purple or indigo gradients; cyan on dark; cream + serif + terracotta; near-black + acid accent; broadsheet hairlines; reflex Inter, Geist, Space Grotesk or Instrument Serif. A style may still use one of these if `DESIGN.md` records it as a deliberate choice.

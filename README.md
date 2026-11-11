@@ -97,9 +97,9 @@ A site has two modes:
   line art, watercolour, flat illustration and more) through Cloudflare Workers AI, all given one colour treatment so
   they match. Black and white photos can carry one spot of the accent colour each (a jacket, a camera, a reel of
   film), outlined by a small local model and tinted over the photo's own tones; the Website assets page says how it
-  was made and offers visitors the script and a prompt to do the same. It also says what AI did with every picture
-  (chose it, cropped and framed it, gave it the look, described it, coloured or drew it), where each one appears and
-  which model did it, from records the tools keep as they work. A focal point keeps each photo's subject in view wherever a layout crops it: the QA gate fails a hard
+  was made and offers visitors the script and a prompt to do the same. It lists every picture once: where it comes from,
+  where it appears and what AI did with it (chose it, cropped and framed it, gave it the look, described it, coloured
+  or drew it), with which model, from records the tools keep as they work. A focal point keeps each photo's subject in view wherever a layout crops it: the QA gate fails a hard
   crop without one and draws a sheet of every crop over its whole photo, so heads and signs stay in the frame.
 - A style guide for every site, written once the home page is settled and before the other pages: logo, colour,
   type, photography, layout and page flow, components, voice, and the brand beyond the website (social and print
