@@ -202,6 +202,19 @@ try {
     check("access: the service token opens the protected URL", r.status === 200, `HTTP ${r.status}`);
     if (r.status !== 200) throw new Error(`the Access service token was refused (HTTP ${r.status}); check the Service Auth policy on the previews application`);
   }
+  // The first request to a fresh client-editing site's home page sets up EmDash's content database and can take
+  // longer than a page load's 30 s (the live self-test timed out on it on 2026-11-11; the preview check already
+  // waited for it). One fetch first, allowed two minutes, so the browser checks see the site as visitors will.
+  if (opt("url") && opt("url") !== true) {
+    const t0 = Date.now();
+    try {
+      const r = await auth.fetch(base + "/", { redirect: "manual", signal: AbortSignal.timeout(120_000) });
+      await r.arrayBuffer();
+      if (Date.now() - t0 > 10_000) console.log(`note  the first request to / took ${Math.round((Date.now() - t0) / 1000)} s`);
+    } catch (e) {
+      console.log(`note  no first response from / within 2 minutes (${e.name}); the page checks will say more`);
+    }
+  }
   browser = await launchBrowser();
 
   const titles = {};
