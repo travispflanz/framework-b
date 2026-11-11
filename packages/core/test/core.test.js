@@ -171,7 +171,9 @@ describe("submit", () => {
   it("rate-limits repeated posts from one address", async () => {
     const statuses = [];
     for (let i = 0; i < 8; i++) {
-      const res = await submit({ name: "R", email: `r${i}@example.com` }, { "cf-connecting-ip": "203.0.113.9" });
+      // .250 is outside every random address the other tests draw (x.x.x.0 to .249), so no later test can land on
+      // the address this one exhausts (the checkbox tests' 203.0.113.x once did: a 429, 2026-11-11).
+      const res = await submit({ name: "R", email: `r${i}@example.com` }, { "cf-connecting-ip": "203.0.113.250" });
       statuses.push(res.status);
     }
     expect(statuses).toContain(429);
