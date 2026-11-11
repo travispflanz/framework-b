@@ -277,8 +277,14 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
   it), makes the six resources, the "<id> editor" Access application on `<host>/_emdash` for each of the site's hosts
   (the owner and any `editors`), and the secrets (`CF_ACCESS_AUDIENCE`; `EMDASH_ENCRYPTION_KEY` generated once, never
   replaced; for previews the same key and the previews application's audience), with the site's wrangler config as it
-  was. Then it runs the site's `editing.mjs on`, fills in the resource ids and opens a pull request. Untested live
-  until the first adopted site's run.
+  was. Then it runs the site's `editing.mjs on`, fills in the resource ids and opens a pull request. Proven live on
+  2026-11-11 on the first adopted site, a launch site on its own domain. The run made the resources, the editor
+  application and the secrets, and opened the pull request. The preview check passed (501 checks) once the motion fix
+  below was in. After the merge, `/_emdash/admin` redirected to the Access login, the site's pictures were served
+  from `/media/` and through the Images binding, and launch QA on the domain passed (541 checks). The first request
+  after the deploy took over 60 seconds and was dropped, while EmDash prepared its database; the next ones took
+  0.5 to 2.3 seconds. That is why the QA gate warms the home page first. The setup wizard and an editor's first
+  edit are untested until the owner's editor runs them.
 - **The site's own pictures in the seed** (2026-11-11): EmDash refuses an image value without a media id ("image.id:
   expected string", EmDash 1.3.1), so `on` used to leave a static site's images out of the seed. Each now goes in as an
   external media value: `id` "local:<file>", `src` "/media/<file>", with its alt text and focal point (EmDash keeps
