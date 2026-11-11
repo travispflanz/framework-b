@@ -11,11 +11,14 @@
 // can tell a chosen crop from a default one.
 import { Image } from "astro:assets";
 
-interface Props { image: { src?: string; alt?: string; width?: number; height?: number; focalX?: number; focalY?: number }; sizes: string; class?: string; eager?: boolean }
+interface Props { image: { src?: string; id?: string; alt?: string; width?: number; height?: number; focalX?: number; focalY?: number }; sizes: string; class?: string; eager?: boolean }
 const { image, sizes, class: className = "", eager = false } = Astro.props;
 const local = import.meta.glob<{ default: ImageMetadata }>("/src/assets/images/*.{jpg,jpeg,png,webp,avif}", { eager: true });
-const asset = image?.src ? local[`/src/assets/images/${image.src}`]?.default : undefined;
-if (image?.src && !asset && !/^(https?:)?\/\//.test(image.src)) throw new Error(`Image "${image.src}" is not in src/assets/images/`);
+// With client editing on, the site's own files reach EmDash as external media values: id "local:<file>", src
+// "/media/<file>" (scripts/editing.mjs), still served through the image pipeline here.
+const file = typeof image?.id === "string" && image.id.startsWith("local:") ? image.id.slice(6) : image?.src?.startsWith("/media/") ? image.src.slice(7) : image?.src;
+const asset = file ? local[`/src/assets/images/${file}`]?.default : undefined;
+if (image?.src && !asset && !/^(https?:)?\/\//.test(image.src) && !image.src.startsWith("/")) throw new Error(`Image "${image.src}" is not in src/assets/images/`);
 const widths = asset ? [480, 800, 1200, 1600].filter((w) => w <= asset.width) : [];
 const share = (v: unknown) => (typeof v === "number" && v >= 0 && v <= 1 ? `${Math.round(v * 1000) / 10}%` : "50%");
 const focal = typeof image?.focalX === "number" || typeof image?.focalY === "number" ? `object-position: ${share(image.focalX)} ${share(image.focalY)}` : undefined;

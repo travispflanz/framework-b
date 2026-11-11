@@ -293,6 +293,7 @@ Each of these is one ops workflow, run when the owner asks. Inputs: `ops/ops-rep
 - **CRM mirror:** `"crm": { "sheet": true }` and/or `"webhook": true` in `site.config.json` by pull request (the
   webhook also needs the Worker secret `CRM_WEBHOOK_URL`, and optionally `CRM_WEBHOOK_SECRET`); then **site crm sync**
   copies the older leads.
+- **Client editing on, for a site that exists:** **site editing** with `mode: on` (and `editors`, besides the owner) makes the resources, the editor Access application and the secrets, and opens a pull request. After the merge, the owner opens `/_emdash/admin` and chooses the sample content in the setup wizard; until then the home page shows what it showed before.
 - **Client editing off:** **site editing** with `mode: off` opens a pull request with the content back in files.
 - **Take a site off its domain without deleting it:** **site snapshot**, then **site park** (`action: undo` puts it
   back exactly).

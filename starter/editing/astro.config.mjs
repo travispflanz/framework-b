@@ -2,7 +2,7 @@
 // Server output on the Cloudflare adapter. Pages that read EmDash content are rendered on request and cached
 // in Workers Cache (the Free plan allows 10 ms CPU a request); every other page stays prerendered.
 // Editors sign in through Cloudflare Access on /_emdash/* (no passkeys or email needed).
-import { writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
@@ -22,6 +22,22 @@ const headersFile = {
   hooks: {
     "astro:build:done": ({ dir }) => {
       writeFileSync(fileURLToPath(new URL("_headers", dir)), buildHeadersFile(config));
+    },
+  },
+};
+
+// The site's own pictures in the seed (external media values, id "local:<file>", scripts/editing.mjs) are copied to
+// /media/<file>, so EmDash's admin can show them; the pages still serve them through Astro's image pipeline.
+const localMedia = {
+  name: "framework-b-local-media",
+  hooks: {
+    "astro:build:done": ({ dir }) => {
+      if (!existsSync("seed/seed.json")) return;
+      const files = new Set([...readFileSync("seed/seed.json", "utf8").matchAll(/"id":\s*"local:([^"]+)"/g)].map((m) => m[1]));
+      if (!files.size) return;
+      const out = fileURLToPath(new URL("media/", dir));
+      mkdirSync(out, { recursive: true });
+      for (const f of files) if (!f.includes("/") && existsSync(`src/assets/images/${f}`)) copyFileSync(`src/assets/images/${f}`, `${out}${f}`);
     },
   },
 };
@@ -46,6 +62,7 @@ export default defineConfig({
       auth: access({ teamDomain: config.editing.accessTeamDomain, audienceEnvVar: "CF_ACCESS_AUDIENCE" }),
     }),
     headersFile,
+    localMedia,
   ],
   vite: { plugins: [tailwindcss()] },
 });

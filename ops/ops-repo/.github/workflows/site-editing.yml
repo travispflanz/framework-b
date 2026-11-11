@@ -1,15 +1,20 @@
-# Caller: switches client editing (EmDash) off for a site and opens a pull request in its repo with the content and
-# images as files. Replace OWNER. A site switched on before `editing off` existed needs "site update" first.
+# Caller: switches client editing (EmDash) on or off for a site and opens a pull request in its repo. On: the editing
+# resources, the editor Access application and the secrets are made first; the home page and its pictures go into
+# EmDash's seed. Off: the content and images come back as files. Replace OWNER. A site switched on before
+# `editing off` existed needs "site update" first.
 name: site editing
 on:
   workflow_dispatch:
     inputs:
       site_id: { description: "site id", required: true }
-      mode: { description: "off = switch client editing off", required: false, default: "off", type: choice, options: ["off"] }
+      mode: { description: "on = switch client editing on; off = switch it off", required: true, default: "off", type: choice, options: ["on", "off"] }
+      editors: { description: "with on: editors' emails besides the owner, comma-separated", required: false, default: "" }
 jobs:
   editing:
     uses: OWNER/framework-b/.github/workflows/site-editing.yml@main
     with:
       site_id: ${{ inputs.site_id }}
       mode: ${{ inputs.mode }}
+      editors: ${{ inputs.editors }}
+      framework_repo: OWNER/framework-b
     secrets: inherit

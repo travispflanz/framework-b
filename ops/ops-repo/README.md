@@ -53,7 +53,7 @@ with `gh workflow run "<name>" -R <you>/<ops repo> -f site_id=...`.
 | **site images** | `site_id`, `repo`, `branch`, `action` (`draft` then `use`), `name`, `subject`, `aspect`, `count`, `style`, `draft_run`, `number`, `alt` | Generated images with the ops secret `WORKERS_AI_TOKEN`: `draft` uploads numbered candidates and a contact sheet as the run's artifact; `use` commits the chosen one with its credit on the branch |
 | **site newsletter** | `site_id`, `issue`, `mode` (`test` or `send`), `to`, `site_ref`, `force` | Test-sends a newsletter issue (also from a draft branch), or sends it to every subscriber (launch sites) |
 | **site crm sync** | `site_id`, `days` | Copies a site's leads to its CRM mirror (Google Sheet, webhook); safe to rerun |
-| **site editing** | `site_id`, `mode` (`off`) | Switches client editing off and brings the content back into files, as a pull request |
+| **site editing** | `site_id`, `mode` (`on` or `off`), `editors` (with `on`: emails besides the owner) | On: makes the editing resources, the editor Access application and the secrets, then opens a pull request that switches the site on, with the home page and its pictures in EmDash's seed. Off: brings the content back into files, as a pull request |
 | **site snapshot** | `worker`, `zone`, `repo` | Read-only copy of everything needed to restore any Worker and its zone |
 | **site park** | `worker`, `zone`, `action` (`park` or `undo`) | Takes any Worker off its domain without deleting anything, or puts it back. Snapshot first |
 | **site teardown** | `site_id`, `confirm` (`delete <site_id>`), `delete_repo` | Exports a site's data to backups, then deletes it and archives its repo |
