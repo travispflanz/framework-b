@@ -72,10 +72,7 @@ const files = htmlFiles(DIST);
 const contentSlugs = existsSync("src/content") ? readdirSync("src/content").filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)) : [];
 const onRequest = DIST === "dist/client" ? ["/", "/privacy", "/contact", ...contentSlugs.filter((s) => !["home", "privacy", "not-found", "contact"].includes(s)).map((s) => `/${s}`)] : [];
 const pages = [...new Set([...onRequest, ...files.map(pagePath)])].filter((p) => p !== "/404");
-if (onRequest.length) {
-  const sourceText = contentSlugs.map((s) => JSON.stringify(JSON.parse(readFileSync(join("src/content", `${s}.json`), "utf8")))).join(" ");
-  check("content src/content: no TODO, TBD or lorem ipsum", !/\b(TODO|TBD|FIXME)\b|lorem ipsum/i.test(sourceText));
-}
+
 for (const file of files) {
   const html = readFileSync(file, "utf8");
   const text = textOf(html);
@@ -220,6 +217,19 @@ try {
       if (Date.now() - t0 > 10_000) console.log(`note  the first request to / took ${Math.round((Date.now() - t0) / 1000)} s`);
     } catch (e) {
       console.log(`note  no first response from / within 2 minutes (${e.name}); the page checks will say more`);
+    }
+  }
+  // The checks section 1 runs on each built page, run on the HTML of the pages rendered on request (client editing
+  // on), so those pages are held to the same rules (a launch on 2026-11-11 had 32 fewer checks without this).
+  for (const path of onRequest) {
+    const r = await auth.fetch(base + path, { redirect: "manual" });
+    const html = await r.text();
+    const text = textOf(html);
+    check(`content ${path}: no TODO, TBD or lorem ipsum`, !/\b(TODO|TBD|FIXME)\b|lorem ipsum/i.test(text));
+    if (LAUNCH) {
+      check(`content ${path}: no example names or addresses`, !/example\.(com|org|net)|Example Co\b/.test(text));
+      const canonical = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1] || "";
+      check(`content ${path}: canonical uses the site's host`, !!canonical && new URL(canonical).host === site.site.canonicalHost, canonical || `HTTP ${r.status}, no canonical`);
     }
   }
   browser = await launchBrowser();
