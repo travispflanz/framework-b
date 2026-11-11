@@ -53,11 +53,12 @@ const entry = "lg:mb-6 lg:break-inside-avoid";
 ---
 <Base title="Website assets" noindex>
   <!-- The title with a line beside it on wide screens, so the top of the page is balanced like the sections below. -->
-  <div class:list={["grid gap-4", { "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-end lg:gap-16": entries > 0 }]}>
+  <!-- With no pictures to list, the one line still sits beside the title, so the page isn't empty on the right (a site
+       with no credited images failed the balance check, 2026-11-11). -->
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-end lg:gap-16">
     <PageTitle>Website assets</PageTitle>
-    {entries > 0 && <p class="max-w-(--container-prose) text-body text-ink-muted">Every picture on this site, once: where it comes from, where it appears and what was done to it.</p>}
+    <p class="max-w-(--container-prose) text-body text-ink-muted">{entries > 0 ? "Every picture on this site, once: where it comes from, where it appears and what was done to it." : "Every image on this site belongs to us."}</p>
   </div>
-  {entries === 0 && <p class="mt-6 text-body text-ink-muted">Every image on this site belongs to us.</p>}
   {entries > 0 && (
     <section aria-labelledby="pictures" class={wide ? "mt-12 grid gap-6" : group}>
       <div class={wide ? "grid max-w-(--container-prose) gap-3 text-body" : side}>
