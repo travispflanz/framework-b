@@ -1,8 +1,9 @@
 // How AI was used on the site's images, for the Website assets page (src/pages/credits.astro; docs/SPEC.md section
-// 12, "Website assets: how AI was used"). The steps come from design/credits.json, written by the tools that took
-// them: "ai" on each image (the steps below) and "aiBy" (which model, named by the agent, as `--by` names it for spot
-// colour). Spot colour has its own record ("spot"). Where each image appears comes from the pages' content. Nothing
-// is claimed for an image without a record: an image the owner edited by hand says nothing about AI.
+// 12, "Website assets: how AI was used"), which lists every picture once: where it comes from, where it appears and
+// what the model did with it. The steps come from design/credits.json, written by the tools that took them: "ai" on
+// each image (the steps below) and "aiBy" (which model, named by the agent, as `--by` names it for spot colour). Spot
+// colour has its own record ("spot"). Where each image appears comes from the pages' content. Nothing is claimed for
+// an image without a record: an image the owner edited by hand says nothing about AI.
 // Pure functions, so scripts/test/ai-use.test.mjs checks the wording without a build.
 
 // chose: picked from an archive or library for a place on the site (scripts/images.mjs add)
@@ -77,37 +78,56 @@ function lookOf(c) {
 }
 
 // What AI did with one image, as one sentence in the order the work was done ("" when the records name nothing).
-// The model is named once, in the summary.
-export function aiText(c, { places = [] } = {}) {
+// The model is named once, in the summary. `brief` is for the Website assets page, where the entry already names the
+// source and the summary explains framing and the site's look once for every picture.
+export function aiText(c, { places = [], brief = false } = {}) {
   const steps = Array.isArray(c.ai) ? c.ai : [];
   const did = [];
-  if (steps.includes("chose")) did.push(`chose it from ${archiveOf(c)}`);
+  if (steps.includes("chose")) did.push(brief ? "chose it" : `chose it from ${archiveOf(c)}`);
   if (steps.includes("generated")) did.push(`made it with ${c.model || "an image generator"}`);
   if (steps.includes("drew")) did.push("drew it");
   if (steps.includes("cropped")) did.push(`cropped it${/inside the scan's borders/.test(c.changes || "") ? " inside the scan's borders" : ""}`);
-  if (places.some((p) => p.framed)) did.push("framed it for each layout (what stays in view where a layout cuts it to fit)");
-  if (steps.includes("treated")) did.push(lookOf(c) ? `gave it the site's look (${lookOf(c)})` : "gave it the site's look");
+  if (places.some((p) => p.framed)) did.push(brief ? "framed it for each layout" : "framed it for each layout (what stays in view where a layout cuts it to fit)");
+  if (steps.includes("treated")) did.push(lookOf(c) && !brief ? `gave it the site's look (${lookOf(c)})` : "gave it the site's look");
   if (steps.includes("alt")) did.push("wrote its description for screen readers");
   if (c.spot) did.push(`added one spot of colour to ${String(c.spot.what || "one object").replace(/\.$/, "")}`);
   return did.length ? `${cap(list(did))}.` : "";
 }
+
+// How a spot of colour's outline was made, from its record (scripts/spot-colour.mjs writes the segmenter): SlimSAM,
+// round spots, tone, and shapes the model placed itself ("drawn by hand" in the record: the agent gives their corners).
+export function outlineText(c) {
+  const s = String(c?.spot?.segmenter || "");
+  const ways = [/SlimSAM/.test(s) && "made with SlimSAM", /spots/.test(s) && "found as round spots of light", /(lighter|darker|lightness)/.test(s) && "picked out by its tone", /by hand/.test(s) && "drawn as shapes by the model itself"].filter(Boolean);
+  return ways.length ? `Its outline was ${list(ways)}${/colour original/.test(s) ? ", on the colour original" : ""}.` : "";
+}
+
+// A picture from a collection by its title, or the record it links to.
+export const titleOf = (c) => String(c?.title || "").trim() || "the original record";
+
+// A rights statement in place of a licence ("No known restrictions on publication", from an archive's record): the
+// page says "Rights:" for it, and "licensed under" (with the licence's link) for a licence.
+export const isRightsStatement = (c) => /restriction|public domain|no known/i.test(String(c?.license || ""));
 
 // The page's opening paragraph: who did what, across every image that has a record.
 export function aiSummary(images, { by = "an AI model", heroes = false } = {}) {
   const has = (step) => images.some((c) => Array.isArray(c.ai) && c.ai.includes(step));
   const archives = [...new Set(images.filter((c) => Array.isArray(c.ai) && c.ai.includes("chose")).map(archiveOf))];
   const looks = [...new Set(images.filter((c) => Array.isArray(c.ai) && c.ai.includes("treated")).map(lookOf).filter(Boolean))];
+  // The owner's own pictures are provided, not chosen: the summary says which photographs the model chose.
+  const provided = images.some((c) => c.source === "owner");
+  const photos = images.filter((c) => c.source !== "brand" && c.source !== "generated");
   const did = [
-    has("chose") && `chose the photographs from ${list(archives)}`,
-    (has("cropped") || images.some((c) => c.framed)) && "cropped and framed them",
+    has("chose") && `chose the ${provided ? "archive " : ""}photographs from ${list(archives)}`,
+    (has("cropped") || images.some((c) => c.framed)) && (images.some((c) => c.framed) ? "cropped them and framed them for each layout (what stays in view where a layout cuts a picture to fit)" : "cropped them"),
     has("treated") && (looks.length === 1 ? `gave them one look (${looks[0]})` : "gave them one look"),
     has("alt") && "wrote their descriptions for screen readers",
-    images.some((c) => c.spot) && "added a spot of colour to each one it lists below",
+    images.some((c) => c.spot) && (photos.every((c) => c.spot) ? "added one spot of colour to each photograph" : "added one spot of colour to the photographs that say so"),
     has("drew") && "drew the logo",
     has("generated") && "made the images marked as generated",
   ].filter(Boolean);
   if (!did.length) return "";
-  const parts = [`${cap(by)} did this site's picture work: it ${list(did)}. Each picture below says where it appears and what the model did with it.`];
+  const parts = [`${cap(by)} did this site's picture work: it ${list(did)}.${provided ? " The owner provided their own pictures; the model didn't choose those." : ""} Each picture below says where it comes from, where it appears and what the model did with it.`];
   if (!has("generated") && has("chose")) parts.push("No photograph was made up: each one is a real photograph.");
   if (heroes) parts.push("Where words sit over a photograph at the top of a page, the page lays a dark gradient over it, or fades it into the background, so the words can be read; that is part of the site's design, made the same way, and the image files themselves are unchanged.");
   return parts.join(" ");
