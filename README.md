@@ -154,7 +154,8 @@ A site has two modes:
 - Lighthouse scores: accessibility, best practices and SEO must be 100; on a launched site, performance must be at
   least 90 (a borderline score is rechecked as the median of 5 runs);
 - layout at four screen widths, and console errors;
-- the home page's length on a phone, the action bar, and no motion for visitors who ask for less;
+- the home page's length on a phone, the action bar, no motion for visitors who ask for less, and, with motion on, a
+  scroll reveal that runs and never fades text;
 - fonts, colours or sizes outside `DESIGN.md`;
 - generic AI wording;
 - reviews, ratings or statistics without a source.

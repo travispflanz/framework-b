@@ -427,6 +427,27 @@ try {
     const running = await page.evaluate(() => document.getAnimations().filter((a) => !String(a.animationName || "").startsWith("turnstile")).length);
     check("motion: no animations run with reduced motion", running === 0, `${running} running`);
     await context.close();
+    // The motion the design asks for runs: a minifier once folded `animation-timeline` into the `animation`
+    // shorthand, which Chromium drops whole, so the reveal never ran on static builds (2026-11-11). And no
+    // scroll-driven animation fades text: on a view() timeline, text at the bottom edge of the screen stays at that
+    // frame while the visitor reads, and Lighthouse failed the faded text on contrast.
+    const moving = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await auth.playwright(moving);
+    const mp = await moving.newPage();
+    await mp.goto(base + "/", { waitUntil: "load" });
+    const mm = await mp.evaluate(() => {
+      const scroll = document.getAnimations().filter((a) => a.timeline && a.timeline.constructor.name !== "DocumentTimeline");
+      const fades = scroll.filter((a) => (a.effect?.target?.textContent || "").trim() && a.effect.getKeyframes().some((k) => k.opacity !== undefined && Number(k.opacity) < 1));
+      return {
+        supported: CSS.supports("animation-timeline", "view()"),
+        targets: document.querySelectorAll(".reveal, [data-reveal] > *").length,
+        names: [...new Set(scroll.map((a) => a.animationName))],
+        fades: [...new Set(fades.map((a) => a.animationName))],
+      };
+    });
+    if (mm.supported && mm.targets) check("motion: the scroll reveal runs (its CSS survived the build)", mm.names.includes("fb-rise"), mm.names.join(", ") || "no scroll-driven animation running");
+    check("motion: no scroll-driven animation fades text", mm.fades.length === 0, mm.fades.join(", "));
+    await moving.close();
   }
 
   // ---------- 6. Lighthouse (mobile) ----------
