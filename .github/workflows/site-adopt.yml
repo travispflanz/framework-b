@@ -60,7 +60,7 @@ jobs:
           git -C site config user.name "Framework B"
           git -C site config user.email "framework-b@users.noreply.github.com"
           cd site && npm ci --no-audit --no-fund > /dev/null
-          if [ "$PHASE" = preview ]; then npx playwright install --with-deps chromium > /dev/null; fi
+          if [ "$PHASE" = preview ]; then for try in 1 2; do timeout 600 npx playwright install --with-deps chromium > /dev/null && break; rm -rf ~/.cache/ms-playwright/__dirlock; [ "$try" = 2 ] && exit 1; done; fi
       - name: Adopt (${{ inputs.phase }})
         id: adopt
         env:
@@ -86,7 +86,7 @@ jobs:
         run: |
           cd site
           host=$(jq -r .site.canonicalHost site.config.json)
-          npx playwright install --with-deps chromium > /dev/null
+          for try in 1 2; do timeout 600 npx playwright install --with-deps chromium > /dev/null && break; rm -rf ~/.cache/ms-playwright/__dirlock; [ "$try" = 2 ] && exit 1; done
           npm run build > /dev/null
           npm run qa -- --url "https://${host}" --launch | tee ../qa.log
           tail -n 1 ../qa.log >> "$GITHUB_STEP_SUMMARY"

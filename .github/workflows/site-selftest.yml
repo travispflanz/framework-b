@@ -70,7 +70,7 @@ jobs:
           echo "dir=$(node -p 'require("./site-summary.json").dir')" >> "$GITHUB_OUTPUT"
       # The QA gate and the live lead run from the site's own folder, with its own config.
       - name: Install the browser
-        run: npx playwright install --with-deps chromium
+        run: for try in 1 2; do timeout 600 npx playwright install --with-deps chromium > /dev/null && break; rm -rf ~/.cache/ms-playwright/__dirlock; [ "$try" = 2 ] && exit 1; done
         working-directory: ${{ steps.site.outputs.dir }}
       - name: QA gate on the live site
         run: npm run qa -- --url "${{ steps.site.outputs.url }}"

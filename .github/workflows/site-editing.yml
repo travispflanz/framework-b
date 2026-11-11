@@ -12,8 +12,8 @@ on:
     inputs:
       site_id: { type: string, required: true }
       mode: { type: string, default: "off", description: '"on" or "off"' }
-      editors: { type: string, default: "", description: 'with "on": editors' email addresses besides the owner, comma-separated' }
-      framework_repo: { type: string, default: "", description: 'with "on": this repo (owner/framework-b)' }
+      editors: { type: string, default: "", description: "with mode on: the editors' email addresses besides the owner, comma-separated" }
+      framework_repo: { type: string, default: "", description: "with mode on: this repo (owner/framework-b)" }
       framework_ref: { type: string, default: main }
     secrets:
       CLOUDFLARE_API_TOKEN: { required: true }

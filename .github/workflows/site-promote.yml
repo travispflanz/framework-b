@@ -88,7 +88,7 @@ jobs:
           DOMAIN: ${{ inputs.domain }}
         run: |
           cd site
-          npx playwright install --with-deps chromium > /dev/null
+          for try in 1 2; do timeout 600 npx playwright install --with-deps chromium > /dev/null && break; rm -rf ~/.cache/ms-playwright/__dirlock; [ "$try" = 2 ] && exit 1; done
           npm run build > /dev/null
           npm run qa -- --url "https://${DOMAIN}" --launch | tee ../qa.log
           tail -n 1 ../qa.log >> "$GITHUB_STEP_SUMMARY"
