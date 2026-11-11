@@ -144,7 +144,7 @@ QA sends the token headers only to the preview's own origin: on `fetch`, on Play
 
 No long-lived service token or secret is stored. The deploy token needs Access: Service Tokens Edit (docs/TOKENS.md). The check runs the site's own QA script, so a site made before it needs `site update` first.
 
-Tested live on 2026-10-26: on the first real site's update branch (editing on), the QA gate passed with 81 checks, twice; in the self-test, on a static site's preview (108 checks) and an editing site's preview (107 checks), neither with a pull request. On the fresh editing preview the first request to the home page gave no response within 25 s (EmDash's first-request setup is the likely cause), so the check now waits up to 2 minutes for that first response before QA. Not tested yet: a preview whose build fails.
+Tested live on 2026-10-26: on the first real site's update branch (editing on), the QA gate passed with 81 checks, twice; in the self-test, on a static site's preview (108 checks) and an editing site's preview (107 checks), neither with a pull request. On the fresh editing preview the first request to the home page gave no response within 25 s (EmDash's first-request setup is the likely cause), so the check now waits up to 2 minutes for that first response before QA. The QA gate itself does the same for any `--url` since 2026-11-11, after the weekly self-test's editing site timed out on its first page load (30 s) on the live site, where no preview check had warmed it. Not tested yet: a preview whose build fails.
 
 ## 3. Kickoff questions
 
