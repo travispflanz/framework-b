@@ -4,6 +4,7 @@
 #        site's `scripts/editing.mjs on` and fills in the resource ids. The site's own pictures go into the seed.
 #   off: the site's own `scripts/editing.mjs off --remote`: the published home page and its media-library images come
 #        back as files; nothing in Cloudflare is deleted (the report lists what the owner can remove).
+#   on, for a site where editing is already on: only adds the editors named to the editor login (no pull request).
 # Production changes when the owner merges the pull request. Called only from the owner's private ops repo.
 # A site switched on before `editing off` existed needs the ops repo's "Site update" first.
 name: site editing
@@ -77,10 +78,17 @@ jobs:
           node scripts/editing.mjs off --remote > ../off.log 2>&1 || { cat ../off.log; exit 1; }
           grep -E '^(Client editing|!|Kept in Cloudflare|Content matches)' ../off.log | sed 's/^/- /' | tee ../report.md
           cat ../report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Look for changes in the site
+        id: changed
+        run: |
+          # With editing already on, mode "on" only adds editors to the editor login; the site is unchanged.
+          if [ -n "$(git -C site status --porcelain)" ]; then echo "site=yes" >> "$GITHUB_OUTPUT"; else echo "Nothing changed in the site, so there is no pull request." | tee -a "$GITHUB_STEP_SUMMARY"; fi
       - name: Build the site
+        if: steps.changed.outputs.site == 'yes'
         working-directory: site
         run: npm run build > ../build.log 2>&1 || { tail -n 40 ../build.log; exit 1; }
       - name: Open a pull request
+        if: steps.changed.outputs.site == 'yes'
         env:
           GH_SITES_TOKEN: ${{ secrets.GH_SITES_TOKEN }}
           SITE_ID: ${{ inputs.site_id }}
