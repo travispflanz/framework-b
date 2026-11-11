@@ -323,10 +323,15 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     checked 2026-11-11). The sitemap lists the content pages from `src/content`, since the integration can't list a
     dynamic route rendered on request.
   - The QA gate lists those pages itself (they aren't in the build output): on a copy of the starter with the
-    full-site fixture, an editing build went from 116 checks to 219 once they were (the static build: 223).
+    full-site fixture, an editing build went from 116 checks to 219 once they were (the static build: 223). It also
+    runs the per-page HTML checks (no TODO; at launch, no example names and a canonical on the site's host) on each
+    one's served HTML: launch QA on the first adopted site went from 509 checks to 541 with them.
+  - Live on the first adopted site on 2026-11-11 (site update, preview check 491 checks, launch QA 541). Its first
+    hourly run after the deploy brought all 12 pages into EmDash in about 23 seconds of wall time (read back from the
+    content database); pages and the 404 answered as before, and `/fb-sync-pages` answered 404 from outside.
   - Proven in CI (the full-site fixture's `/about` page through EmDash, the hourly job run with
-    `wrangler dev --test-scheduled`, an editor-made page, a 404, and the round trip below); live on the first adopted
-    site is untested until its rollout.
+    `wrangler dev --test-scheduled`, an editor-made page, a 404, and the round trip below). An editor's first edit of
+    an inner page on a live site is untested until the first adopted site's editor makes one.
 - **Switching it off:**
   - `node scripts/editing.mjs off --remote` (or `--local`, or `--database <file.sqlite>`) in a site:
     - Reads the content database. `--remote` runs `wrangler d1 export` on `CMS_DB` and loads the SQL into a temporary SQLite file ([D1 import and export](https://developers.cloudflare.com/d1/best-practices/import-export-data/), checked 2026-10-27: a running export blocks other requests to that database, and a database with virtual tables can't be exported; the section model creates none).
