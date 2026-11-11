@@ -107,7 +107,7 @@ try {
       { _type: "fb_form", _key: "survey", variant: "stacked", headline: "A two-step form with choices", form: "survey" },
     ],
     "variants-d": [
-      { _type: "fb_hero", _key: "hero", variant: "fade", eyebrow: "Layout test", headline: "A photo that ==fades== into the page", subheadline: "The picture fills the band on the right and fades into the background towards the title.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", image: img(3) },
+      { _type: "fb_hero", _key: "hero", variant: "fade", eyebrow: "Layout test", headline: "A photo that ==fades== into the page beside a title of a whole sentence", subheadline: "The picture fills the band on the right and fades into the background towards the title.", primary_cta_label: "Get in touch", primary_cta_url: "/#contact", image: img(3) },
       { _type: "fb_text", _key: "wide", variant: "wide", headline: "A statement across ==four fifths== of the page", body: "The first paragraph of a wide block, long enough to run down a column and show that its lines stay near the reading measure.\n\nA second paragraph that flows into the second column on a wide screen and under the first on a phone." },
       { _type: "fb_text", _key: "wide-one", variant: "wide", eyebrow: "One paragraph", headline: "A ==short== statement", body: "A single paragraph sits beside the headline rather than leaving the right half of the band empty." },
       { _type: "fb_cta", _key: "cta", variant: "band", headline: "A band that is ==itself== the accent", body: "Accent words on an accent band take the band's own text colour.", cta_label: "Get in touch", cta_url: "/#contact" },
@@ -141,6 +141,8 @@ try {
   if (!readFileSync("dist/variants-a.html", "utf8").includes("split-row")) throw new Error("the split text and list layouts are missing");
   const d = readFileSync("dist/variants-d.html", "utf8");
   for (const want of ["hero-fade-photo", "wide-body", '<span class="accent-word">fades</span>', '<span class="accent-word">four fifths</span>']) if (!d.includes(want)) throw new Error(`variants-d is missing ${want}`);
+  // A fade hero's headline of a whole sentence is set at the headline size (Impeccable's oversized-h1).
+  if (!/<h1 class="font-display text-balance text-ink text-headline/.test(d)) throw new Error("the fade hero's long headline isn't set at the headline size");
   if (/==/.test(d.replace(/<script[\s\S]*?<\/script>/g, ""))) throw new Error("an ==accent== mark was left in the page as typed");
   if (!/data-focal-x="0.5"/.test(hero)) throw new Error("a picture with a focal point doesn't say so (data-focal-x), so the crop check can't see it");
   if (!readFileSync("dist/variants-thanks.html", "utf8").includes('content="noindex')) throw new Error("the noindex page has no robots noindex");

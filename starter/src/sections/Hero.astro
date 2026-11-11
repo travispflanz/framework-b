@@ -11,7 +11,7 @@ import Actions from "./HeroActions.astro";
 import Icon from "./Icon.astro";
 import Points from "./HeroPoints.astro";
 import Picture from "./Picture.astro";
-import { accent, lines, inline } from "./text.js";
+import { accent, lines, inline, plain } from "./text.js";
 import Eyebrow from "./Eyebrow.astro";
 import { composition, variantOf } from "./design.js";
 import { VARIANTS } from "./schema.js";
@@ -36,6 +36,11 @@ const eyebrowCase = composition.titleCase === "upper" ? "uppercase" : undefined;
 // doesn't leave the right of the page empty (scripts/lib/cohesion.mjs, "balance").
 const statementRest = !!(value.subheadline || value.primary_cta_label || value.secondary_cta_label || points.length);
 const statementSplit = !center && statementRest;
+// In the fade layout the title has under half the window, so a full sentence at display size runs to four lines and
+// fills the first screen (Impeccable's oversized-h1: "set long headlines smaller"; the first adopted site, 2026-11-11).
+// A headline longer than 40 characters is set a step smaller, at the headline size; face, weight and case stay the
+// same as every other page's title.
+const longTitle = plain(value.headline).length > 40;
 ---
 {variant === "full-bleed" ? (
   <section id={value.anchor_id || undefined} class="hero-bleed relative isolate overflow-hidden bg-ink px-gutter py-section">
@@ -106,7 +111,7 @@ const statementSplit = !center && statementRest;
     <div class="hero-fade-copy relative mx-auto grid w-full max-w-content content-end gap-6 px-gutter">
       <div class="reveal grid gap-6 lg:max-w-[46%]">
         {value.eyebrow && <Eyebrow text={value.eyebrow} class={eyebrowCase} />}
-        <h1 class:list={["font-display text-display text-balance text-ink", titleCase]} set:html={accent(value.headline)} />
+        <h1 class:list={["font-display text-balance text-ink", longTitle ? "text-headline" : "text-display", titleCase]} set:html={accent(value.headline)} />
         {value.subheadline && <p class="max-w-(--container-prose) text-body text-ink-muted" set:html={inline(value.subheadline)} />}
         <Actions value={value} />
         {points.length > 0 && <Points points={points} />}

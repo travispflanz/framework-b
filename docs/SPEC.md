@@ -877,14 +877,19 @@ What's built:
   the photo started (2026-11-06).
 - Hero `fade`: the photo fills the band's height on the right and fades into the background towards the headline
   (`mask-image`); on phones it sits above the headline and fades out before it. The text never sits on the photo.
+  A headline longer than 40 characters is set a step down, at the headline size: at display size a whole sentence
+  ran to four lines in the text column (under half the window) and failed Impeccable's oversized-h1 ("set long
+  headlines smaller") on the first adopted site (2026-11-11). Face, weight and case stay the same, so every page's
+  title still reads as one treatment.
 - Footer: link groups two to a row on phones with 44 px tap targets (24 px from tablet width, the WCAG 2.2 target-size
   minimum: axe flagged 20 px links on the first adopted site, 2026-11-06); Privacy is left out of the bottom row when a
   column links it; with a logo, the footer ends on the logo across the content width (`composition.footer`:
   `wordmark`, the default, or `plain`).
 - `composition.ornament: mark` puts the logo kit's mark (the favicon's shape) before every eyebrow label
   (`src/sections/Eyebrow.astro`).
-- Tests: `starter/scripts/test/spot.test.mjs` (accent words) and the layout test's fourth page (a fade hero, a wide
-  statement with accent words, accent words on an accent band) through the whole QA gate. The footer's wordmark and
+- Tests: `starter/scripts/test/spot.test.mjs` (accent words) and the layout test's fourth page (a fade hero whose
+  headline is a whole sentence, a wide statement with accent words, accent words on an accent band) through the whole
+  QA gate. The footer's wordmark and
   the eyebrow mark need a logo kit: proven on the first adopted site, untested in CI.
 
 ### Spot colour (2026-11-06)
