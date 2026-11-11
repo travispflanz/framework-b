@@ -469,6 +469,19 @@ free first.
   transitions (`@view-transition`). All of it sits under `prefers-reduced-motion: no-preference`; the QA gate checks
   that nothing animates with reduced motion. No animation library ships; one may be added per site when a design
   needs JavaScript-driven motion.
+  - **Fixed 2026-11-11: the reveal had never run on a static build.** Vite 8's CSS minifier (Lightning CSS 1.33,
+    with no browser targets) folded `animation-timeline: view()` into the `animation` shorthand. The spec allows
+    that, but Chromium 141 rejects the whole declaration (checked in Chromium 141 on 2026-11-11), and
+    [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/animation) (checked 2026-11-11)
+    warns about the same thing. The editing build kept the two apart, so the first adopted site's reveal ran for the
+    first time when editing was switched on. Lighthouse then failed three pages on contrast: text at the bottom edge
+    of the screen was caught mid-fade (opacity blended into its colour, 1.4:1 to 4:1). With a `view()` timeline,
+    that frame holds for as long as the visitor doesn't scroll, so this is a real reading problem, not a test
+    artefact. The rules are now written in longhands, which neither Lightning CSS nor esbuild folds, and the reveal
+    rises without fading.
+  - The QA gate checks both on the home page when motion is on: the scroll reveal runs, and no scroll-driven
+    animation fades text. The first check would have failed the first adopted site's production pages, where 29
+    reveal targets had no animation running.
 - **Logo (`scripts/logo.mjs`).** First built as six fixed layouts of the name in the display font (the brand kit);
   since 2026-11-04 a method with a brief, drawn concepts, a test sheet and a full kit. See "Logo (2026-11-04)" below.
   The six layouts remain as template concepts (`node scripts/logo.mjs templates`; `scripts/brand-kit.mjs` still runs

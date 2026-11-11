@@ -83,8 +83,12 @@ html[data-density="compact"] section.py-section { padding-block: calc(var(--spac
 .accordion-cue::after { transform: translate(-50%, -50%) rotate(90deg); }
 details[open] > summary .accordion-cue::after { display: none; }
 
-/* Motion (composition.motion). Only transform and opacity move, so nothing shifts the layout; nothing moves for
-   people who ask for reduced motion, and browsers without scroll-driven animations show everything at once. */
+/* Motion (composition.motion). Only transforms move, so nothing shifts the layout; nothing moves for people who ask
+   for reduced motion, and browsers without scroll-driven animations show everything at once.
+   The scroll-driven rules are written in longhands: Vite's CSS minifier (Lightning CSS, with no browser targets) folds
+   `animation-timeline` into the `animation` shorthand, which Chromium 141 rejects whole, so the motion never ran on a
+   static build (2026-11-11). The reveal never fades: with a view() timeline, text at the bottom edge of the screen
+   stays at that frame for as long as the visitor doesn't scroll, and faded text there fails contrast. */
 @media (prefers-reduced-motion: no-preference) {
   html:is([data-motion="subtle"], [data-motion="expressive"]) .card { transition: transform 200ms ease, border-color 200ms ease; }
   html:is([data-motion="subtle"], [data-motion="expressive"]) a.card:hover,
@@ -93,24 +97,28 @@ details[open] > summary .accordion-cue::after { display: none; }
   html:is([data-motion="subtle"], [data-motion="expressive"]) :is(.button-primary, .button-inverse):active { transform: scale(0.97); }
 
   @supports (animation-timeline: view()) {
-    html:is([data-motion="subtle"], [data-motion="expressive"]) :is(.reveal, [data-reveal] > *) {
-      animation: fb-rise linear both;
+    html:is([data-motion="subtle"], [data-motion="expressive"]) :is(.reveal, [data-reveal] > *),
+    html:is([data-motion="subtle"], [data-motion="expressive"]) .timeline::before,
+    html[data-motion="expressive"] .parallax {
+      animation-timing-function: linear;
+      animation-fill-mode: both;
       animation-timeline: view();
+    }
+    html:is([data-motion="subtle"], [data-motion="expressive"]) :is(.reveal, [data-reveal] > *) {
+      animation-name: fb-rise;
       animation-range: entry 0% entry 90%;
     }
     html:is([data-motion="subtle"], [data-motion="expressive"]) .timeline::before {
-      animation: fb-draw linear both;
-      animation-timeline: view();
+      animation-name: fb-draw;
       animation-range: entry 20% cover 60%;
     }
     html[data-motion="expressive"] .parallax {
-      animation: fb-drift linear both;
-      animation-timeline: view();
+      animation-name: fb-drift;
       animation-range: cover;
     }
   }
 }
-@keyframes fb-rise { from { opacity: 0; transform: translateY(1.5rem); } to { opacity: 1; transform: none; } }
+@keyframes fb-rise { from { transform: translateY(1.5rem); } to { transform: none; } }
 @keyframes fb-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes fb-drift { from { transform: translateY(-4%) scale(1.08); } to { transform: translateY(4%) scale(1.08); } }
 

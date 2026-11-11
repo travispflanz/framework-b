@@ -67,7 +67,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
 - The QA gate fails on:
   - a stale tokens.css or design.json, a style guide rendered before the last change to `DESIGN.md`, `STYLE-GUIDE.md` or the logo, or a logo kit with a file missing;
   - a home page longer than the phone budget at 390×844, a first phone screen without the `<h1>`, a missing phone action bar, a link or button the bar cuts in half on the first screen, text left under the bar at the end of the page, or a sideways strip without its swipe cue;
-  - anything animating when the visitor asks for reduced motion;
+  - anything animating when the visitor asks for reduced motion; with motion on, a scroll reveal that doesn't run or any scroll-driven animation that fades text;
   - a list of three or more cards where some carry photos but half or fewer do;
   - a page title whose face, weight, case or alignment differs from the home page's, a bare photo banner (a photo at least 60% of the window wide and 30% of its height with no text over it or beside it, at 1280 px), or a page that runs more than half a screen longer without a picture than the home page does;
   - a section with less than a tenth of its weight on one side of the middle of the window and nothing a quarter of the way across that half, at 1280 px; a picture cropped by a third or more of its width or height without a focal point on that axis, at 360 and 1280 px; a header logo shorter than the tallest button beside it or in the phone bar;
