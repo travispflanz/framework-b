@@ -43,13 +43,21 @@ jobs:
           BASE: ${{ inputs.base }}
         run: |
           to=$(git -C framework rev-parse --short HEAD)
-          echo "branch=framework/update-$to" >> "$GITHUB_OUTPUT"
-          git -C site checkout -q -b "framework/update-$to"
+          # A rerun for the same framework version finds the earlier run's branch on the remote. Pushing to it would
+          # be refused (the new commit doesn't build on it) and force-pushing would discard it, so a rerun takes the
+          # next free name, and the report says which earlier branch to close.
+          branch="framework/update-$to"; n=2
+          while git -C site ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; do branch="framework/update-$to-$n"; n=$((n + 1)); done
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          git -C site checkout -q -b "$branch"
           set +e
           node framework/scripts/site/update.mjs --site site --to HEAD ${BASE:+--base "$BASE"} --report update-report.md
           code=$?
           set -e
           if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
+          if [ "$branch" != "framework/update-$to" ]; then
+            printf '\n%s\n' "This is a rerun: an earlier update to this framework version is on \`framework/update-$to\`. Close its pull request, if it has one, once this one is merged." >> update-report.md
+          fi
           echo "conflicts=$([ "$code" -eq 2 ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
           if [ -z "$(git -C site status --porcelain)" ]; then echo "changed=no" >> "$GITHUB_OUTPUT"; else echo "changed=yes" >> "$GITHUB_OUTPUT"; fi
       - name: Test the updated site (local Worker, Turnstile test keys)
