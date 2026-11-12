@@ -15,8 +15,11 @@ You describe the business in a few sentences. The agent then:
 You check the preview and merge one pull request, and the site is live. Every form on the site stores its leads in a
 database you own, emails you about each one, and adds the visitor to a subscriber list you can email later.
 
-**Status: v1.0.0 (2026-10-27).** Every feature below has run live on a real Cloudflare account unless it is marked
-*untested*. The evidence for each one is in `docs/SPEC.md` and `docs/ROADMAP.md`.
+**Status: v1.0.0 (2026-10-27), with core 0.6.0 on `main` (2026-11-11).** Since v1.0.0, `main` adds the design layer
+(design routes, logo method, style guide, balance and crop checks), bringing an existing site onto Framework B (site
+adopt), and client editing for a site that already exists, with every page editable. Every feature below has run live
+on a real Cloudflare account unless it is marked *untested*; the design layer has so far been proven on one site. The
+evidence for each one is in `docs/SPEC.md`, `docs/ROADMAP.md` and `docs/DECISIONS.md`.
 
 ## Contents
 
