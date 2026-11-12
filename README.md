@@ -416,7 +416,7 @@ These are enforced by the scripts and the QA gate, not left to the agent's judgm
 | `docs/BUILD.md` | The agent's step-by-step runbook |
 | `docs/SPEC.md` | How every part works, with evidence and vendor sources |
 | `docs/DECISIONS.md` | Why it's built this way |
-| `docs/ROADMAP.md` | How v1.0.0 was proven |
+| `docs/ROADMAP.md` | The road to v1.1.0, and how v1.0.0 was proven |
 | `AGENTS.md` | Rules for agents changing this repo |
 
 CI checks every pull request:
