@@ -9,16 +9,16 @@ The v1.1.0 milestone: a second site, in another field, is built from one prompt 
 | # | Step | Who | Status |
 |---|---|---|---|
 | 1 | Last live proof of client editing on an existing site: the editor's first sign-in (with EmDash's setup wizard) and first edit of an inner page, on the first adopted site. Switching editing on for a site that exists and every page being editable are already proven live there (2026-11-11, `docs/SPEC.md` section 9) | Owner, or the site's editor | Waiting for the owner |
-| 2 | Second site from one prompt with the design layer: a throwaway idea outside the first adopted site's field, built strictly from `docs/BUILD.md` on autopilot, with a design route other than the poster route. Record every place it needed steering, then tear it down. It shows whether the four lenses, routes, logo method, style guide and checks hold without steering | Owner picks the idea, or lets the agent pick; agent builds | Waiting for the owner (the idea, or a go-ahead to pick one) |
+| 2 | Second site from one prompt with the design layer: a throwaway idea outside the first adopted site's field, built strictly from `docs/BUILD.md` on autopilot, with a design route other than the poster route. Record every place it needed steering, then tear it down. It shows whether the four lenses, routes, logo method, style guide and checks hold without steering | Agent (the owner let the agent pick the idea, 2026-11-12) | In progress |
 | 3 | Close the cheap untested items, 3a to 3e. 3f and 3g are also untested. Items that need a live site can use step 2's site before it is torn down | Agent; owner for 3a | Next |
 | 3a | A real form submission from the owner's phone | Owner | Waiting for the owner |
-| 3b | One 10–20 MB upload through a live form (the self-test sends a small file; the default cap is 10 MB) | Agent | Next |
-| 3c | The per-IP rate limit actually limiting on the Free plan: the binding deploys on every site; whether it limits there is untested | Agent | Next |
+| 3b | One 10–20 MB upload through a live form (the self-test sends a small file; the default cap is 10 MB) | Agent | In progress: added to the weekly live self-test |
+| 3c | The per-IP rate limit actually limiting on the Free plan: the binding deploys on every site; whether it limits there is untested | Agent | In progress: added to the weekly live self-test |
 | 3d | An agent editing content through EmDash's API with an Access service token | Agent | Next |
 | 3e | The style guide and the Website assets page with client editing on: both read the content files, not later edits in the editor | Agent | Next |
 | 3f | Also untested: adopt's `rollback` | Agent, at the next adopt | Open: only the next adopt can test it, because the first adopted site's old database was deleted on 2026-11-11 |
 | 3g | Also untested: checkbox consent mode on a live site (tested in workerd) | Agent | Open |
-| 4a | Teardown removes a subdomain launch site's own Resend sending domain (`mail.<domain>`), and any left over from earlier teardowns. Today it deletes the site's sending key and keeps the Resend domain for every launch site; Resend Free's domain limit is in `docs/SPEC.md` section 10 | Agent | Next |
+| 4a | Teardown removes a subdomain launch site's own Resend sending domain (`mail.<domain>`), and any left over from earlier teardowns. Today it deletes the site's sending key and keeps the Resend domain for every launch site; Resend Free's domain limit is in `docs/SPEC.md` section 10. The owner approved removing the leftover one (2026-11-12) | Agent | In progress |
 | 4b | README status line covers what `main` adds since v1.0.0 | Agent | Done 2026-11-12 (#86) |
 | 5 | Fold what steps 2 and 3 find into the docs and the checks | Agent | After 2 and 3 |
 | 6 | Tag v1.1.0: it marks the design layer, site adopt and client editing for a site that already exists | Owner (the owner tags releases) | After 1 to 5; 3f may still be open |
