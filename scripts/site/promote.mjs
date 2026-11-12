@@ -43,7 +43,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cf, env, log } from "./lib/api.mjs";
 import { addMonitors, removeMonitors, uptimeEnabled } from "./lib/uptime.mjs";
-import { DOMAIN_RE, launchConfig, launchNames, launchWrangler, mailAddresses, mergeRedirectRules, notifyPlan, ownerChecklist, redirectRule, resendRecordName, zoneFor } from "./lib/promote.mjs";
+import { DOMAIN_RE, launchConfig, launchNames, launchWrangler, mailAddresses, mergeRedirectRules, notifyPlan, ownerChecklist, redirectRule, RESEND_DNS_COMMENT, resendRecordName, zoneFor } from "./lib/promote.mjs";
 
 const FRAMEWORK = resolve(join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const { stripJsonc } = await import(join(FRAMEWORK, "starter/scripts/lib/jsonc.mjs"));
@@ -302,7 +302,7 @@ async function prepare() {
       dom = dom ? await resend(`/domains/${dom.id}`) : await resend("/domains", { method: "POST", body: { name: mail.resendDomain } });
       for (const r of dom.records || []) {
         const name = resendRecordName(r.name, { zone: z.name, sendingDomain: mail.resendDomain });
-        await ensureDns(z.id, { type: r.type, name, content: r.value, ttl: 1, proxied: false, ...(r.priority !== undefined ? { priority: Number(r.priority) } : {}), comment: "Framework B: Resend" });
+        await ensureDns(z.id, { type: r.type, name, content: r.value, ttl: 1, proxied: false, ...(r.priority !== undefined ? { priority: Number(r.priority) } : {}), comment: RESEND_DNS_COMMENT });
       }
       await resend(`/domains/${dom.id}/verify`, { method: "POST" });
       let status = "pending";
