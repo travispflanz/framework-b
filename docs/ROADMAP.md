@@ -1,6 +1,32 @@
-# Roadmap to v1.0.0
+# Roadmap
 
-v1.0.0 was tagged on 2026-10-27; every step below is done. This page is kept as the record of how it was proven. What comes next is proposed separately and decided by the owner.
+v1.0.0 was tagged on 2026-10-27. Since then `main` has added the design layer (design routes, logo method, style guide, balance and crop checks), bringing an existing site onto Framework B (site adopt), and client editing for a site that already exists, with every page editable. The design layer has so far been proven on one site. The road to v1.1.0 below proves it on a second site, finishes the live proof of client editing and closes the cheap untested items. Below it, the v1.0.0 table is kept as the record of how v1.0.0 was proven. What comes after v1.1.0 is set by the owner.
+
+## Roadmap to v1.1.0
+
+The v1.1.0 milestone: a second site, in another field, is built from one prompt with the design layer on autopilot, and every place it needed steering is folded back into the docs and checks; an editor has signed in and edited an inner page of an existing site; the cheap untested items are closed.
+
+| # | Step | Who | Status |
+|---|---|---|---|
+| 1 | Last live proof of client editing on an existing site: the editor's first sign-in (with EmDash's setup wizard) and first edit of an inner page, on the first adopted site. Switching editing on for a site that exists and every page being editable are already proven live there (2026-11-11, `docs/SPEC.md` section 9) | Owner, or the site's editor | Waiting for the owner |
+| 2 | Second site from one prompt with the design layer: a throwaway idea outside the first adopted site's field, built strictly from `docs/BUILD.md` on autopilot, with a design route other than the poster route. Record every place it needed steering, then tear it down. It shows whether the four lenses, routes, logo method, style guide and checks hold without steering | Owner picks the idea, or lets the agent pick; agent builds | Waiting for the owner (the idea, or a go-ahead to pick one) |
+| 3 | Close the cheap untested items, 3a to 3e. 3f and 3g are also untested. Items that need a live site can use step 2's site before it is torn down | Agent; owner for 3a | Next |
+| 3a | A real form submission from the owner's phone | Owner | Waiting for the owner |
+| 3b | One 10–20 MB upload through a live form (the self-test sends a small file; the default cap is 10 MB) | Agent | Next |
+| 3c | The per-IP rate limit actually limiting on the Free plan: the binding deploys on every site; whether it limits there is untested | Agent | Next |
+| 3d | An agent editing content through EmDash's API with an Access service token | Agent | Next |
+| 3e | The style guide and the Website assets page with client editing on: both read the content files, not later edits in the editor | Agent | Next |
+| 3f | Also untested: adopt's `rollback` | Agent, at the next adopt | Open: only the next adopt can test it, because the first adopted site's old database was deleted on 2026-11-11 |
+| 3g | Also untested: checkbox consent mode on a live site (tested in workerd) | Agent | Open |
+| 4a | Teardown removes a subdomain launch site's own Resend sending domain (`mail.<domain>`), and any left over from earlier teardowns. Today it deletes the site's sending key and keeps the Resend domain for every launch site; Resend Free's domain limit is in `docs/SPEC.md` section 10 | Agent | Next |
+| 4b | README status line covers what `main` adds since v1.0.0 | Agent | Done 2026-11-12 (#86) |
+| 5 | Fold what steps 2 and 3 find into the docs and the checks | Agent | After 2 and 3 |
+| 6 | Tag v1.1.0: it marks the design layer, site adopt and client editing for a site that already exists | Owner (the owner tags releases) | After 1 to 5; 3f may still be open |
+| 7 | After v1.1.0: the owner's bigger goals for Framework B | Owner | To be set by the owner |
+
+## v1.0.0 (done 2026-10-27): the record
+
+v1.0.0 was tagged on 2026-10-27; every step below is done. This section is kept as the record of how it was proven.
 
 The v1.0.0 milestone: a new idea is built from one prompt, using this repo. The owner's only touches are the kickoff answers, the design intake and the preview approval. That idea is then promoted to launch mode.
 
@@ -21,7 +47,7 @@ The v1.0.0 milestone: a new idea is built from one prompt, using this repo. The 
 | 10 | Modules: CRM mirror, newsletter, drips | Agent | Built and proven live (2026-10-27) on the one-prompt launch site: Newsletter: a draft issue test-sent from its branch arrived correctly. CRM mirror: Google Sheet; a new lead was copied on arrival and 5 older ones by `site crm sync`. Drips: Builds deployed the Workflow, a real booking started its instance at once, and with the first wait set to 20 minutes for the test, the first email arrived in the inbox on time. Also proven the same evening: a newsletter `send` reached both subscribers' main inboxes, and the CRM webhook delivered synced and new leads with valid signatures (`ops/webhook-check`). |
 | 11 | Tag v1.0.0 | Agent | Done (2026-10-27): every step above built and proven live; core 0.4.0 |
 
-## Upload safeguards (required before uploads ship)
+### Upload safeguards (required before uploads ship)
 
 1. Verify the Turnstile token server-side before issuing an upload URL. Done in core 0.1.0 (tested).
 2. Enforce a size cap and a content-type allow-list when signing, and again when the file arrives. Done (tested).
