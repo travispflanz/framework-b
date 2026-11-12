@@ -185,7 +185,7 @@ that matter (checked 2026-10-21 to 2026-10-27; sources in `docs/SPEC.md`):
 | Worker requests | 100,000 a day | Static pages are free and unlimited; form posts, `/admin` and `/api` count. With client editing on, every request counts, because Workers Cache bills cached and static requests too ([pricing](https://developers.cloudflare.com/workers/platform/pricing/), checked 2026-10-27) |
 | Workers per account | 100 | One per site, plus the backup Worker |
 | Apps Script mailer (personal Gmail) | 100 recipients a day | Shared by every site that sends through your Gmail |
-| Resend | 3,000 emails a month, 100 a day, 3 domains, 1,000 marketing contacts | One domain per launch site, so up to 3 launch sites with auto-replies, newsletter or drips |
+| Resend | 3,000 emails a month, 100 a day, 3 domains, 1,000 marketing contacts | One domain per launch site, so up to 3 launch sites with auto-replies, newsletter or drips. Teardown frees a subdomain site's domain |
 | UptimeRobot | 50 monitors | 2 per site, plus 1 for backups |
 | Workflows (drips) | 100 running at once | Waiting instances don't count |
 | GitHub Actions | 2,000 minutes a month on private repos | The ops repo's workflows; this public repo's CI is free |
@@ -289,7 +289,8 @@ pull request first. The inputs for each workflow are in `ops/ops-repo/README.md`
 | Edit the site yourself | "switch client editing on" or "off" (**site editing**, `mode` on or off; or at create) | Uses 2 databases and 1 Cron Trigger while on. Every page is editable; a page added later reaches the editor within the hour, and "off" brings every page back as files |
 | Get framework fixes | "update the site" (**site update**) | A tested pull request; your changes are kept |
 | Take it offline without losing it | "snapshot and park it" (**site snapshot**, **site park**) | `undo` puts it back exactly |
-| Delete it | "tear it down" (**site teardown**) | You type `delete <id>`; data is exported to backups first |
+| Delete it | "tear it down" (**site teardown**) | You type `delete <id>`; data is exported to backups first. A site on a subdomain of your zone also frees its Resend domain (*untested* live) |
+| Free a Resend domain a removed site left | "remove the leftover `mail.<host>`" (**site teardown** with `mail_domain`) | You type `delete mail.<host>`; only that domain and the DNS records promote added for it go, and only if no site uses the host (*untested* live) |
 
 ## Options and settings
 

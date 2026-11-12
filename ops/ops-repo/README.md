@@ -56,7 +56,7 @@ with `gh workflow run "<name>" -R <you>/<ops repo> -f site_id=...`.
 | **site editing** | `site_id`, `mode` (`on` or `off`), `editors` (with `on`: emails besides the owner; on a site already on, only adds these editors) | On: makes the editing resources, the editor Access application and the secrets, then opens a pull request that switches the site on, with the home page and its pictures in EmDash's seed. Off: brings the content back into files, as a pull request |
 | **site snapshot** | `worker`, `zone`, `repo` | Read-only copy of everything needed to restore any Worker and its zone |
 | **site park** | `worker`, `zone`, `action` (`park` or `undo`) | Takes any Worker off its domain without deleting anything, or puts it back. Snapshot first |
-| **site teardown** | `site_id`, `confirm` (`delete <site_id>`), `delete_repo` | Exports a site's data to backups, then deletes it and archives its repo |
+| **site teardown** | `site_id`, `confirm` (`delete <site_id>`), `delete_repo`, `mail_domain` | Exports a site's data to backups, then deletes it and archives its repo; a site on a subdomain of a shared zone also loses its Resend domain `mail.<host>`. With `mail_domain: mail.<host>` and `confirm: delete mail.<host>`, it only removes that leftover Resend domain and the DNS records promote added for it, for a site already removed (`site_id`); it refuses while any site uses the host |
 | **site selftest** | none (also runs weekly) | Creates a throwaway site, tests it live end to end, and tears it down |
 
 Most workflows also take `framework_ref` (a `framework-b` branch or tag; default `main`). Pin it to a release tag,

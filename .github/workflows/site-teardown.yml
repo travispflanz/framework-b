@@ -1,6 +1,8 @@
 # Reusable: removes a site (idea or launch) with scripts/site/teardown.mjs. Leads and subscribers are exported to the
 # framework-backups bucket first. Refuses unless the site is a self-test site or confirm is
-# "delete <site_id>". Called only from the owner's private ops repo.
+# "delete <site_id>". A site on a subdomain of a shared zone also loses its Resend domain mail.<domain> and the DNS
+# records promote added for it. With mail_domain set, only that leftover Resend domain of a site already removed is
+# deleted (confirm "delete <mail_domain>"; site_id names the removed site). Called only from the owner's private ops repo.
 name: site teardown
 on:
   workflow_call:
@@ -10,6 +12,7 @@ on:
       site_id: { type: string, required: true }
       confirm: { type: string, default: "" }
       delete_repo: { type: string, default: "no", description: '"yes" deletes the GitHub repo; otherwise it is archived' }
+      mail_domain: { type: string, default: "", description: 'only remove this leftover Resend sending domain (mail.<host>) of a removed subdomain site; confirm "delete <mail_domain>"' }
     secrets:
       CLOUDFLARE_API_TOKEN: { required: true }
       CLOUDFLARE_ACCOUNT_ID: { required: true }
@@ -37,6 +40,7 @@ jobs:
           SITE_ID: ${{ inputs.site_id }}
           CONFIRM: ${{ inputs.confirm }}
           DELETE_REPO: ${{ inputs.delete_repo }}
+          MAIL_DOMAIN: ${{ inputs.mail_domain }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_BUILDS_TOKEN: ${{ secrets.CF_BUILDS_TOKEN }}

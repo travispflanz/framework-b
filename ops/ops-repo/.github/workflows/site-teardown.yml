@@ -1,11 +1,13 @@
-# Caller: removes a site. Leads are exported to framework-backups first. Replace OWNER with your GitHub user name.
+# Caller: removes a site. Leads are exported to framework-backups first. With mail_domain, it only removes a leftover
+# Resend sending domain (mail.<host>) of a subdomain site already removed. Replace OWNER with your GitHub user name.
 name: site teardown
 on:
   workflow_dispatch:
     inputs:
       site_id: { description: "site id", required: true }
-      confirm: { description: 'type "delete <site_id>" (not needed for selftest-* sites)', required: false, default: "" }
+      confirm: { description: 'type "delete <site_id>" (not needed for selftest-* sites); with mail_domain, "delete <mail_domain>"', required: false, default: "" }
       delete_repo: { description: '"yes" deletes the GitHub repo; otherwise it is archived', required: false, default: "no" }
+      mail_domain: { description: "only remove this leftover Resend domain (mail.<host>) of a removed subdomain site; leave empty for a normal teardown", required: false, default: "" }
       framework_ref: { description: "framework-b branch or tag", required: false, default: main }
 jobs:
   teardown:
@@ -16,4 +18,5 @@ jobs:
       site_id: ${{ inputs.site_id }}
       confirm: ${{ inputs.confirm }}
       delete_repo: ${{ inputs.delete_repo }}
+      mail_domain: ${{ inputs.mail_domain }}
     secrets: inherit

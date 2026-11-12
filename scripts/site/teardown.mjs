@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 // Removes a site and frees its resources. Exports its leads and subscribers to the framework-backups bucket first,
 // then deletes them. Idea sites keep their rows in the shared databases; a launch site (after promote) also has its
-// own databases and uploads bucket, a Custom Domain, and on a zone it owns, the www record and redirect rule promote
-// added. Those are exported and removed too. The zone itself, its other DNS records, its settings, Email Routing,
-// and the Resend domain stay: they belong to the zone's owner and may serve other things.
+// own databases and uploads bucket, a Custom Domain, the Resend sending key promote made, and on a zone it owns, the
+// www record and redirect rule promote added. Those are exported and removed too.
+// Mail (lib/teardown.mjs): on a one-level subdomain of a zone the site shares (shop.example.com in example.com), the
+// Resend domain mail.<domain> and the DNS records promote added for it exist only for this site, so they are
+// deleted too: the records carrying promote's comment that match Resend's list for the domain, nothing else. On a
+// zone the site owns, the zone itself, its other DNS records, its settings, Email Routing and the Resend domain
+// mail.<domain> stay: they belong to the zone's owner and may serve other things.
 //
 // Deleting leads needs the owner's approval, so this refuses unless either:
 //   - SITE_ID starts with "selftest-" (throwaway sites made by the template self-test), or
@@ -11,30 +15,53 @@
 // The GitHub repo is archived, not deleted, unless DELETE_REPO is "yes" or the site is a self-test site
 // (the owner approved deleting self-test resources outright on 2026-10-22).
 //
-// Inputs (environment): SITE_ID, CONFIRM, DELETE_REPO, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
-// CF_BUILDS_TOKEN, GH_SITES_TOKEN, UPTIMEROBOT_API_KEY (optional).
+// Leftover sending domain (a subdomain site already removed, its mail.<host> left in Resend): with MAIL_DOMAIN set,
+// only that is removed and nothing else of SITE_ID runs. It refuses unless CONFIRM is exactly "delete <MAIL_DOMAIN>",
+// MAIL_DOMAIN is mail.<host> with <host> one level below a zone of this account, RESEND_ADMIN_KEY is set, <host> is
+// no Worker's Custom Domain, the Worker SITE_ID (the site that used it) is gone, and no other Worker's site repo is
+// launched on <host> (a parked site keeps its Worker). Then it deletes the "<SITE_ID> sending" key if it is still
+// there, the Resend domain, and the DNS records promote added for it.
+// Status: the subdomain mail removal and the leftover path are unit-tested only (test/teardown.test.mjs); untested
+// against the live account.
+//
+// Inputs (environment): SITE_ID, CONFIRM, DELETE_REPO, MAIL_DOMAIN (optional), CLOUDFLARE_API_TOKEN,
+// CLOUDFLARE_ACCOUNT_ID, CF_BUILDS_TOKEN, GH_SITES_TOKEN, UPTIMEROBOT_API_KEY (optional), RESEND_ADMIN_KEY (optional).
 import { appendFileSync, mkdtempSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cf, gh, env, log } from "./lib/api.mjs";
 import { removeMonitors, uptimeEnabled } from "./lib/uptime.mjs";
+import { removeLeftover, resendCleanup } from "./lib/teardown.mjs";
 
 // R2 objects go through Wrangler, the documented interface (same version the starter pins).
 const r2 = (...args) => execFileSync("npx", ["--yes", "wrangler@4.152.0", "r2", "object", ...args, "--remote"], { stdio: ["ignore", "ignore", "pipe"] });
 const scratch = mkdtempSync(join(tmpdir(), "teardown-"));
 
-const A = `/accounts/${env("CLOUDFLARE_ACCOUNT_ID")}`;
+const ACCOUNT = env("CLOUDFLARE_ACCOUNT_ID");
+const A = `/accounts/${ACCOUNT}`;
 const id = env("SITE_ID").trim().toLowerCase();
 const confirmed = id.startsWith("selftest-") || process.env.CONFIRM === `delete ${id}`;
 if (!/^[a-z][a-z0-9-]{1,40}[a-z0-9]$/.test(id)) throw new Error("bad SITE_ID");
-if (!confirmed) throw new Error(`Refusing: set CONFIRM to "delete ${id}" (the owner's approval to delete this site's leads)`);
 const SHARED = { db: "fb-ideas", previewDb: "fb-previews", uploads: "fb-ideas-uploads", previewUploads: "fb-previews", backups: "framework-backups" };
 const report = [];
 const did = (s) => {
   report.push(s);
   log(s);
 };
+const summary = (title) => {
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## ${title}\n\n${report.map((r) => `- ${r}`).join("\n")}\n`);
+};
+
+// A leftover sending domain only: nothing else of SITE_ID is touched (lib/teardown.mjs removeLeftover).
+const MAIL_DOMAIN = (process.env.MAIL_DOMAIN || "").trim();
+if (MAIL_DOMAIN) {
+  await removeLeftover({ mailDomain: MAIL_DOMAIN, confirm: process.env.CONFIRM, siteId: id, account: ACCOUNT, adminKey: process.env.RESEND_ADMIN_KEY, did });
+  summary(`Teardown: leftover ${MAIL_DOMAIN.toLowerCase()} of ${id}`);
+  console.log(`\nLeftover ${MAIL_DOMAIN.toLowerCase()} removed.`);
+  process.exit(0);
+}
+if (!confirmed) throw new Error(`Refusing: set CONFIRM to "delete ${id}" (the owner's approval to delete this site's leads)`);
 
 async function dbUuid(name) {
   return (await cf(`${A}/d1/database?name=${encodeURIComponent(name)}`)).find((d) => d.name === name)?.uuid;
@@ -203,17 +230,17 @@ try {
   did(`KV namespaces not checked (${e.message})`); // only sites with client editing have them
 }
 
-// 5d. A launch site's Resend sending key (the Resend domain stays: it belongs to the zone's mail).
-if (launch && process.env.RESEND_ADMIN_KEY) {
+// 5d. A launch site's Resend sending key; on a subdomain of a shared zone, also its sending domain mail.<domain> and
+// the DNS records promote added for it (on a zone the site owns, the domain stays with the zone's mail).
+// Failures are reported, not thrown.
+if (launch) {
+  let zones = null;
   try {
-    const keys = (await (await fetch("https://api.resend.com/api-keys", { headers: { authorization: `Bearer ${process.env.RESEND_ADMIN_KEY}` } })).json()).data || [];
-    for (const k of keys.filter((k) => k.name === `${id} sending`)) {
-      await fetch(`https://api.resend.com/api-keys/${k.id}`, { method: "DELETE", headers: { authorization: `Bearer ${process.env.RESEND_ADMIN_KEY}` } });
-      did(`deleted Resend key "${k.name}"`);
-    }
+    zones = (await cf(`/zones?account.id=${ACCOUNT}&per_page=50`)) || [];
   } catch (e) {
-    did(`Resend key not removed (${e.message})`);
+    did(`zones not read (${e.message})`);
   }
+  await resendCleanup({ id, host: launch, zones, adminKey: process.env.RESEND_ADMIN_KEY, did });
 }
 
 // 6. The GitHub repo: archived unless deletion was asked for.
@@ -228,5 +255,5 @@ if (await gh(repoPath, { allow404: true })) {
   }
 }
 
-if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Teardown: ${id}\n\n${report.map((r) => `- ${r}`).join("\n")}\n`);
+summary(`Teardown: ${id}`);
 console.log(`\nTeardown of ${id} complete.`);
