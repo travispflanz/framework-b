@@ -12,7 +12,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checker, launchBrowser, ownConsoleError } from "./lib/local-site.mjs";
+import { checker, consoleErrorText, launchBrowser, ownConsoleError } from "./lib/local-site.mjs";
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -41,7 +41,7 @@ let hasFile = false; // read before submitting: the form is gone once the thank-
 try {
   const page = await browser.newPage();
   const consoleErrors = [];
-  page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(m.text()));
+  page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(consoleErrorText(m)));
 
   await page.goto(`${base}/contact?utm_source=live-selftest`);
   if (!(await page.locator("form[data-fb-form]").count())) await page.goto(`${base}/?utm_source=live-selftest`);
