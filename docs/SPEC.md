@@ -67,7 +67,29 @@ Both run as workflows in the owner's private ops repo, because this repo's Actio
 1. Exports the site's leads and subscribers to `framework-backups/teardown/<id>/`, then deletes the rows and uploaded files.
 2. Deletes the Builds triggers, both Access apps, the Turnstile widget and the Worker.
 3. Archives the repo. It deletes the repo only when asked.
-4. For a launch site (after promote; read from the repo's `site.config.json`): first removes its own monitors on the domain (matched by name, so another site's monitors there are kept). It detaches the Custom Domain, and removes the `www` record and redirect rule that promote added (other redirect rules stay). It exports `<id>-prod` and `<id>-staging` to `framework-backups/teardown/<id>/` and deletes them. It copies the `<id>-uploads` files there, then empties and deletes the bucket. It deletes the `<id> sending` Resend key. The zone, its other records and settings, Email Routing and the Resend domain stay, because they belong to the zone's owner. Tested 2026-10-27 on the whole-zone promote test site: every item above was removed, and the parked site's monitors on the same domain were kept.
+4. For a launch site (after promote; read from the repo's `site.config.json`): first removes its own monitors on the domain (matched by name, so another site's monitors there are kept). It detaches the Custom Domain, and removes the `www` record and redirect rule that promote added (other redirect rules stay). It exports `<id>-prod` and `<id>-staging` to `framework-backups/teardown/<id>/` and deletes them. It copies the `<id>-uploads` files there, then empties and deletes the bucket. It deletes the `<id> sending` Resend key. On a zone the site owns, the zone, its other records and settings, Email Routing and the Resend domain `mail.<domain>` stay, because they belong to the zone's owner. Tested 2026-10-27 on the whole-zone promote test site: every item above was removed, and the parked site's monitors on the same domain were kept.
+5. For a launch site on a one-level subdomain of a zone it shares (`shop.example.com` in `example.com`), `mail.<domain>` and its DNS records exist only for that site, so teardown also removes them (`scripts/site/lib/teardown.mjs`). Left behind, each kept one of the 3 verified domains Resend Free allows ([quotas](https://resend.com/docs/knowledge-base/account-quotas-and-limits), checked 2026-11-12). With the ops secret `RESEND_ADMIN_KEY`, after the key:
+   - It reads the domain's records from Resend, then deletes the domain. `GET /domains` lists every domain when no `limit` is given ([List Domains](https://resend.com/docs/api-reference/domains/list-domains), checked 2026-11-12). `GET /domains/{id}` returns `records[]` with `record`, `name`, `type`, `ttl`, `status`, `value` and, for MX, `priority` ([Retrieve Domain](https://resend.com/docs/api-reference/domains/get-domain), checked 2026-11-12). `DELETE /domains/{id}` answers `{ "object": "domain", "id": ..., "deleted": true }` ([Delete Domain](https://resend.com/docs/api-reference/domains/delete-domain), checked 2026-11-12).
+   - Resend doesn't document what happens to a key restricted to a deleted domain ([API keys](https://resend.com/docs/dashboard/api-keys/introduction), checked 2026-11-12), so the key goes first.
+   - Then it deletes only the DNS records promote added for that domain. A record must carry promote's comment `Framework B: Resend` and sit at or under `mail.<domain>`, and its type, name, content and MX priority must match one of the domain's Resend records, placed by the same `resendRecordName`. TXT quotes are ignored, as promote's own check ignores them.
+   - A record that was already in place when promote ran has no comment, so it stays. So does a commented record Resend no longer lists, which the report names.
+   - If Resend no longer has the domain, every MX, TXT or CNAME record with the comment at or under `mail.<domain>` goes.
+   - The zone's records are listed with the `name.endswith` filter ([List DNS Records](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/list/), checked 2026-11-12).
+   - If the domain can't be deleted, its records stay, so a rerun matches them again. Each step is reported; a Resend or DNS error is reported, and teardown goes on.
+   - Resend allows 10 requests a second per team and answers 429 with `retry-after` beyond that ([rate limit](https://resend.com/docs/api-reference/rate-limit), checked 2026-11-12); a 429 is retried twice.
+   - The domain stays, reported with the reason, unless the site confirmed through Resend (`email.confirm` is "resend", so promote made it) and no other site uses the host: no Worker's Custom Domain, and no other Worker's site repo launched on it. Promote reuses a `mail.<host>` that already exists, so a parked site and a site launched on the same host share one. The check runs after the site's own Worker and Custom Domain are gone; if it can't be made, the domain stays.
+   - A domain list without a `data` array is an error, so nothing is deleted by the comment alone.
+   - Without the key, the run reports the domain it left.
+
+   Untested against the live account: unit tests only (`scripts/site/test/teardown.test.mjs`).
+6. A leftover sending domain whose site is already gone (removed before step 5 existed, or without the key): `MAIL_DOMAIN=mail.<host>` (ops input `mail_domain`) runs only this removal. Nothing else of `SITE_ID` is touched. It refuses, before deleting anything, unless all of these hold:
+   - `CONFIRM` is exactly `delete <MAIL_DOMAIN>`. A site's `delete <id>` doesn't match, and no API is called before this check.
+   - The name is `mail.<host>` with `<host>` one level below a zone of the account. A zone's own `mail.<zone>` is refused.
+   - `RESEND_ADMIN_KEY` is set.
+   - `<host>` is no Worker's Custom Domain, and the Worker `SITE_ID` (the site that used it) is gone.
+   - No other Worker's site repo is launched on `<host>`. A parked site keeps its Worker but has no Custom Domain.
+
+   Then it deletes the `<SITE_ID> sending` key if it is still there, the Resend domain and its records, as in step 5. The run fails (exit 1) unless the domain was deleted. Untested against the live account.
 
 Self-test on 2026-10-22 (`selftest-1022`):
 - create, live QA (103 checks), a live lead with a file upload, a production build from the repo, and teardown all passed.
@@ -348,6 +370,32 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     - Puts back `editing/static/`, removes `src/live.config.ts`, the added prerender lines, the EmDash packages and the `emdash` key, the `CMS_DB`/`MEDIA`/`SESSION` bindings (previews too), the cron, `nodejs_compat` and `seed/`, restores the assets 404 page, removes `editing` from `site.config.json`, then runs the content check.
     - Deletes nothing in Cloudflare. It lists the content database, media bucket, session namespace, the editor Access application and the two editing secrets for the owner to remove.
   - CI switches the starter on (with the full-site fixture's `/about` page), edits the content database the way an editor would (new headlines on the home page and `/about`, a media-library image, a new page), switches off, checks every file `on` changed is back byte for byte, then runs the build, e2e and QA gate on the static site (`starter/scripts/test/editing-round-trip.mjs`). Since 2026-11-11 it also seeds one of the site's own pictures and checks it comes back as the same file with its focal point. It was also run against a copy of a live editing site's deployed content on 2026-10-27; `--remote` with media-library images is untested.
+- **The style guide and the Website assets page read the files, not EmDash** (2026-11-17):
+  - `/credits` is prerendered from `design/credits.json` and `src/content`. It lists only credited files, and places
+    each where the files have it. A picture an editor adds from the media library is not listed, and a credited
+    picture an editor replaced or removed is still placed where its file puts it, until `editing.mjs off` brings the
+    pages back as files and credits each picture as the owner's, with a note to confirm its source. So a picture that
+    needs a credit (stock, archive) isn't added in the editor while editing is on: the site couldn't credit it.
+  - `node scripts/style-guide.mjs` builds the guide from the static versions of the files `on` replaced (kept in
+    `editing/static/`), swapped in while it builds and put back after, also after an interrupted run, so every page
+    is its `src/content` file and every page has its first screen. Before this it failed on an editing site, two
+    ways: an editing build has no HTML file for the pages it renders on request, so the guide's file server crashed
+    on `/`; and built into a scratch folder it failed on the guide's photographs whenever Astro's image cache was
+    cold ("Could not load the image service `@astrojs/cloudflare/image-service-binding` to generate images in
+    Node": Astro 7.4.2 builds that service into the output folder and imports it from there, outside the site's
+    `node_modules`; read in Astro's build image service loader, [Astro's build image-service source at astro@7.4.2](https://github.com/withastro/astro/blob/astro%407.4.2/packages/astro/src/core/build/image-service.ts), and reproduced locally, checked 2026-11-17).
+  - The Website assets page read the spot-colour script and prompt (public/tools, written by
+    `starter/scripts/spot-colour.mjs`) with `node:fs`. An editing build prerenders inside the Workers runtime
+    (@astrojs/cloudflare 14.4.2's default `prerenderEnvironment`, "workerd": [@astrojs/cloudflare, `prerenderEnvironment`](https://docs.astro.build/en/guides/integrations-guide/cloudflare/#prerenderenvironment), checked 2026-11-17), where those reads find
+    nothing, so the download links and the prompt were missing from an editing site's page. The page now bundles both
+    at build time.
+  - Proven in CI on both builds (`starter/scripts/test/editing-guide-assets.mjs`): with editing on, an editor's new
+    home headline and a media-library picture on `/about`'s hero, written to the local content database, show on
+    those pages while `/credits` stays byte for byte what it was (still placing the old picture at the top of the
+    About page); the guide renders with the first screen of every page and leaves every site file as it was. With
+    editing on, `node scripts/design-tiles.mjs` still fails the same way on a cold image cache when the home hero has
+    a picture (reproduced locally, 2026-11-17); styles are usually compared before editing is switched on. On a live
+    site: untested.
 - **How the Worker is wired:**
   - Core runs first: `createWorker(config, { fallback })` (since core 0.2.0). `/api/*`, `/admin` and `/u` behave exactly as on a static site.
   - Everything else goes to the Astro/EmDash handler, including the pages and `/_emdash`.
@@ -751,7 +799,8 @@ What's built:
 - The guide's prose takes `code` spans (file names, commands) as written, and list items with one level of indented
   sub-items; the first adopted site's guide showed the backticks, and then its sub-items run into one paragraph.
 - Tests: `starter/scripts/test/style-guide.test.mjs`, the update test for the seeded template, and a starter CI step
-  that renders the template. With client editing on, the guide is untested.
+  that renders the template. With client editing on, the guide is built from the files (section 9, "The style guide
+  and the Website assets page read the files"), proven in CI since 2026-11-17.
 - Found while building it: the QA gate's full-page screenshots (for people reviewing and for the critique rounds)
   showed photo panels below the fold as empty boxes, because waiting for an image's load event doesn't mean it is
   ready to paint. Screenshots now wait for every picture's `decode()`; the same panel measured a mean brightness of 8
@@ -1128,7 +1177,8 @@ What's built (`starter/src/lib/ai-use.js`, `src/pages/credits.astro`):
   places and asked to "put all of these together so we're not mentioning each photo multiple times", and pointed out
   that a still from their own film was provided, not chosen; the summary had said the model "chose the photographs",
   which read as every one.
-- With client editing on, "where it appears" comes from the content files, not later edits in the editor (untested).
+- With client editing on, "where it appears" comes from the content files, not later edits in the editor, and a
+  picture an editor adds isn't listed until editing is switched off (proven in CI, 2026-11-17: section 9).
 - Tests: `starter/scripts/test/ai-use.test.mjs` (where each picture is, only recorded steps are claimed, the brief
   wording for an entry, the summary, the owner's pictures set apart, how an outline was made, and the gradient only
   when a picture tops a page). The page's layout passes the QA gate on the first adopted site; more than four entries

@@ -96,6 +96,10 @@ export function mergeRedirectRules(existing, rule) {
   return [...keep, rule];
 }
 
+// The comment promote puts on every DNS record it adds for Resend. Teardown deletes only records that carry it
+// (scripts/site/lib/teardown.mjs), so a record that was already in place, and so never added by promote, stays.
+export const RESEND_DNS_COMMENT = "Framework B: Resend";
+
 // The DNS name for a record Resend asks for. Resend gives names relative to a zone (for example
 // "resend._domainkey" or "send"); for a sending subdomain like mail.example.com they may already carry the
 // subdomain ("resend._domainkey.mail"). Untested against a live subdomain: the record must end up under the

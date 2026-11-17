@@ -10,8 +10,6 @@ export const prerender = true;
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 import credits from "../../design/credits.json";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { aiSummary, aiText, isRightsStatement, outlineText, placements, titleOf, whereText } from "../lib/ai-use.js";
 
 const LICENSE_URL = { "cc0": "https://creativecommons.org/publicdomain/zero/1.0/", "pdm": "https://creativecommons.org/publicdomain/mark/1.0/" };
@@ -39,10 +37,11 @@ const colours = unique(spotted.map((c) => c.spot.colour));
 const dates = unique(spotted.map((c) => c.spot.date)).sort();
 const aiBy = credits.aiBy || chosenBy[0] || "an AI model";
 const summary = aiSummary(withPlaces.filter((c) => (Array.isArray(c.ai) && c.ai.length > 0) || c.spot || c.source === "owner").map((c) => ({ ...c, framed: c.places.some((p) => p.framed) })), { by: aiBy, heroes: pictures.some((c) => c.places.some((p) => p.where === "top of the page")) });
-// public/tools/ is served as it is; the page is prerendered, so it reads the files at build time.
-const tool = (f) => resolve(process.cwd(), "public/tools", f);
-const prompt = existsSync(tool("spot-colour-prompt.md")) ? readFileSync(tool("spot-colour-prompt.md"), "utf8") : "";
-const script = existsSync(tool("spot-colour.mjs"));
+// public/tools/ is served as it is. The page reads the files as text bundled at build time, not from the
+// filesystem: with client editing on it is prerendered inside the Workers runtime, where node:fs finds nothing.
+const tools = import.meta.glob("../../public/tools/spot-colour*", { query: "?raw", import: "default", eager: true });
+const prompt = String(tools["../../public/tools/spot-colour-prompt.md"] || "");
+const script = "../../public/tools/spot-colour.mjs" in tools;
 // The page is balanced on wide screens (scripts/lib/cohesion.mjs, "balance"). A few entries sit beside their heading;
 // more than four set the heading above a list across the page in two columns, as a long list beside a short heading
 // would open the page with one column several screens tall (Impeccable's first-viewport-column-overflow).
