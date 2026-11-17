@@ -96,6 +96,16 @@ export function checker() {
   return { check, results, failed: () => failures };
 }
 
+// A console error's text with where it came from: Chrome's "Failed to load resource" names no URL in its text,
+// only in its location, so a failing check couldn't say which file was missing (self-test, 2026-11-17).
+export function consoleErrorText(message) {
+  let where = "";
+  try {
+    where = message.location()?.url || "";
+  } catch {}
+  return where ? `${message.text()} (${where})` : message.text();
+}
+
 // Console errors the site can't fix: the Turnstile widget runs in Cloudflare's own iframe and logs its own
 // CSP refusals and console tricks there. Only messages from that origin are ignored; the page's own errors count.
 export function ownConsoleError(message) {

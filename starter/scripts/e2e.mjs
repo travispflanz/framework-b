@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
-import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
+import { checker, consoleErrorText, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 
 // The local SQLite file behind CMS_DB: the one holding EmDash's tables.
 function findCmsDatabase(state) {
@@ -41,7 +41,7 @@ try {
   browser = await launchBrowser();
   const page = await browser.newPage();
   const consoleErrors = [];
-  page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(m.text()));
+  page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(consoleErrorText(m)));
 
   // Find a page that renders this form: the first content page with a form section for it, else the home page or
   // the built-in /contact page.
