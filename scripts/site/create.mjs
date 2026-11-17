@@ -31,6 +31,7 @@ import { connectBuilds } from "./lib/builds.mjs";
 import { AGENT_POLICY, attachAgentPolicy, ensureAgentPolicy } from "./lib/access-agent.mjs";
 import { createInputs, decisionRows, normalizeBrief } from "./lib/brief.mjs";
 import { addMonitors, uptimeEnabled } from "./lib/uptime.mjs";
+import { SELFTEST_UPLOAD_MAX_BYTES, isSelftestSite, selftestUploads } from "./lib/selftest.mjs";
 
 const FRAMEWORK = resolve(process.env.FRAMEWORK_DIR || join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const ACCOUNT = env("CLOUDFLARE_ACCOUNT_ID");
@@ -209,6 +210,11 @@ if (!mailer) warn("No mailer configured: leads are saved in D1 and visible in /a
 config.crm = { sheet: crm.includes("sheet") && !!mailer, webhook: crm.includes("webhook") };
 if (crm.includes("sheet") && !mailer) warn("CRM sheet asked for, but no Apps Script mailer is configured: the Sheet copy stays off");
 if (config.crm.sheet || config.crm.webhook) done("crm", `each lead is copied to ${[config.crm.sheet && "the owner's Google Sheet", config.crm.webhook && "the webhook (set CRM_WEBHOOK_URL)"].filter(Boolean).join(" and ")}`);
+// A self-test site (selftest-*, Turnstile test keys) takes bigger files, so the self-test can send one over the default cap.
+if (isSelftestSite(id, turnstileMode)) {
+  selftestUploads(config);
+  done("uploads", `self-test site: files up to ${SELFTEST_UPLOAD_MAX_BYTES / 1024 / 1024} MB`);
+}
 writeFileSync(join(dir, "site.config.json"), JSON.stringify(config, null, 2) + "\n");
 
 const rateNamespace = String(1000 + (parseInt(createHash("sha256").update(id).digest("hex").slice(0, 8), 16) % 1_000_000_000));
