@@ -31,7 +31,7 @@ Used by the builder agent for everything except Workers Builds. Scope it to the 
 | Permission | Used for | Status |
 |---|---|---|
 | Zone: Read | Find zone IDs | Verified |
-| DNS: Edit | Resend records, verification records | Verified |
+| DNS: Edit | Resend records (promote adds them; teardown deletes a subdomain site's, untested live), verification records | Verified |
 | Workers Routes: Edit | Custom domains (promote attaches the domain through the Workers domains API) | Verified |
 | Zone Settings: Edit | Always Use HTTPS, minimum TLS | Verified |
 | Single Redirect: Edit | `www` → apex rule | Verified |
@@ -64,7 +64,7 @@ The deploy token (section 1) also deploys this Worker and its Workflow, and crea
 
 ## Resend admin key (ops repo only)
 
-One **full-access** Resend API key, stored only as the ops repo secret `RESEND_ADMIN_KEY`. Resend keys are either full access or sending only ([API keys](https://resend.com/docs/api-reference/api-keys/create-api-key), checked 2026-10-27), and adding a domain, managing contacts and sending broadcasts all need full access. Promote uses it to add `mail.<domain>` and create a sending-only key restricted to that domain, which becomes the Worker secret `RESEND_API_KEY`; the newsletter module uses it for contacts and broadcasts. Workers never get it. Rotate it in Resend (https://resend.com/api-keys) and update the secret. Status: verified 2026-10-27 (two promotes set up `mail.<domain>` and per-site keys; a newsletter test and a broadcast were sent with it).
+One **full-access** Resend API key, stored only as the ops repo secret `RESEND_ADMIN_KEY`. Resend keys are either full access or sending only ([API keys](https://resend.com/docs/api-reference/api-keys/create-api-key), checked 2026-10-27), and adding a domain, managing contacts and sending broadcasts all need full access. Promote uses it to add `mail.<domain>` and create a sending-only key restricted to that domain, which becomes the Worker secret `RESEND_API_KEY`; the newsletter module uses it for contacts and broadcasts. Teardown uses it to delete a launch site's key and, for a site on a subdomain of a shared zone, its `mail.<domain>` (`DELETE /domains/{id}`, [Delete Domain](https://resend.com/docs/api-reference/domains/delete-domain), checked 2026-11-12; untested live). Workers never get it. Rotate it in Resend (https://resend.com/api-keys) and update the secret. Status: verified 2026-10-27 (two promotes set up `mail.<domain>` and per-site keys; a newsletter test and a broadcast were sent with it).
 
 ## Per-site Worker secrets for the CRM webhook
 
@@ -119,7 +119,7 @@ These are dashboard-only or third-party. The agent lists them with direct links,
 | Credential | Where it lives | Notes |
 |---|---|---|
 | Workers AI token | Ops repo secret `WORKERS_AI_TOKEN` for **site images**; optionally a network secret on an agent's cloud environment (section 5) | Runs image models only; never stored in a repo or a Worker |
-| Resend full-access key | Ops repo secret `RESEND_ADMIN_KEY` (above) | Creates each launch site's sending domain and domain-restricted key; newsletter contacts and broadcasts. Can be deleted between uses |
+| Resend full-access key | Ops repo secret `RESEND_ADMIN_KEY` (above) | Creates each launch site's sending domain and domain-restricted key; teardown deletes the key, and the domain for a site on a subdomain; newsletter contacts and broadcasts. Can be deleted between uses |
 | Resend sending key | Worker secret `RESEND_API_KEY` | Restricted to one sending domain |
 | Apps Script mailer secret | Worker secret `MAILER_SECRET` and the script's properties | Only Framework B Workers can call the mailer |
 | UptimeRobot main API key | Ops repo secret `UPTIMEROBOT_API_KEY` | `create` adds each site's two monitors, `teardown` deletes them, and the self-test checks them. Must be the account's main key: monitor-specific and read-only keys cannot create monitors ([v3 API](https://uptimerobot.com/api/v3/), checked 2026-10-23) |

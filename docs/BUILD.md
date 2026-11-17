@@ -304,4 +304,5 @@ Each of these is one ops workflow, run when the owner asks. Inputs: `ops/ops-rep
   Write `adopt.json` and the mapping queries, run **site adopt** `prepare` with `dry_run: yes` until every row maps,
   then for real, then `preview`. Send the owner the pull request and the preview URL; after the merge, `cutover`.
 - **Remove a site:** **site teardown**, with the owner typing `confirm: delete <id>`. Leads are exported to backups
-  first.
+  first. A Resend domain `mail.<host>` left by a subdomain site already removed: **site teardown** with
+  `site_id: <its id>`, `mail_domain: mail.<host>` and the owner typing `confirm: delete mail.<host>`.
