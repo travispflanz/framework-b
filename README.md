@@ -168,7 +168,8 @@ A site has two modes:
 - **Preview check:** QA on a branch's preview, posted on its pull request.
 - **Backups:** every database in the account, every Monday, kept 90 days.
 - **Uptime monitors:** two per site.
-- **Weekly self-test:** builds a throwaway site, tests it live and removes it.
+- **Weekly self-test:** builds a throwaway site, tests it live (QA, leads with a small and a large file, a preview,
+  the form rate limit) and removes it.
 - **Snapshot and park:** takes any site off its domain and puts it back exactly.
 - **Adopt:** moves a site that wasn't built with Framework B onto it, keeping its Worker and copying its leads.
 - **Teardown:** exports a site's data, then removes it.
@@ -358,8 +359,9 @@ formatting and links):
   `hidden`. A `checkboxes` answer is stored as a list.
 - Every form needs a required `email` field.
 - Give fields a `step` number to split the form into steps.
-- `file` is `{ "label", "hint", "maxBytes", "types" }`. The default is 10 MB, and PDF, images, text, Word and Excel
-  files are allowed. `types` lists MIME types and may also list extensions (`".fdx"`) for files browsers report
+- `file` is `{ "label", "hint", "maxBytes", "types" }`. The default is 10 MB (at most 95 MB), and PDF, images, text,
+  Word and Excel files are allowed. Files over a few MB are untested live until the weekly self-test's 9.5 and 15 MB
+  uploads pass. `types` lists MIME types and may also list extensions (`".fdx"`) for files browsers report
   without a type.
 
 ### Page content (`src/content/<page>.json`)

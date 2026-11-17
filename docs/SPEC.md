@@ -11,7 +11,7 @@ How an AI agent builds, launches and hands off a website with this framework, an
   - `/u` unsubscribe
   - `/admin` behind Cloudflare Access
 - **Data:** D1 is the system of record for leads and subscribers. R2 holds uploads and backups.
-- **Protection:** Turnstile on every form, a honeypot field, an origin check, size limits, a per-IP rate limit (Workers rate limiting binding; it deploys on the Free plan, but whether it limits there is untested), and Access on `/admin` and previews. The Worker also verifies the Access JWT itself.
+- **Protection:** Turnstile on every form, a honeypot field, an origin check, size limits, a per-IP rate limit (Workers rate limiting binding, 5 form posts a minute per site and address, checked before Turnstile; it deploys on the Free plan, but whether it limits there is untested: the weekly self-test probes it, section 2), and Access on `/admin` and previews. The Worker also verifies the Access JWT itself.
 - **Deploys:** Workers Builds. A push to `main` deploys production; any other branch deploys a preview URL.
 - **State:** each site has its own repo holding `site.config.json`, `DESIGN.md`, `DECISIONS.md`, `HANDOFF.md` and `SECRETS.md` (names only). Any agent can resume a site from its repo.
 - **Owner's machine:** nothing a site needs runs there.
@@ -73,12 +73,20 @@ Self-test on 2026-10-22 (`selftest-1022`):
 - create, live QA (103 checks), a live lead with a file upload, a production build from the repo, and teardown all passed.
 - Preview-branch builds were proven from 2026-10-26 by the preview check below.
 
-`site selftest` runs the whole path weekly, and on demand, from the ops repo. It runs as one job:
-1. Creates `selftest-<run id>` with Turnstile test keys.
+`site selftest` runs the whole path weekly, and on demand, from the ops repo. It runs as two jobs side by side, a static site created from a kickoff brief and an editing site created from plain inputs, and each:
+1. Creates `selftest-<run id>` with Turnstile test keys. A site has one form and so one upload cap: the static site keeps the default (10 MiB), and the editing site's cap is raised to 20 MiB first, in the checkout's `starter/site.config.json` that `create` copies, as an owner would raise it.
 2. Runs the QA gate on the live URL, from the site's own folder.
-3. Sends one lead with a file through the live form (`starter/scripts/live-lead.mjs`). That script fills any form schema.
-4. Checks the row, the subscription, the attribution and the file through the Cloudflare API (`scripts/site/verify-lead.mjs`). It also checks that both uptime monitors exist and report UP (`scripts/site/verify-monitors.mjs`).
-5. Always tears the site down at the end, including when an earlier step failed.
+3. Sends two leads through the live form (`starter/scripts/live-lead.mjs`, which fills any form schema): one with the small default file, and one with a generated file (`--file-mb`) of 9.5 MiB on the static site and 15 MiB on the editing site. The large file's bytes depend only on its size (a PDF header, then SHA-256 blocks of a fixed seed), and the script records its size and SHA-256.
+4. Checks each row, subscription and attribution, and each file, through the Cloudflare API (`scripts/site/verify-lead.mjs`): the recorded size, then the stored object's size and SHA-256 in R2. It also checks that both uptime monitors exist and report UP (`scripts/site/verify-monitors.mjs`), client editing on the editing site, and a preview branch through Access (section "Checking a preview").
+5. Probes the form rate limit (`scripts/site/probe-rate-limit.mjs`), last, so that no later step posts a form. Details below.
+6. Always tears the site down at the end, including when an earlier step failed.
+
+Large uploads: *untested* live. Live runs so far sent only small files. The upload streams through the Worker (section 5), so what applies to a large one is the request body cap (100 MB on Free and Pro zones), the Free plan's 10 ms of CPU a request, where waiting on I/O doesn't count ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/), checked 2026-11-12), and R2's 5 GiB cap on one upload ([R2 limits](https://developers.cloudflare.com/r2/platform/limits/), checked 2026-11-12). R2 takes a stream only when its length is known, which the Worker's `FixedLengthStream` gives ([R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/), checked 2026-11-12). On a local Worker (wrangler dev, 2026-11-17), a 9.5 MiB file under the default cap and a 15 MiB file under a 20 MiB cap were both stored with matching size and SHA-256; a local run doesn't prove the live CPU limit. A weekly run in which both large leads pass closes this for files up to 15 MiB. If one fails, the upload's answer says where to look: 413 is the body cap, and 500 (`upload_failed`) or the thank-you page's `#file-failed` with no answer points first at CPU time on the stream.
+
+Rate limit probe: up to 30 form posts with no Turnstile token, one after another, to the throwaway site only (the script refuses any host but `selftest-*.<subdomain>.workers.dev`, and checks it against `SITE_ID`), stopping after the third 429. The limiter runs before Turnstile, so each post either uses up the allowance and is refused by Turnstile (403 `turnstile_missing`) or is refused by the limiter (429 `rate_limited`); none can store a lead. The leads came from the same runner and count towards the same key (`<site id>:<address>`), so the probe first waits until a full period has passed since the last lead. The counts go to the job summary and, as rate-limit-probe.json, to the run's artifact.
+- Fails the job: a post without a token accepted, or no answer from the limiter or Turnstile (the probe reached neither).
+- Reported, not failed: no 429 at all. Cloudflare documents the binding's limit as approximate: counted separately in each Cloudflare location, eventually consistent between the running instances in one, and a burst can pass the limit before the counts catch up. The period is 10 or 60 seconds ([Rate Limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), checked 2026-11-17). How far over 5 a burst gets on the Free plan isn't documented, so a failing job would say nothing the framework can fix; Turnstile still refuses every post without a token.
+- On a local Worker (wrangler dev's simulated limiter, 2026-11-17) the first 429 came at post 6. Whether the binding limits on the Free plan is *untested* until a weekly run shows 429s on both sites; after two such runs in a row, the workflow passes `--require-limit`, so a run without a 429 fails.
 
 R2 objects are written and deleted with Wrangler. The Builds calls follow the [Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/) (checked 2026-10-22). They need a user-scoped token (`CF_BUILDS_TOKEN`).
 
@@ -197,6 +205,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
   4. The lead row records the key and `stored`. A failed or abandoned upload stays visible in `/admin` as `failed` or `pending`.
   5. Previews use their own bucket.
   - Why not presigned R2 URLs? They need an R2 S3 API key pair as one more secret per site, plus bucket CORS. Streaming through the Worker needs neither. It also keeps CPU time low: the Workers Free plan allows 10 ms of CPU per request ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/), checked 2026-10-22), and parsing a multipart file body would spend it. Request bodies are capped at 100 MB on Free and Pro zones (same page).
+  - Proven live with small files only; files of 9.5 and 15 MiB are in the weekly self-test and *untested* until it passes (section 2, "Large uploads").
 - **No JavaScript:** a plain HTML form post gets a 303 redirect to the thank-you page. The file field needs JavaScript.
 
 ## 6. Email
