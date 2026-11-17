@@ -353,10 +353,10 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     on `/`; and built into a scratch folder it failed on the guide's photographs whenever Astro's image cache was
     cold ("Could not load the image service `@astrojs/cloudflare/image-service-binding` to generate images in
     Node": Astro 7.4.2 builds that service into the output folder and imports it from there, outside the site's
-    `node_modules`; read in Astro's build image service loader and reproduced locally, 2026-11-17).
+    `node_modules`; read in Astro's build image service loader, [`packages/astro/src/core/build/image-service.ts` at `astro@7.4.2`](https://github.com/withastro/astro/blob/astro%407.4.2/packages/astro/src/core/build/image-service.ts), and reproduced locally, checked 2026-11-17).
   - The Website assets page read the spot-colour script and prompt (public/tools, written by
     `starter/scripts/spot-colour.mjs`) with `node:fs`. An editing build prerenders inside the Workers runtime
-    (@astrojs/cloudflare 14.4.2's default `prerenderEnvironment`, "workerd", read 2026-11-17), where those reads find
+    (@astrojs/cloudflare 14.4.2's default `prerenderEnvironment`, "workerd": [@astrojs/cloudflare, `prerenderEnvironment`](https://docs.astro.build/en/guides/integrations-guide/cloudflare/#prerenderenvironment), checked 2026-11-17), where those reads find
     nothing, so the download links and the prompt were missing from an editing site's page. The page now bundles both
     at build time.
   - Proven in CI on both builds (`starter/scripts/test/editing-guide-assets.mjs`): with editing on, an editor's new
