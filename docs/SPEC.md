@@ -77,6 +77,8 @@ Both run as workflows in the owner's private ops repo, because this repo's Actio
    - The zone's records are listed with the `name.endswith` filter ([List DNS Records](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/list/), checked 2026-11-12).
    - If the domain can't be deleted, its records stay, so a rerun matches them again. Each step is reported; a Resend or DNS error is reported, and teardown goes on.
    - Resend allows 10 requests a second per team and answers 429 with `retry-after` beyond that ([rate limit](https://resend.com/docs/api-reference/rate-limit), checked 2026-11-12); a 429 is retried twice.
+   - The domain stays, reported with the reason, unless the site confirmed through Resend (`email.confirm` is "resend", so promote made it) and no other site uses the host: no Worker's Custom Domain, and no other Worker's site repo launched on it. Promote reuses a `mail.<host>` that already exists, so a parked site and a site launched on the same host share one. The check runs after the site's own Worker and Custom Domain are gone; if it can't be made, the domain stays.
+   - A domain list without a `data` array is an error, so nothing is deleted by the comment alone.
    - Without the key, the run reports the domain it left.
 
    Untested against the live account: unit tests only (`scripts/site/test/teardown.test.mjs`).
@@ -87,7 +89,7 @@ Both run as workflows in the owner's private ops repo, because this repo's Actio
    - `<host>` is no Worker's Custom Domain, and the Worker `SITE_ID` (the site that used it) is gone.
    - No other Worker's site repo is launched on `<host>`. A parked site keeps its Worker but has no Custom Domain.
 
-   Then it deletes the `<SITE_ID> sending` key if it is still there, the Resend domain and its records, as in step 5. Untested against the live account.
+   Then it deletes the `<SITE_ID> sending` key if it is still there, the Resend domain and its records, as in step 5. The run fails (exit 1) unless the domain was deleted. Untested against the live account.
 
 Self-test on 2026-10-22 (`selftest-1022`):
 - create, live QA (103 checks), a live lead with a file upload, a production build from the repo, and teardown all passed.

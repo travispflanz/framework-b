@@ -106,7 +106,9 @@ export async function removeSendingKey({ id, adminKey, did }) {
 export async function removeSendingDomain({ sendingDomain, zone, adminKey, did }) {
   let expected = null;
   try {
-    const found = ((await resend("/domains", { adminKey }))?.data || []).find((d) => d.name === sendingDomain);
+    const list = (await resend("/domains", { adminKey }))?.data;
+    if (!Array.isArray(list)) throw new Error("Resend's domain list came back without a data array");
+    const found = list.find((d) => d.name === sendingDomain);
     if (!found) {
       did(`Resend domain ${sendingDomain} not found (already removed)`);
     } else {
@@ -117,7 +119,7 @@ export async function removeSendingDomain({ sendingDomain, zone, adminKey, did }
     }
   } catch (e) {
     did(`Resend domain ${sendingDomain} not removed (${e.message}); its DNS records are kept`);
-    return;
+    return false;
   }
   try {
     const records = (await cf(`/zones/${zone.id}/dns_records?name.endswith=${encodeURIComponent(sendingDomain)}&per_page=100`)) || [];
@@ -135,18 +137,37 @@ export async function removeSendingDomain({ sendingDomain, zone, adminKey, did }
   } catch (e) {
     did(`DNS records for ${sendingDomain} not removed (${e.message})`);
   }
+  return true;
 }
 
 // Teardown of a launch site on <host>: its sending key always; on a subdomain of a shared zone, also its sending
-// domain and the DNS records promote added for it. Never throws.
-export async function resendCleanup({ id, host, zones, adminKey, did }) {
+// domain and the DNS records promote added for it, but only when the site confirmed through Resend (promote made
+// the domain) and no other site uses the host: promote reuses a mail.<host> that already exists, so a parked site and
+// a site launched on the same host share one. Runs after the site's Worker and Custom Domain are gone. Never throws.
+export async function resendCleanup({ id, host, zones, adminKey, did, confirm = "resend", accountPath, login }) {
   const plan = sendingDomainPlan(host, zones);
+  if (plan.remove && confirm !== "resend") {
+    plan.remove = false;
+    plan.why = `the site didn't confirm through Resend (email.confirm is "${confirm}"), so promote didn't make it`;
+  }
   if (!adminKey) {
     if (plan.remove) did(`Resend domain ${plan.sendingDomain} not removed: no RESEND_ADMIN_KEY. Remove it later with MAIL_DOMAIN=${plan.sendingDomain}`);
     return plan;
   }
   await removeSendingKey({ id, adminKey, did });
-  if (plan.remove) await removeSendingDomain({ sendingDomain: plan.sendingDomain, zone: plan.zone, adminKey, did });
+  if (plan.remove) {
+    let busy;
+    try {
+      busy = await hostInUse({ accountPath, host, siteId: id, login });
+    } catch (e) {
+      busy = `whether another site uses ${host} could not be checked (${e.message})`;
+    }
+    if (busy) {
+      plan.remove = false;
+      plan.why = busy;
+    }
+  }
+  if (plan.remove) plan.removed = await removeSendingDomain({ sendingDomain: plan.sendingDomain, zone: plan.zone, adminKey, did });
   else did(`Resend domain ${plan.sendingDomain} kept: ${plan.why}`);
   return plan;
 }
@@ -177,7 +198,7 @@ export async function hostInUse({ accountPath, host, siteId, login }) {
   return null;
 }
 
-// The leftover path: checks, then removes the "<siteId> sending" key if it is still there, the Resend domain and
+// The leftover path (returns true once the domain is gone): checks, then removes the "<siteId> sending" key if it is still there, the Resend domain and
 // the DNS records promote added for it. Throws "Refusing: ..." when any check fails, before deleting anything.
 // The confirmation and the name are checked before any API call.
 export async function removeLeftover({ mailDomain, confirm, siteId, account, adminKey, did }) {
@@ -190,5 +211,5 @@ export async function removeLeftover({ mailDomain, confirm, siteId, account, adm
   if (busy) throw new Error(`Refusing: ${busy}`);
   did(`leftover ${sendingDomain} of ${siteId}: no Worker or site uses ${host}`);
   await removeSendingKey({ id: siteId, adminKey, did });
-  await removeSendingDomain({ sendingDomain, zone: plan.zone, adminKey, did });
+  return removeSendingDomain({ sendingDomain, zone: plan.zone, adminKey, did });
 }

@@ -56,10 +56,10 @@ const summary = (title) => {
 // A leftover sending domain only: nothing else of SITE_ID is touched (lib/teardown.mjs removeLeftover).
 const MAIL_DOMAIN = (process.env.MAIL_DOMAIN || "").trim();
 if (MAIL_DOMAIN) {
-  await removeLeftover({ mailDomain: MAIL_DOMAIN, confirm: process.env.CONFIRM, siteId: id, account: ACCOUNT, adminKey: process.env.RESEND_ADMIN_KEY, did });
+  const removed = await removeLeftover({ mailDomain: MAIL_DOMAIN, confirm: process.env.CONFIRM, siteId: id, account: ACCOUNT, adminKey: process.env.RESEND_ADMIN_KEY, did });
   summary(`Teardown: leftover ${MAIL_DOMAIN.toLowerCase()} of ${id}`);
-  console.log(`\nLeftover ${MAIL_DOMAIN.toLowerCase()} removed.`);
-  process.exit(0);
+  console.log(removed ? `\nLeftover ${MAIL_DOMAIN.toLowerCase()} removed.` : `\nLeftover ${MAIL_DOMAIN.toLowerCase()} NOT removed (see above).`);
+  process.exit(removed ? 0 : 1);
 }
 if (!confirmed) throw new Error(`Refusing: set CONFIRM to "delete ${id}" (the owner's approval to delete this site's leads)`);
 
@@ -240,7 +240,7 @@ if (launch) {
   } catch (e) {
     did(`zones not read (${e.message})`);
   }
-  await resendCleanup({ id, host: launch, zones, adminKey: process.env.RESEND_ADMIN_KEY, did });
+  await resendCleanup({ id, host: launch, zones, adminKey: process.env.RESEND_ADMIN_KEY, did, confirm: siteConfig.email?.confirm ?? "unset", accountPath: A, login });
 }
 
 // 6. The GitHub repo: archived unless deletion was asked for.

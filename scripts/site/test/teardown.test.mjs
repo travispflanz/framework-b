@@ -72,6 +72,10 @@ const resendRoutes = ({ domains = [{ id: "d-shop", name: "mail.shop.example.com"
   [`DELETE ${CF}/zones/z1/dns_records/r2`]: ok({ id: "r2" }),
   [`DELETE ${CF}/zones/z1/dns_records/r3`]: ok({ id: "r3" }),
   [`DELETE ${CF}/zones/z1/dns_records/r7`]: ok({ id: "r7" }),
+  // No other site on shop.example.com: no Custom Domain, and the one other Worker's site is launched elsewhere.
+  [`GET ${CF}/accounts/acc/workers/domains`]: ok([]),
+  [`GET ${CF}/accounts/acc/workers/scripts`]: ok([{ id: "other-site" }]),
+  "GET api.github.com/repos/owner/site-other-site/contents/site.config.json": content({ site: { mode: "launch", canonicalHost: "other.example.com" } }),
 });
 
 test("plan: a one-level subdomain of a shared zone frees its sending domain; an apex and the rest keep it", () => {
@@ -104,7 +108,7 @@ test("matching: only records with promote's comment that match Resend's list exa
 test("subdomain site: deletes its key, its Resend domain and only the DNS records promote added for it", async () => {
   const m = mock(resendRoutes());
   const r = reporter();
-  await resendCleanup({ id: "shop", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
+  await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
   assert.deepEqual(m.unexpected, []);
   assert.deepEqual(m.deletes(), ["api.resend.com/api-keys/k1", "api.resend.com/domains/d-shop", `${CF}/zones/z1/dns_records/r1`, `${CF}/zones/z1/dns_records/r2`, `${CF}/zones/z1/dns_records/r3`]);
   const list = m.calls.find((c) => c.at === `${CF}/zones/z1/dns_records` && c.method === "GET");
@@ -117,7 +121,7 @@ test("subdomain site: deletes its key, its Resend domain and only the DNS record
 test("apex site: deletes its key and keeps mail.<domain> and the zone's records", async () => {
   const m = mock(resendRoutes());
   const r = reporter();
-  await resendCleanup({ id: "shop", host: "example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
+  await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
   assert.deepEqual(m.unexpected, []);
   assert.deepEqual(m.deletes(), ["api.resend.com/api-keys/k1"]);
   assert.ok(!m.calls.some((c) => c.at.startsWith("api.resend.com/domains") || c.at.includes("dns_records")));
@@ -130,7 +134,7 @@ test("Resend errors are reported and teardown goes on; the DNS records stay with
   routes["DELETE api.resend.com/domains/d-shop"] = () => reply(403, { message: "API key is invalid" });
   const m = mock(routes);
   const r = reporter();
-  await resendCleanup({ id: "shop", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
+  await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
   assert.deepEqual(m.unexpected, []);
   assert.ok(r.lines.some((l) => /^Resend key not removed \(Resend GET \/api-keys: HTTP 500/.test(l)));
   assert.ok(r.lines.some((l) => /^Resend domain mail\.shop\.example\.com not removed \(.*HTTP 403 API key is invalid\); its DNS records are kept$/.test(l)));
@@ -144,7 +148,7 @@ test("a DNS error is reported and the other records are still removed; a 429 fro
   routes[`DELETE ${CF}/zones/z1/dns_records/r2`] = () => reply(403, { success: false, errors: [{ code: 10000, message: "Authentication error" }] });
   const m = mock(routes);
   const r = reporter();
-  await resendCleanup({ id: "shop", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
+  await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
   assert.deepEqual(m.unexpected, []);
   assert.equal(m.calls.filter((c) => c.at === "api.resend.com/domains" && c.method === "GET").length, 2);
   assert.ok(r.lines.includes("deleted Resend domain mail.shop.example.com"));
@@ -155,7 +159,7 @@ test("a DNS error is reported and the other records are still removed; a 429 fro
 test("a domain Resend no longer has: its records with promote's comment are still removed", async () => {
   const m = mock(resendRoutes({ domains: [{ id: "d-apex", name: "mail.example.com" }] }));
   const r = reporter();
-  await resendCleanup({ id: "shop", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
+  await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
   assert.deepEqual(m.unexpected, []);
   assert.deepEqual(m.deletes().filter((d) => d.includes("dns_records")).map((d) => d.split("/").pop()), ["r1", "r2", "r3", "r7"]);
   assert.ok(r.lines.includes("Resend domain mail.shop.example.com not found (already removed)"));
@@ -164,9 +168,46 @@ test("a domain Resend no longer has: its records with promote's comment are stil
 test("without RESEND_ADMIN_KEY nothing is called and the leftover is reported", async () => {
   const m = mock({});
   const r = reporter();
-  await resendCleanup({ id: "shop", host: "shop.example.com", zones: ZONES, adminKey: "", did: r.did });
+  await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "shop.example.com", zones: ZONES, adminKey: "", did: r.did });
   assert.equal(m.calls.length, 0);
   assert.match(r.lines[0], /not removed: no RESEND_ADMIN_KEY\. Remove it later with MAIL_DOMAIN=mail\.shop\.example\.com/);
+});
+
+test("subdomain site: keeps the sending domain when another site uses the host, or the use can't be checked", async () => {
+  const cases = [
+    [{ [`GET ${CF}/accounts/acc/workers/scripts`]: ok([{ id: "shop-v2" }]), "GET api.github.com/repos/owner/site-shop-v2/contents/site.config.json": content({ site: { mode: "launch", canonicalHost: "shop.example.com" } }) }, /kept: the site shop-v2 \(its Worker still exists, perhaps parked\) is launched on shop\.example\.com/],
+    [{ [`GET ${CF}/accounts/acc/workers/domains`]: ok([{ hostname: "shop.example.com", service: "shop-v2" }]) }, /kept: shop\.example\.com is still the Custom Domain of the Worker shop-v2/],
+    [{ [`GET ${CF}/accounts/acc/workers/scripts`]: () => reply(500, { success: false, errors: [{ code: 10000, message: "Internal error" }] }) }, /kept: whether another site uses shop\.example\.com could not be checked/],
+  ];
+  for (const [extra, reason] of cases) {
+    const m = mock({ ...resendRoutes(), ...extra });
+    const r = reporter();
+    const plan = await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
+    assert.equal(plan.remove, false);
+    assert.deepEqual(m.deletes(), ["api.resend.com/api-keys/k1"], "only the site's own key goes");
+    assert.ok(!m.calls.some((c) => c.at.startsWith("api.resend.com/domains") || c.at.includes("dns_records")));
+    assert.ok(r.lines.some((l) => reason.test(l)), r.lines.join("\n"));
+  }
+});
+
+test("subdomain site that didn't confirm through Resend: its mail.<host> wasn't promote's and stays", async () => {
+  const m = mock(resendRoutes());
+  const r = reporter();
+  await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did, confirm: "none" });
+  assert.deepEqual(m.deletes(), ["api.resend.com/api-keys/k1"]);
+  assert.ok(!m.calls.some((c) => c.at.includes("workers/") || c.at.startsWith("api.resend.com/domains")));
+  assert.ok(r.lines.some((l) => /kept: the site didn't confirm through Resend/.test(l)));
+});
+
+test("a domain list without a data array is an error: nothing is deleted by comment alone", async () => {
+  const routes = resendRoutes();
+  routes["GET api.resend.com/domains"] = () => reply(200, { object: "list" });
+  const m = mock(routes);
+  const r = reporter();
+  const plan = await resendCleanup({ id: "shop", accountPath: "/accounts/acc", login: "owner", host: "shop.example.com", zones: ZONES, adminKey: ADMIN, did: r.did });
+  assert.equal(plan.removed, false);
+  assert.ok(!m.calls.some((c) => c.at.includes("dns_records")));
+  assert.ok(r.lines.some((l) => /not removed \(Resend's domain list came back without a data array\); its DNS records are kept/.test(l)));
 });
 
 // The leftover path: MAIL_DOMAIN with CONFIRM "delete <MAIL_DOMAIN>".
@@ -185,7 +226,7 @@ const leftover = (over = {}) => ({ mailDomain: "mail.shop.example.com", confirm:
 test("leftover: an unused sending domain, confirmed, is removed with its records and nothing else", async () => {
   const m = mock(leftoverRoutes());
   const r = reporter();
-  await removeLeftover({ ...leftover({ mailDomain: " Mail.Shop.Example.com. " }), did: r.did });
+  assert.equal(await removeLeftover({ ...leftover({ mailDomain: " Mail.Shop.Example.com. " }), did: r.did }), true);
   assert.deepEqual(m.unexpected, []);
   assert.deepEqual(m.deletes(), ["api.resend.com/api-keys/k1", "api.resend.com/domains/d-shop", `${CF}/zones/z1/dns_records/r1`, `${CF}/zones/z1/dns_records/r2`, `${CF}/zones/z1/dns_records/r3`]);
   assert.match(r.lines[0], /^leftover mail\.shop\.example\.com of shop: no Worker or site uses shop\.example\.com$/);
@@ -226,4 +267,10 @@ test("leftover: refuses a zone's own mail domain and a host still in use, deleti
     assert.deepEqual(m.deletes(), []);
     assert.ok(!m.calls.some((c) => c.at.startsWith("api.resend.com")), "Resend is not called before every check passes");
   }
+});
+
+test("leftover: a failed domain delete returns false, so the run fails", async () => {
+  const m = mock(leftoverRoutes({ "DELETE api.resend.com/domains/d-shop": () => reply(403, { message: "API key is invalid" }) }));
+  assert.equal(await removeLeftover({ ...leftover(), did: () => {} }), false);
+  assert.ok(!m.calls.some((c) => c.at.includes("dns_records")));
 });
