@@ -26,7 +26,7 @@ import AxeBuilder from "@axe-core/playwright";
 import * as chromeLauncher from "chrome-launcher";
 import lighthouse from "lighthouse";
 import puppeteer from "puppeteer-core";
-import { checker, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
+import { checker, consoleErrorText, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 import { accessAuth } from "./lib/access-auth.mjs";
 import { measureImageText } from "./lib/image-text.mjs";
 import { balance, bareBanners, cropSheet, crops, logoFit, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
@@ -245,7 +245,7 @@ try {
       await auth.playwright(context);
       const page = await context.newPage();
       const errors = [];
-      page.on("console", (m) => ownConsoleError(m) && errors.push(m.text()));
+      page.on("console", (m) => ownConsoleError(m) && errors.push(consoleErrorText(m)));
       page.on("pageerror", (e) => errors.push(e.message));
       const res = await page.goto(base + path, { waitUntil: "load" });
       await page.waitForTimeout(1500); // let Turnstile and late layout settle (Turnstile keeps a connection open, so no networkidle)
