@@ -1,9 +1,11 @@
 # Reusable: the template self-test against the real account. Creates a throwaway idea site
-# (selftest-<run id>, Turnstile test keys), runs the QA gate on its live URL, sends one lead with a
-# file and checks it in D1 and R2, checks a preview branch through Access, then always tears the site down.
+# (selftest-<run id>, Turnstile test keys), runs the QA gate on its live URL, sends a lead with a small file and a
+# lead with a large one and checks both in D1 and R2 (size and SHA-256), checks a preview branch through Access,
+# probes the form rate limit with posts that carry no Turnstile token, then always tears the site down.
 # Runs twice in parallel: as a static site created from a kickoff brief, and with client editing (EmDash) on
-# created from plain inputs. Called only from the owner's
-# private ops repo, which holds the secrets.
+# created from plain inputs. One form means one upload cap a site, so the static site keeps the default cap (10 MiB)
+# and sends 9.5 MiB, and the editing site's cap is raised to 20 MiB before it is created and it sends 15 MiB.
+# Called only from the owner's private ops repo, which holds the secrets.
 name: site selftest
 on:
   workflow_call:
@@ -27,6 +29,13 @@ jobs:
       fail-fast: false
       matrix:
         editing: ['off', 'on']
+        include:
+          - editing: 'off'
+            upload_mb: '9.5'
+            upload_cap_mb: ''
+          - editing: 'on'
+            upload_mb: '15'
+            upload_cap_mb: '20'
     name: selftest (editing ${{ matrix.editing }})
     concurrency: site-selftest-${{ matrix.editing }}
     env:
@@ -55,6 +64,18 @@ jobs:
             owner: {email: $email}, editing: false, indexing: false, inferred: ["business.offer"]}' > brief.json
           node scripts/site/brief.mjs check brief.json
           echo "BRIEF=$(cat brief.json)" >> "$GITHUB_ENV"
+      # create.mjs copies starter/site.config.json into the new site: this edits the checkout's copy first, as an owner
+      # would edit their own site's file (file.maxBytes, up to the 95 MiB hard cap).
+      - name: Raise the upload cap to ${{ matrix.upload_cap_mb }} MiB before the site is created
+        if: matrix.upload_cap_mb != ''
+        env:
+          CAP_MB: ${{ matrix.upload_cap_mb }}
+        run: |
+          jq --argjson bytes "$((CAP_MB * 1048576))" --arg mb "$CAP_MB" '.forms |= map_values(if .file then
+              .file.maxBytes = $bytes | .file.hint = ((.file.hint // "") | sub("up to [0-9.]+ MB"; "up to \($mb) MB")) else . end)' \
+            starter/site.config.json > "$RUNNER_TEMP/site.config.json"
+          mv "$RUNNER_TEMP/site.config.json" starter/site.config.json
+          jq -c '[.forms[] | select(.file) | .file.maxBytes]' starter/site.config.json
       - name: Create the site
         env:
           SITE_NAME: Selftest Example Co
@@ -78,6 +99,10 @@ jobs:
       - name: Send a live lead with a file
         run: npm run test:live-lead -- --url "${{ steps.site.outputs.url }}" --out "$GITHUB_WORKSPACE/live-lead.json"
         working-directory: ${{ steps.site.outputs.dir }}
+      # Two form posts from this runner within a minute, under the limit of 5 (the rate limit probe runs last).
+      - name: Send a live lead with a ${{ matrix.upload_mb }} MiB file
+        run: npm run test:live-lead -- --url "${{ steps.site.outputs.url }}" --file-mb "${{ matrix.upload_mb }}" --out "$GITHUB_WORKSPACE/live-lead-large.json"
+        working-directory: ${{ steps.site.outputs.dir }}
       - name: Check the uptime monitors
         if: env.UPTIMEROBOT_API_KEY != ''
         run: node scripts/site/verify-monitors.mjs "$(node -p 'new URL(require("./site-summary.json").url).host')"
@@ -86,10 +111,8 @@ jobs:
         env:
           SITE_URL: ${{ steps.site.outputs.url }}
         run: node scripts/site/verify-editing.mjs
-      - name: Check the lead in D1 and R2
-        env:
-          LEAD_FILE: live-lead.json
-        run: node scripts/site/verify-lead.mjs
+      - name: Check both leads in D1 and R2
+        run: node scripts/site/verify-lead.mjs live-lead.json live-lead-large.json
       - name: Check a preview branch through Access
         working-directory: ${{ steps.site.outputs.dir }}
         run: |
@@ -99,6 +122,12 @@ jobs:
           owner=$(curl -s -H "Authorization: Bearer $GH_SITES_TOKEN" https://api.github.com/user | jq -r .login)
           git push -q "https://x-access-token:${GH_SITES_TOKEN}@github.com/${owner}/site-${SITE_ID}.git" selftest/preview
           node "$GITHUB_WORKSPACE/scripts/site/preview-check.mjs" --site . --site-id "$SITE_ID" --branch selftest/preview --commit "$(git rev-parse HEAD)" --report "$GITHUB_WORKSPACE/preview-report.md"
+      # Last, so no later step posts a form: posts with no Turnstile token, which the limiter (5 a minute per site and
+      # address) sees before Turnstile refuses them, so no lead is stored. It fails on a post accepted without a token
+      # or a probe that reached neither; no 429 at all is reported, not failed, until the Free plan's behaviour is known.
+      - name: Probe the form rate limit
+        if: ${{ !cancelled() && steps.site.outputs.url != '' }}
+        run: node scripts/site/probe-rate-limit.mjs --url "${{ steps.site.outputs.url }}" --after live-lead.json live-lead-large.json --out rate-limit-probe.json
       - name: Tear the site down
         if: always()
         run: node scripts/site/teardown.mjs
@@ -109,6 +138,8 @@ jobs:
           path: |
             site-summary.json
             preview-report.md
+            live-lead*.json
+            rate-limit-probe.json
             ${{ steps.site.outputs.dir }}/qa-output/
           if-no-files-found: ignore
           retention-days: 14
