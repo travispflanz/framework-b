@@ -210,6 +210,38 @@ describe("upload", () => {
     expect((await put()).status).toBe(409); // single use
   });
 
+  it("streams a 15 MB file to R2 intact when the form takes 20 MB, and refuses one over the cap", async () => {
+    // The live self-test sends a file this size to a self-test site (cap 20 MB; scripts/site/lib/selftest.mjs).
+    const cfg = structuredClone(config);
+    cfg.forms.contact.file = { maxBytes: 20 * 1024 * 1024 };
+    const big = createWorker(cfg);
+    const send = async (path, init) => {
+      const ctx = createExecutionContext();
+      const res = await big.fetch(new Request(BASE + path, init), env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+    const post = (file) => send("/api/submit/contact", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...ORIGIN, "cf-connecting-ip": `192.0.2.${Math.floor(Math.random() * 250)}` },
+      body: JSON.stringify({ "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX", name: "Big", email: "big@example.com", file_name: "big.pdf", file_size: file, file_type: "application/pdf" }),
+    });
+    expect((await (await post(20 * 1024 * 1024 + 1)).json()).fields).toEqual({ file: "file_too_large" });
+
+    const bytes = new Uint8Array(15 * 1024 * 1024);
+    for (let i = 0; i < bytes.length; i += 65536) crypto.getRandomValues(bytes.subarray(i, i + 65536));
+    const sha = async (buf) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", buf))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    const out = await (await post(bytes.length)).json();
+    const res = await send(out.upload.url, { method: "PUT", headers: { ...ORIGIN, "content-type": "application/pdf", "content-length": String(bytes.length) }, body: bytes });
+    expect(res.status).toBe(200);
+    const lead = await env.DB.prepare("SELECT upload_status, upload_size, upload_key FROM leads WHERE id = ?").bind(out.id).first();
+    expect(lead.upload_status).toBe("stored");
+    expect(lead.upload_size).toBe(bytes.length);
+    const obj = await env.UPLOADS.get(lead.upload_key);
+    expect(obj.size).toBe(bytes.length);
+    expect(await sha(await obj.arrayBuffer())).toBe(await sha(bytes));
+  });
+
   it("refuses a body that doesn't match the signed size or type, or a forged signature", async () => {
     const out = await startUpload({ name: "a.png", size: 4, type: "image/png" });
     let res = await call(out.upload.url, { method: "PUT", headers: { ...ORIGIN, "content-type": "image/png", "content-length": "5" }, body: "12345" });

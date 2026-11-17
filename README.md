@@ -128,7 +128,7 @@ A site has two modes:
   groups of checkboxes (optionally under small headings), a single checkbox and hidden
   fields; multi-step forms; an optional file upload (10 MB by default).
 - Spam protection: Cloudflare Turnstile, a hidden honeypot field, an origin check and size limits. A per-IP rate
-  limit is also deployed (whether it limits on the Free plan is *untested*).
+  limit is also deployed (whether it limits on the Free plan is *untested*; the weekly self-test now probes it).
 - Every lead is stored in Cloudflare D1, with where the visitor came from (UTM tags, referrer, landing page).
 - `/admin` behind a Cloudflare Access email login: a lead list, lead details, file downloads, and CSV exports of
   leads and subscribers.
@@ -168,7 +168,8 @@ A site has two modes:
 - **Preview check:** QA on a branch's preview, posted on its pull request.
 - **Backups:** every database in the account, every Monday, kept 90 days.
 - **Uptime monitors:** two per site.
-- **Weekly self-test:** builds a throwaway site, tests it live and removes it.
+- **Weekly self-test:** builds a throwaway site, tests it live (QA, a lead with a 15 MB file checked byte for byte,
+  the rate limit) and removes it.
 - **Snapshot and park:** takes any site off its domain and puts it back exactly.
 - **Adopt:** moves a site that wasn't built with Framework B onto it, keeping its Worker and copying its leads.
 - **Teardown:** exports a site's data, then removes it.
