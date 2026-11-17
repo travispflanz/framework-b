@@ -98,6 +98,9 @@ jobs:
         if: matrix.editing == 'off'
         run: node scripts/test/logo.mjs
         working-directory: starter
+      - name: Style guide and Website assets read the files (with editing on, an editor's change in EmDash reaches neither); the spot-colour tools are linked
+        run: node scripts/test/editing-guide-assets.mjs
+        working-directory: starter
       - name: Switch client editing off (editors' changes, a new page and an image come back as files), then test the static site
         if: matrix.editing == 'on'
         run: |
