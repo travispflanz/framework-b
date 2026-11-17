@@ -148,8 +148,11 @@ A site has two modes:
 **Optional extras**
 - CRM copy of every lead: to a Google Sheet in your Drive (one tab per site) and/or a signed webhook (Zapier, Make,
   n8n or a CRM's own). Older leads can be resent at any time.
-- Client editing (EmDash): you or a co-worker edit the home page's words and images in a web admin, behind the same
-  login as `/admin`. It can be switched off again, which brings the content back into files.
+- Client editing (EmDash): you or a co-worker edit the pages' words and images in a web admin, behind the same
+  login as `/admin`. It can be switched off again, which brings the content back into files. The style guide and the
+  Website assets page are made from the files: a picture an editor adds isn't listed on the Website assets page until
+  editing is switched off (which brings it in as your own picture, to confirm), so a stock or archive picture, which
+  needs a credit, shouldn't be added in the editor.
 - Search indexing on or off per site.
 
 **Quality gate.** It runs on every preview and on production, and it fails the change on any of these:

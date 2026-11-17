@@ -13,8 +13,11 @@
 //    picture, for a quick look).
 // 4. Writes <out>/stamp.json with a hash of DESIGN.md and STYLE-GUIDE.md, so the QA gate can tell when the guide is
 //    older than either. Commit the three files.
+// With client editing on, the guide is built as the static site (the files in editing/static that
+// scripts/editing.mjs on kept): every page is its src/content file, never what editors later changed in EmDash, and
+// the pages EmDash would render on request are prerendered, so each has its first screen in the guide.
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
@@ -34,8 +37,16 @@ if (missing.length) throw new Error(`STYLE-GUIDE.md is missing sections: ${missi
 const todo = unwritten(readFileSync("STYLE-GUIDE.md", "utf8"));
 if (todo.length) console.log(`  note  STYLE-GUIDE.md still has unwritten sections: ${todo.join(", ")}`);
 
+// The editing overlay (scripts/editing.mjs on copies editing/ over the site), swapped for its static versions while
+// the guide builds. An editing build has no HTML file for the pages it renders on request, so their first screens
+// were missing, and built into a scratch folder it fails on the guide's photographs whenever Astro's image cache is
+// cold: Astro can't load the Cloudflare adapter's image service from outside the site (Astro 7.4.2,
+// @astrojs/cloudflare 14.4.2, 2026-11-17).
+const editing = JSON.parse(readFileSync("site.config.json", "utf8")).editing?.enabled === true;
+if (editing && !existsSync("editing/static")) throw new Error('editing/static/ is missing: run the ops repo\'s "Site update" workflow first; it adds the static files the guide is built from.');
+const OVERLAY = editing ? readdirSync("editing", { recursive: true }).map((p) => String(p).replaceAll("\\", "/")).filter((p) => !/^static(\/|$)|^packages\.json$/.test(p) && statSync(join("editing", p)).isFile()) : [];
 const RESTORE = join(SITE, ".style-guide-restore.json");
-const TOUCHED = ["src/pages/style-guide.astro", ".wrangler/deploy/config.json"];
+const TOUCHED = ["src/pages/style-guide.astro", ".wrangler/deploy/config.json", ...OVERLAY];
 const restore = (saved) => {
   for (const [p, text] of Object.entries(saved)) {
     if (text === null) rmSync(join(SITE, p), { force: true });
@@ -67,6 +78,11 @@ function serve(dir) {
 const scratch = mkdtempSync(join(tmpdir(), "fb-guide-"));
 let browser, server;
 try {
+  for (const p of OVERLAY) {
+    const plain = join(SITE, "editing/static", p);
+    if (existsSync(plain)) cpSync(plain, join(SITE, p));
+    else rmSync(join(SITE, p), { force: true }); // EmDash's own files (src/live.config.ts, src/pages/fb-sync-pages.js)
+  }
   cpSync(join(SITE, "scripts/style-guide/guide.astro"), join(SITE, "src/pages/style-guide.astro"));
   try {
     execFileSync("npx", ["astro", "build", "--outDir", scratch], { cwd: SITE, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });

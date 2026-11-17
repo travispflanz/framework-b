@@ -370,6 +370,32 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     - Puts back `editing/static/`, removes `src/live.config.ts`, the added prerender lines, the EmDash packages and the `emdash` key, the `CMS_DB`/`MEDIA`/`SESSION` bindings (previews too), the cron, `nodejs_compat` and `seed/`, restores the assets 404 page, removes `editing` from `site.config.json`, then runs the content check.
     - Deletes nothing in Cloudflare. It lists the content database, media bucket, session namespace, the editor Access application and the two editing secrets for the owner to remove.
   - CI switches the starter on (with the full-site fixture's `/about` page), edits the content database the way an editor would (new headlines on the home page and `/about`, a media-library image, a new page), switches off, checks every file `on` changed is back byte for byte, then runs the build, e2e and QA gate on the static site (`starter/scripts/test/editing-round-trip.mjs`). Since 2026-11-11 it also seeds one of the site's own pictures and checks it comes back as the same file with its focal point. It was also run against a copy of a live editing site's deployed content on 2026-10-27; `--remote` with media-library images is untested.
+- **The style guide and the Website assets page read the files, not EmDash** (2026-11-17):
+  - `/credits` is prerendered from `design/credits.json` and `src/content`. It lists only credited files, and places
+    each where the files have it. A picture an editor adds from the media library is not listed, and a credited
+    picture an editor replaced or removed is still placed where its file puts it, until `editing.mjs off` brings the
+    pages back as files and credits each picture as the owner's, with a note to confirm its source. So a picture that
+    needs a credit (stock, archive) isn't added in the editor while editing is on: the site couldn't credit it.
+  - `node scripts/style-guide.mjs` builds the guide from the static versions of the files `on` replaced (kept in
+    `editing/static/`), swapped in while it builds and put back after, also after an interrupted run, so every page
+    is its `src/content` file and every page has its first screen. Before this it failed on an editing site, two
+    ways: an editing build has no HTML file for the pages it renders on request, so the guide's file server crashed
+    on `/`; and built into a scratch folder it failed on the guide's photographs whenever Astro's image cache was
+    cold ("Could not load the image service `@astrojs/cloudflare/image-service-binding` to generate images in
+    Node": Astro 7.4.2 builds that service into the output folder and imports it from there, outside the site's
+    `node_modules`; read in Astro's build image service loader, [Astro's build image-service source at astro@7.4.2](https://github.com/withastro/astro/blob/astro%407.4.2/packages/astro/src/core/build/image-service.ts), and reproduced locally, checked 2026-11-17).
+  - The Website assets page read the spot-colour script and prompt (public/tools, written by
+    `starter/scripts/spot-colour.mjs`) with `node:fs`. An editing build prerenders inside the Workers runtime
+    (@astrojs/cloudflare 14.4.2's default `prerenderEnvironment`, "workerd": [@astrojs/cloudflare, `prerenderEnvironment`](https://docs.astro.build/en/guides/integrations-guide/cloudflare/#prerenderenvironment), checked 2026-11-17), where those reads find
+    nothing, so the download links and the prompt were missing from an editing site's page. The page now bundles both
+    at build time.
+  - Proven in CI on both builds (`starter/scripts/test/editing-guide-assets.mjs`): with editing on, an editor's new
+    home headline and a media-library picture on `/about`'s hero, written to the local content database, show on
+    those pages while `/credits` stays byte for byte what it was (still placing the old picture at the top of the
+    About page); the guide renders with the first screen of every page and leaves every site file as it was. With
+    editing on, `node scripts/design-tiles.mjs` still fails the same way on a cold image cache when the home hero has
+    a picture (reproduced locally, 2026-11-17); styles are usually compared before editing is switched on. On a live
+    site: untested.
 - **How the Worker is wired:**
   - Core runs first: `createWorker(config, { fallback })` (since core 0.2.0). `/api/*`, `/admin` and `/u` behave exactly as on a static site.
   - Everything else goes to the Astro/EmDash handler, including the pages and `/_emdash`.
@@ -773,7 +799,8 @@ What's built:
 - The guide's prose takes `code` spans (file names, commands) as written, and list items with one level of indented
   sub-items; the first adopted site's guide showed the backticks, and then its sub-items run into one paragraph.
 - Tests: `starter/scripts/test/style-guide.test.mjs`, the update test for the seeded template, and a starter CI step
-  that renders the template. With client editing on, the guide is untested.
+  that renders the template. With client editing on, the guide is built from the files (section 9, "The style guide
+  and the Website assets page read the files"), proven in CI since 2026-11-17.
 - Found while building it: the QA gate's full-page screenshots (for people reviewing and for the critique rounds)
   showed photo panels below the fold as empty boxes, because waiting for an image's load event doesn't mean it is
   ready to paint. Screenshots now wait for every picture's `decode()`; the same panel measured a mean brightness of 8
@@ -1150,7 +1177,8 @@ What's built (`starter/src/lib/ai-use.js`, `src/pages/credits.astro`):
   places and asked to "put all of these together so we're not mentioning each photo multiple times", and pointed out
   that a still from their own film was provided, not chosen; the summary had said the model "chose the photographs",
   which read as every one.
-- With client editing on, "where it appears" comes from the content files, not later edits in the editor (untested).
+- With client editing on, "where it appears" comes from the content files, not later edits in the editor, and a
+  picture an editor adds isn't listed until editing is switched off (proven in CI, 2026-11-17: section 9).
 - Tests: `starter/scripts/test/ai-use.test.mjs` (where each picture is, only recorded steps are claimed, the brief
   wording for an entry, the summary, the owner's pictures set apart, how an outline was made, and the gradient only
   when a picture tops a page). The page's layout passes the QA gate on the first adopted site; more than four entries
