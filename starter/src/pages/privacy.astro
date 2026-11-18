@@ -16,7 +16,8 @@ import { privacyUse } from "../lib/form-copy.js";
 const config = loadConfig(raw);
 const forms = Object.entries(config.forms);
 const anyFile = forms.some(([, f]) => f.file.enabled);
-// One line per kind of answer: a field two forms share (a name) is listed once, without "(optional)".
+// One line per field: a field two forms share (a name) is listed once, under the first form's label, and every label
+// is shown without a trailing "(optional)" ("Phone (optional)" is listed as "Phone").
 const named = new Map();
 for (const [, f] of forms) for (const x of f.fields) if (x.type !== "hidden" && !named.has(x.name)) named.set(x.name, (x.label || x.name).replace(/\s*\(optional\)\s*$/i, ""));
 const labels = [...new Set(named.values())];

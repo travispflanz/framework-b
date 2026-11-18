@@ -316,7 +316,7 @@ inferred by the agent, or a framework default.
 | `audienceRegion` | `us`, `eu`, `uk`, `ca`, … | `us` |
 | `consent` | `auto` (every form subscribes) or `checkbox` (a consent box) | `checkbox` for EU, UK and Canada; otherwise `auto` |
 | `shape` | `landing`, `full`, `hybrid` | `landing` |
-| `forms` | list of `{ id, purpose, kind, consent, title, submitLabel }`: `kind` is `message` (someone answers it) or `waitlist` (an email and an optional name); `consent` is `none` (a plain message form that adds no one to a list), `optional` or `required` (the consent box in checkbox mode) | one `contact` message form; a form whose id or purpose says waitlist is a `waitlist`, whose box is `required` in checkbox mode |
+| `forms` | list of `{ id, purpose, kind, consent, title, submitLabel }`: `kind` is `message` (someone answers it) or `waitlist` (an email and an optional name); `consent` is `none` (a plain message form that adds no one to a list), `optional` or `required` (the consent box in checkbox mode) | one `contact` message form; a form whose id, or whole purpose, is a list's name (waitlist, mailing list, newsletter) is a `waitlist`, whose box is `required` in checkbox mode |
 | `autoReply` | `true` / `false` | `false` |
 | `indexing` | `true` / `false` | `false` |
 | `editing` | `true` / `false` | `false` |

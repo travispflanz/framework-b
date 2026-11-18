@@ -88,7 +88,7 @@ export function thanksCopy(config, path = "/thanks") {
   const lists = forms.filter((f) => f.kind === "waitlist");
   const messages = forms.filter((f) => f.kind === "message");
   const sure = lists.every((f) => f.subscribes === "always");
-  const file = messages.some((f) => f.file);
+  const file = forms.some((f) => f.file);
   if (lists.length && !messages.length) {
     return sure
       ? { title: "You're on the list", lines: ["We'll email you when there's news."], file }

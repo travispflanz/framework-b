@@ -54,6 +54,8 @@ test("a waitlist on its own: list wording, and a thanks page that doesn't promis
   const optional = site({ forms: { contact: null, waitlist: { ...WAITLIST, consent: "optional" } }, optIn: { mode: "checkbox" } });
   assert.deepEqual(thanksCopy(optional), { title: "Thanks, we got it", lines: ["If you ticked the box, we'll email you when there's news."], file: false });
   assert.match(privacyUse(optional).text, /^To email you when there's news, if you tick the box on the form\. Only a ticked box signs you up\./);
+  // A waitlist that takes a file keeps the failed-upload note.
+  assert.equal(thanksCopy(site({ forms: { contact: null, waitlist: { ...WAITLIST, file: { label: "A file" } } } })).file, true);
 });
 
 test("a waitlist beside a plain message form: one line per form, and thanks copy for both", () => {

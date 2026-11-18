@@ -53,12 +53,15 @@ section 3's kickoff questions.
   `agent`), not the owner's. The default, `"owner"`, records them as the owner's ("Kickoff", `owner`).
 - Forms: each one has an `id`, a `purpose` (what it is for, which decides its fields in step 4), a `kind` and a
   `consent`. `kind` is `message` (someone answers it: contact, quote, booking) or `waitlist` (an email and an
-  optional name, to hear news; the default when the id or purpose says waitlist, mailing list or newsletter).
+  optional name, to hear news; the default when the id, or the whole purpose, is a list's name such as waitlist,
+  mailing list or newsletter: set `kind` when in doubt).
   `consent` is `none` for a plain message form that adds no one to a list, or `optional` / `required` for the
   consent box in checkbox mode (the site-wide `consent`); in auto mode every form without `none` subscribes through
   the line under the button. A waitlist's box is `required` by default, and a waitlist can't be `none`. `title` and
-  `submitLabel` are optional. `create` writes them into `site.config.json` (a waitlist as `"kind": "waitlist"`), and
-  the generated privacy and thanks pages describe each form as it is (SPEC section 5).
+  `submitLabel` are optional; without a `title`, each form gets its own (the contact form keeps the starter's, a
+  waitlist "Join the waitlist", others one from their purpose or id), since the privacy page names forms by it.
+  `create` writes them into `site.config.json` (a waitlist as `"kind": "waitlist"`), and the generated privacy and
+  thanks pages describe each form as it is (SPEC section 5).
 - Research before inferring: the business's market, local rules that change the copy, competitors' prices.
   Research results are facts for `PRODUCT.md`, never `claims`. `claims` holds only proof the owner supplied
   (reviews, counts, awards), each with its source.
@@ -75,7 +78,10 @@ from a session: `gh api repos/<owner>/framework-b-ops/actions/workflows/site-cre
 It creates every resource, the private repo `site-<id>` with `brief.json`, the brief's forms in `site.config.json`
 and the kickoff rows in `DECISIONS.md`,
 the first deploy, Access on `/admin` and previews (with the agent's Service Auth policy), Workers Builds, and the
-uptime monitors (SPEC section 2). The run summary has the URL and the repo.
+uptime monitors (SPEC section 2). The run summary has the URL and the repo. Writing the brief's forms into
+`site.config.json`, pointing the home page's form section at the first form when there is no `contact` form, and the
+`agent` rows of an `"answeredBy": "agent"` brief are unit-tested but *untested* live (the weekly self-test's brief
+leaves `forms` and `answeredBy` at their defaults, which give the starter's contact form and `owner` rows as before).
 
 ## 3. Design (P2)
 

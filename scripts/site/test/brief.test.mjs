@@ -149,6 +149,17 @@ test("forms: per-form kind and consent, checked, defaulted and shown in the deci
   assert.ok(err([]).some((e) => e.startsWith("forms")));
   assert.ok(normalizeBrief({ ...base, forms: [{ id: "contact", consent: "required" }] }).warnings.some((w) => w.includes('only applies with consent "checkbox"')));
   assert.ok(normalizeBrief({ ...base, consent: "checkbox", forms: [{ id: "waitlist", consent: "optional" }] }).warnings.some((w) => w.includes("can't be emailed")));
+  // A form is guessed to be a waitlist only when its id, or its whole purpose, names a list.
+  const kinds = (forms) => normalizeBrief({ ...base, forms }).brief.forms.map((f) => f.kind);
+  assert.deepEqual(kinds([{ id: "contact", purpose: "questions about the newsletter" }, { id: "help", purpose: "not for the mailing list" }]), ["message", "message"]);
+  assert.deepEqual(kinds([{ id: "newsletter" }, { id: "signup", purpose: "Newsletter sign-up" }, { id: "early", purpose: "waiting list" }, { id: "wait-list" }]), ["waitlist", "waitlist", "waitlist", "waitlist"]);
+  assert.deepEqual(kinds([{ id: "early", purpose: "early access" }, { id: "early-2", purpose: "early access", kind: "waitlist" }]), ["message", "waitlist"]);
+  // A newsletter needs a form that subscribes; the idea-site note no longer says every form opts people in.
+  const news = (forms) => normalizeBrief({ ...base, newsletter: true, forms }).warnings;
+  assert.ok(news([{ id: "contact", consent: "none" }]).some((w) => w.includes("no form collects subscribers")));
+  assert.ok(!news([{ id: "contact", consent: "none" }]).some((w) => w.includes("subscriber collection only")));
+  assert.ok(news([{ id: "contact", consent: "none" }, { id: "waitlist" }]).some((w) => w.includes("the forms that subscribe collect them now")));
+  assert.ok(!news([{ id: "contact", consent: "none" }, { id: "waitlist" }]).some((w) => w.includes("no form collects subscribers")));
   // The lists match the starter's and core's.
   const copy = readFileSync(new URL("../../../starter/src/lib/form-copy.js", import.meta.url), "utf8");
   assert.ok(copy.includes(`export const FORM_KINDS = ${JSON.stringify(FORM_KINDS).replace(/,/g, ", ")};`), "FORM_KINDS differs from starter/src/lib/form-copy.js");
@@ -172,6 +183,10 @@ test("siteForms: the default brief gives the starter's contact form; a waitlist 
   assert.equal(forms.contact.kind, undefined, "message is the default kind, not written");
   assert.deepEqual(forms.contact.fields, starter.contact.fields);
   assert.equal(forms.quote.title, "Ask for a quote");
+  assert.equal(forms.contact.title, "Get in touch", "the contact form keeps the starter's title");
+  // Every form has its own title: only the contact form takes the starter's, and only the first waitlist "Join the waitlist".
+  const titled = siteForms(normalizeBrief({ ...base, forms: [{ id: "contact" }, { id: "quote", purpose: "quote request" }, { id: "book-a-visit" }, { id: "waitlist" }, { id: "newsletter" }] }).brief, starter);
+  assert.deepEqual(Object.values(titled).map((f) => f.title), ["Get in touch", "Quote request", "Book a visit", "Join the waitlist", "Newsletter"]);
   assert.equal(forms.quote.consent, undefined, "optional is the default consent, not written");
   assert.equal(starter.contact.consent, undefined, "the starter's form is not changed");
   for (const f of Object.values(forms)) assert.equal(f.thanks, "/thanks");

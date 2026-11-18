@@ -14,8 +14,9 @@
 //
 // Forms: a list of { id, purpose, kind, consent, title, submitLabel }; only `id` is required.
 //   kind      "message" (someone answers it: contact, quote, booking request) or "waitlist" (a sign-up to hear news;
-//             email and an optional name). Default: "waitlist" when the id or purpose says waitlist, mailing list or
-//             newsletter, else "message"
+//             email and an optional name). Default: "waitlist" when the id, or the whole purpose, is a list's name
+//             ("waitlist", "mailing list", "newsletter", "newsletter sign-up"), else "message": a purpose that only
+//             mentions one ("questions about the newsletter") is a message form, so set `kind` when in doubt
 //   consent   "none" (a plain message form: it adds no one to a list), or "optional" / "required" (in checkbox mode, a
 //             consent box that may or must be ticked; in auto mode the line under the button subscribes either way).
 //             Default: "required" for a waitlist in checkbox mode, else "optional". The site-wide `consent` is the mode
@@ -30,7 +31,8 @@ export const ANSWERED_BY = ["owner", "agent"];
 export const FORM_KINDS = ["message", "waitlist"];
 export const FORM_CONSENT = ["none", "optional", "required"];
 const FORM_ID = /^[a-z][a-z0-9-]{0,31}$/;
-const LIST_WORDS = /wait[\s-]?list|mailing[\s-]?list|newsletter/i;
+// A form named for a list: the id, or the whole purpose, and nothing else.
+const LIST_NAME = /^(wait(ing)?[\s-]?list|mailing[\s-]?list|newsletter)([\s-]sign[\s-]?ups?)?$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GDPR_CASL = new Set(["eu", "uk", "ca", "eea"]);
 // The same lists as starter/scripts/design-tokens.mjs (a test checks they match).
@@ -88,7 +90,9 @@ export function normalizeBrief(input) {
     consent, inferred, present, sources, errors, warnings, given: Array.isArray(input.forms) ? input.forms : [], formsInferred: inferred.has("forms"),
   });
   const newsletter = pick("newsletter", false, isBool);
-  if (newsletter && mode === "idea") warnings.push("newsletter on an idea site means subscriber collection only: forms already opt people in; sending starts at launch (DECISIONS 2026-10-23)");
+  const noneSubscribe = forms.length > 0 && forms.every((f) => f.consent === "none");
+  if (newsletter && noneSubscribe) warnings.push('newsletter is on, but every form has consent "none": no form collects subscribers; give a waitlist or a sign-up form a consent other than "none"');
+  else if (newsletter && mode === "idea") warnings.push("newsletter on an idea site means subscriber collection only: the forms that subscribe collect them now; sending starts at launch (DECISIONS 2026-10-23)");
   const autoReply = pick("autoReply", false, isBool);
   if (autoReply && mode === "idea") warnings.push("lead auto-replies on an idea site go through the owner's Gmail (Apps Script mailer, 100 recipients a day shared by all idea sites)");
 
@@ -155,7 +159,7 @@ function normalizeForms(list, { consent: mode, inferred, present, sources, error
     else if (ids.has(id)) errors.push(`forms.${i}.id: "${id}" is used twice`);
     ids.add(id);
     const purpose = typeof f?.purpose === "string" ? f.purpose : "";
-    const kind = f?.kind ?? (LIST_WORDS.test(`${id} ${purpose}`) ? "waitlist" : "message");
+    const kind = f?.kind ?? (LIST_NAME.test(id) || LIST_NAME.test(purpose.trim()) ? "waitlist" : "message");
     if (!FORM_KINDS.includes(kind)) errors.push(`forms.${i}.kind: ${JSON.stringify(kind)} is not valid (expected ${FORM_KINDS.join(" or ")})`);
     const formConsent = f?.consent ?? (kind === "waitlist" && mode === "checkbox" ? "required" : "optional");
     if (!FORM_CONSENT.includes(formConsent)) errors.push(`forms.${i}.consent: ${JSON.stringify(formConsent)} is not valid (expected ${FORM_CONSENT.join(", ")})`);
@@ -180,14 +184,26 @@ export const WAITLIST_FORM = {
   thanks: "/thanks",
 };
 
+// A form's own title when the brief gives none: its purpose when that is short ("Quote request"), else its id.
+const ownTitle = (f) => {
+  const words = f.purpose.trim() && f.purpose.trim().length <= 40 ? f.purpose.trim() : f.id.replace(/-/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 // The new site's `forms` in site.config.json, from the brief and the starter's forms (its contact form is the model for
 // every message form). Only settings that differ from the defaults are written: `kind` for a waitlist, `consent`
-// unless "optional". The default brief gives exactly the starter's contact form.
+// unless "optional". The default brief gives exactly the starter's contact form. Each form has its own title (the
+// privacy page names forms by it): the brief's, else the starter form's of the same id, else the first waitlist's
+// "Join the waitlist", else one from its purpose or id.
 export function siteForms(b, starterForms) {
   const message = starterForms.contact || Object.values(starterForms)[0];
+  const used = new Set();
   return Object.fromEntries(b.forms.map((f) => {
-    const form = structuredClone(f.kind === "waitlist" ? WAITLIST_FORM : starterForms[f.id] || message);
-    if (f.title) form.title = f.title;
+    const model = f.kind === "waitlist" ? WAITLIST_FORM : starterForms[f.id] || message;
+    const form = structuredClone(model);
+    const inherited = f.kind === "waitlist" || starterForms[f.id] ? form.title : "";
+    form.title = f.title || (inherited && !used.has(inherited) ? inherited : ownTitle(f));
+    used.add(form.title);
     if (f.submitLabel) form.submitLabel = f.submitLabel;
     if (f.kind !== "message") form.kind = f.kind;
     else delete form.kind;
