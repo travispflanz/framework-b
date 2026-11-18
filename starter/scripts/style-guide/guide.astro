@@ -15,6 +15,7 @@ import credits from "../../design/credits.json";
 import { inline } from "../sections/text.js";
 import { composition, imagery } from "../sections/design.js";
 import { VARIANTS } from "../sections/schema.js";
+import { heroLayout } from "../sections/hero-layout.js";
 import { parseGuide, renderProse, SPECS } from "../../scripts/lib/style-guide.mjs";
 
 const product = Object.values(import.meta.glob("../../PRODUCT.md", { query: "?raw", import: "default", eager: true }))[0] || "";
@@ -56,8 +57,8 @@ const family = heroes ? [].concat(heroes.page) : [];
 const rows = pages.filter((p) => p.slug !== "not-found").map(({ slug, page }) => {
   const s = page.sections || [];
   const hero = s.find((x) => x._type === "fb_hero") || {};
-  const chosen = VARIANTS.fb_hero.includes(hero.variant) ? hero.variant : heroes ? (slug === "home" ? heroes.home : family[0]) : VARIANTS.fb_hero[0];
-  return { path: slug === "home" ? "/" : `/${slug}`, hero: hero.image?.src ? chosen : "statement (no picture)", sections: s.length, ends: s.at(-1)?._type || "", form: s.some((x) => x._type === "fb_form"), noindex: !!page.noindex };
+  const layout = heroLayout(hero, { home: slug === "home", heroes });
+  return { path: slug === "home" ? "/" : `/${slug}`, hero: hero.image?.src ? layout : `${layout} (no picture)`, sections: s.length, ends: s.at(-1)?._type || "", form: s.some((x) => x._type === "fb_form"), noindex: !!page.noindex };
 }).sort((a, b) => (a.path === "/" ? -1 : b.path === "/" ? 1 : a.path.localeCompare(b.path)));
 const vocabulary = Object.entries(pages.flatMap(({ page }) => (page.sections || []).map((s) => `${s._type.replace(/^fb_/, "")}${s.variant ? ` · ${s.variant}` : ""}`)).reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]);
 const shots = rows.filter((r) => !r.noindex).map((r) => r.path);
@@ -245,7 +246,7 @@ const today = new Date().toISOString().slice(0, 10);
   .sg-shot-pair img { width: 100%; border: 1px solid var(--color-line); }
   .sg-components { display: grid; gap: 1rem; margin-top: 1rem; max-width: 4in; }
   .sg-field { display: grid; gap: 0.3rem; }
-  .sg-field input { border: 1px solid var(--color-field); padding: 0.6rem 0.75rem; background: var(--color-bg); color: var(--color-ink); border-radius: var(--radius-control); }
+  .sg-field input { border: 1px solid var(--color-field); padding: 0.6rem 0.75rem; background: var(--color-bg); color: var(--color-ink); border-radius: var(--radius-field); }
   .sg-quotes { padding-left: 1.2rem; list-style: disc; font-size: var(--text-small); line-height: 1.5; }
   .sg-level p.uppercase { text-transform: uppercase; }
   .sg-level p[class*="text-display"] { overflow-wrap: anywhere; }

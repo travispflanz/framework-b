@@ -12,8 +12,13 @@
 //       apply the listed fixes (at most three), without committing, then:
 //   node scripts/design-critique.mjs compare
 //       rebuilds, runs the QA gate (a failing gate reverts the fixes and ends the loop), screenshots again, and
-//       writes ballots: every changed page and width (its first screen if that changed, else the full page),
-//       before and after, both ways round, shuffled.
+//       writes ballots: every changed page and width, before and after, both ways round, shuffled. A ballot shows
+//       what the fix changed: the first screen when the change is all within it (the view the judge was calibrated
+//       on), else the part of the page that changed, found by comparing the full-page screenshots row by row: a
+//       window round it (a quarter of a screen above and below, one to two screens tall), or, for a change longer
+//       than two screens, its first and last screen stacked. Ballots once showed only the first screen whenever
+//       that changed, so a fix lower on the page (a contact page's message box) couldn't win (roadmap step 2,
+//       2026-11-18). ballot.json records each ballot's view and the rows it shows.
 //       Look at each ballot-NN.png in design/critique/round-N/ and write LEFT or RIGHT into ballot.json, then:
 //   node scripts/design-critique.mjs decide
 //       keeps the fixes only if "after" wins both ways round on every changed page; otherwise reverts them.
@@ -26,6 +31,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import sharp from "sharp";
 import { launchBrowser, startLocalSite } from "./lib/local-site.mjs";
 
 const DIR = "design/critique";
@@ -92,11 +98,77 @@ export function parseRubric(md) {
 // The stop rule after scoring: every dimension at 4 or more, and at most one tell.
 export const rubricPasses = ({ scores, tells }) => DIMENSIONS.every((d) => scores[d] >= 4) && tells.length <= 1;
 
-// Ballots for the changed screens, each shown both ways round, shuffled.
+// The rows two screenshots of one page differ in, by trimming the rows they share at the top and at the bottom (so a
+// change that makes the page longer or shorter is one region, not everything below it): { top, before, after },
+// the first changed row and the end of the change (exclusive) in each. null when every row is the same; unaligned
+// when the widths differ, so the rows can't be compared. a and b are raw pixels: { data, width, height, channels }.
+export function changedRegion(a, b) {
+  if (a.width !== b.width || a.channels !== b.channels) return { top: 0, before: a.height, after: b.height, unaligned: true };
+  const row = a.width * a.channels;
+  const same = (ya, yb) => a.data.compare(b.data, yb * row, (yb + 1) * row, ya * row, (ya + 1) * row) === 0;
+  const min = Math.min(a.height, b.height);
+  let top = 0;
+  while (top < min && same(top, top)) top++;
+  if (top === a.height && a.height === b.height) return null;
+  let tail = 0;
+  while (tail < min - top && same(a.height - 1 - tail, b.height - 1 - tail)) tail++;
+  return { top, before: a.height - tail, after: b.height - tail };
+}
+
+// What a ballot shows of a changed page (the same rows on both sides): { view: "first" } for the first screen,
+// { view: "full" } for the whole page when the rows can't be aligned, or { view: "change", crops: { before, after } },
+// each a list of { top, height } windows on that side's full-page screenshot.
+export function ballotView(region, { screen, beforeHeight, afterHeight }) {
+  if (region.unaligned) return { view: "full" };
+  const end = Math.max(region.before, region.after);
+  if (end <= screen) return { view: "first" };
+  const margin = Math.round(screen / 4);
+  const shortest = Math.min(beforeHeight, afterHeight);
+  if (end - region.top + 2 * margin <= 2 * screen) {
+    // One window, at least a screen tall, the change in the middle of it when it is shorter than that.
+    const height = Math.max(screen, end - region.top + 2 * margin);
+    const centred = Math.round(region.top - (height - (end - region.top)) / 2);
+    const top = Math.max(0, Math.min(centred, shortest - height));
+    const one = { top, height };
+    return { view: "change", crops: { before: [one], after: [one] } };
+  }
+  // A long change (two fixes far apart, or one that moves everything): its first screen and its last.
+  const first = { top: Math.max(0, region.top - margin), height: screen };
+  const last = (height, changeEnd) => ({ top: Math.max(0, Math.min(height, changeEnd + margin) - screen), height: screen });
+  return { view: "change", crops: { before: [first, last(beforeHeight, region.before)], after: [first, last(afterHeight, region.after)] } };
+}
+
+// One side of a "change" ballot: the windows cut from its full-page screenshot, stacked, with a dark band between
+// two windows (rows left out) and grey where a window runs past the end of the page.
+export const GAP = 24;
+export async function cropStack(file, crops) {
+  const { width, height } = await sharp(file).metadata();
+  const total = crops.reduce((n, c) => n + c.height, 0) + GAP * (crops.length - 1);
+  const parts = [];
+  let y = 0;
+  for (const [i, c] of crops.entries()) {
+    if (i) {
+      parts.push({ input: { create: { width, height: GAP, channels: 4, background: "#444444" } }, top: y, left: 0 });
+      y += GAP;
+    }
+    const h = Math.min(c.height, height - c.top);
+    if (h > 0) parts.push({ input: await sharp(file).extract({ left: 0, top: c.top, width, height: h }).png().toBuffer(), top: y, left: 0 });
+    y += c.height;
+  }
+  return sharp({ create: { width, height: total, channels: 4, background: "#888888" } }).composite(parts).png().toBuffer();
+}
+
+const rawPixels = async (file) => {
+  const { data, info } = await sharp(file).raw().toBuffer({ resolveWithObject: true });
+  return { data, width: info.width, height: info.height, channels: info.channels };
+};
+
+// Ballots for the changed screens, each shown both ways round, shuffled. Each changed item is a shot name, or
+// { shot, view, crops } from ballotView.
 export function makeBallots(changed, random = Math.random) {
-  const list = changed.flatMap((shot) => [
-    { shot, left: "before", right: "after" },
-    { shot, left: "after", right: "before" },
+  const list = changed.map((c) => (typeof c === "string" ? { shot: c } : c)).flatMap((c) => [
+    { ...c, left: "before", right: "after" },
+    { ...c, left: "after", right: "before" },
   ]);
   for (let i = list.length - 1; i > 0; i--) {
     const k = Math.floor(random() * (i + 1));
@@ -221,26 +293,40 @@ if (cmd === "start") {
     throw new Error(state.stopped);
   }
   const after = join(roundDir(round.n), "after");
+  const before = join(roundDir(round.n), "before");
   const shots = await screenshots(after);
-  // A changed page is judged on its first screen when that changed (the calibrated view), else on the full page.
-  const differs = (s) => {
-    const b = join(roundDir(round.n), "before", s);
-    return !existsSync(b) || !readFileSync(b).equals(readFileSync(join(after, s)));
-  };
-  const changed = shots.filter((s) => s.endsWith("-first.png")).map((s) => (differs(s) ? s : s.replace("-first.png", "-full.png"))).filter((s) => {
-    const b = join(roundDir(round.n), "before", s);
-    return !existsSync(b) || !readFileSync(b).equals(readFileSync(join(after, s)));
-  });
+  const same = (s) => readFileSync(join(before, s)).equals(readFileSync(join(after, s)));
+  // Every changed page and width, judged on what changed (see the header): its first screen, or the rows that differ.
+  const changed = [];
+  for (const first of shots.filter((s) => s.endsWith("-first.png"))) {
+    const shot = first.replace(/-first\.png$/, "");
+    const full = `${shot}-full.png`;
+    if (!existsSync(join(before, first)) || !existsSync(join(before, full))) {
+      console.log(`note  ${shot}: a new page, with nothing to compare it with, so it isn't judged`);
+      continue;
+    }
+    if (same(first) && same(full)) continue;
+    const screen = Number(shot.match(/-(\d+)$/)[1]) > 600 ? 900 : 844;
+    const [b, a] = await Promise.all([rawPixels(join(before, full)), rawPixels(join(after, full))]);
+    const region = changedRegion(b, a);
+    if (!region && same(first)) continue;
+    changed.push({ shot, ...(region ? ballotView(region, { screen, beforeHeight: b.height, afterHeight: a.height }) : { view: "first" }) });
+  }
   const ballots = makeBallots(changed);
   const browser = await launchBrowser();
   for (const b of ballots) {
-    const img = (side) => `data:image/png;base64,${readFileSync(join(roundDir(round.n), side, b.shot)).toString("base64")}`;
-    const w = b.shot.includes("-390-") ? 390 : 1280;
+    const png = async (side) => {
+      const dir = join(roundDir(round.n), side);
+      if (b.view === "change") return cropStack(join(dir, `${b.shot}-full.png`), b.crops[side]);
+      return readFileSync(join(dir, `${b.shot}-${b.view === "full" ? "full" : "first"}.png`));
+    };
+    const img = async (side) => `data:image/png;base64,${(await png(side)).toString("base64")}`;
+    const w = b.shot.endsWith("-390") ? 390 : 1280;
     const page = await browser.newPage({ viewport: { width: 2 * w + 40, height: (w > 600 ? 900 : 844) + 60 } });
-    // Full pages can be long: the screenshot below is fullPage, so both whole pages are shown.
+    // Change windows and full pages can be long: the screenshot below is fullPage, so both sides are shown whole.
     await page.setContent(`<!doctype html><body style="margin:0;background:#888;font:bold 28px system-ui;color:#fff"><div style="display:flex;gap:40px">
-      <div><div style="height:60px;line-height:60px;padding-left:12px">LEFT</div><img src="${img(b.left)}" style="display:block;width:${w}px"></div>
-      <div><div style="height:60px;line-height:60px;padding-left:12px">RIGHT</div><img src="${img(b.right)}" style="display:block;width:${w}px"></div></div></body>`);
+      <div><div style="height:60px;line-height:60px;padding-left:12px">LEFT</div><img src="${await img(b.left)}" style="display:block;width:${w}px"></div>
+      <div><div style="height:60px;line-height:60px;padding-left:12px">RIGHT</div><img src="${await img(b.right)}" style="display:block;width:${w}px"></div></div></body>`);
     await page.screenshot({ path: join(roundDir(round.n), b.image), fullPage: true });
     await page.close();
   }

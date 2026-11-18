@@ -2,7 +2,8 @@
 // CI check of every section layout variant and the second set of composition options. It adds eight temporary
 // pages that use each variant at least once (with generated test images), switches DESIGN.md to a composition that
 // differs from the starter's on every axis (hairlines, outlined cards, centred, compact, square images, expressive
-// motion, a duotone imagery treatment with grain), regenerates the tokens, builds, and runs the full QA gate on every page. Everything it changed is put back
+// motion, a duotone imagery treatment with grain, pill buttons whose fields keep the card radius), regenerates the
+// tokens, builds, and runs the full QA gate on every page. Everything it changed is put back
 // at the end, also after a failure. Run it from the starter (or a site) after `npm ci`; local files only.
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -31,7 +32,8 @@ try {
   const composition = "composition:\n  align: center\n  density: compact\n  separation: hairlines\n  cards: outlined\n  imageShape: square\n  motion: expressive\n  phoneBudget: 6\nimagery:\n  style: abstract\n  treatment: duotone\n  grain: true\n";
   // The poster route's inverse band needs the eight inverse colours: a dark band in this light design.
   const inverse = '  inverse-bg: "#1b1b1b"\n  inverse-surface: "#262626"\n  inverse-ink: "#ffffff"\n  inverse-ink-muted: "#d0d0d0"\n  inverse-line: "#444444"\n  inverse-field: "#9a9a9a"\n  inverse-accent: "#8fc3e8"\n  inverse-accent-ink: "#1b1b1b"\n';
-  writeFileSync("DESIGN.md", design.replace(/^(composition|imagery):\n(  .*\n)+/gm, "").replace(/\ncomponents:\n/, `\n${composition}components:\n`).replace(/^(  focus: .*\n)/m, `$1${inverse}`));
+  // Pill buttons (rounded.control 999px): the form fields take the derived field radius, so the message box is no oval.
+  writeFileSync("DESIGN.md", design.replace(/^(composition|imagery):\n(  .*\n)+/gm, "").replace(/\ncomponents:\n/, `\n${composition}components:\n`).replace(/^(  focus: .*\n)/m, `$1${inverse}`).replace(/^  control: .*$/m, "  control: 999px"));
   run("node", ["scripts/design-tokens.mjs"]);
 
   // Test images: plain gradients, given the design's treatment, credited as generated. Two are marked photorealistic

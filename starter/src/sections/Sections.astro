@@ -23,8 +23,9 @@ import { composition } from "./design.js";
 
 const COMPONENTS = { fb_hero: Hero, fb_steps: Steps, fb_features: Features, fb_pricing: Pricing, fb_area: Area, fb_faq: Faq, fb_cta: Cta, fb_form: FormSection, fb_text: Text, fb_split: Split, fb_gallery: Gallery, fb_list: List, fb_people: People, fb_panel: Panel, fb_doors: Doors };
 
-interface Props { sections: Array<Record<string, any>> }
-const { sections = [] } = Astro.props;
+// home: these are the home page's sections, so the hero takes composition.heroes.home (src/sections/hero-layout.js).
+interface Props { sections: Array<Record<string, any>>; home?: boolean }
+const { sections = [], home } = Astro.props;
 let band = 0;
 const items = sections.map((value, i) => {
   const Component = COMPONENTS[value._type];
@@ -33,4 +34,4 @@ const items = sections.map((value, i) => {
   return { Component, value, key: value._key || `s${i}`, tone };
 });
 ---
-{items.map(({ Component, value, key, tone }) => <Component value={value} blockKey={key} tone={tone} />)}
+{items.map(({ Component, value, key, tone }) => <Component value={value} blockKey={key} tone={tone} home={value._type === "fb_hero" ? home : undefined} />)}

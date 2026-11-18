@@ -10,7 +10,9 @@
 //   colors:     bg, surface, ink, ink-muted, line, field, accent, accent-ink, highlight, highlight-ink, error, focus
 //               (hex; see CONTRAST below). accent is for actions and links; highlight is a decorative fill.
 //   typography: display, headline, title, body, small, label  (fontFamily, fontSize, fontWeight, lineHeight)
-//   rounded:    control, card
+//   rounded:    control, card (buttons and cards); field is optional: text fields, selects and multi-line fields,
+//               by default the smaller of control and card, so a pill button (control: 999px) never draws an oval
+//               message box (roadmap step 2, 2026-11-18; the QA gate fails a multi-line field rounded into an oval)
 //   spacing:    gutter, section, content, prose  (content and prose are container widths)
 // Two Framework B blocks set the skeleton and the imagery, not just the skin (both optional; defaults keep the
 // original look). They are written to src/styles/design.json, which Base.astro and the sections read:
@@ -46,6 +48,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parse } from "yaml";
+import { fieldRadius } from "./lib/fields.mjs";
 
 const CHECK = process.argv.includes("--check");
 const OUT = "src/styles/tokens.css";
@@ -256,6 +259,7 @@ for (const [name, t] of Object.entries(tokens.typography)) {
 }
 lines.push("");
 for (const [name, value] of Object.entries(tokens.rounded)) lines.push(`  --radius-${name}: ${value};`);
+if (tokens.rounded.field === undefined) lines.push(`  --radius-field: ${fieldRadius(tokens.rounded)};`);
 for (const [name, value] of Object.entries(tokens.spacing)) {
   if (name === "content" || name === "prose") lines.push(`  --container-${name}: ${value};`);
   else lines.push(`  --spacing-${name}: ${value};`);

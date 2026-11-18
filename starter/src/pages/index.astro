@@ -6,5 +6,5 @@ import Sections from "../sections/Sections.astro";
 import page from "../content/home.json";
 ---
 <Base exactTitle={page.title && page.title !== "Home" ? page.title : undefined} description={page.description} bleed>
-  <Sections sections={page.sections} />
+  <Sections sections={page.sections} home />
 </Base>

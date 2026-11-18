@@ -8,13 +8,16 @@
 //   1. the draft becomes DESIGN.md and scripts/design-tokens.mjs runs: the same lint, token contract and WCAG AA
 //      contrast checks as the real thing. A draft that fails is reported and gets no tile.
 //   2. the tile page (scripts/design-tile/tile.astro) is added and the site is built into a scratch folder;
-//   3. the tile is screenshotted at 1280 and 390 px, full page.
+//   3. the tile is screenshotted at 1280 and 390 px, full page;
+//   4. its hero is checked: it must be the home page's, in the layout the draft gives the home page
+//      (composition.heroes.home, src/sections/hero-layout.js). Tiles once showed the inner pages' hero, so drafts were
+//      judged on the wrong first screen (roadmap step 2, 2026-11-18); a tile whose hero differs is reported and fails.
 // It builds in place because a copy of the site can't share node_modules: Astro mis-resolves EmDash's own .astro
 // files through a symlink (seen in CI, 2026-10-26). DESIGN.md, tokens.css and the Cloudflare adapter's
 // .wrangler/deploy/config.json are saved first and restored at the end, on Ctrl-C, and on the next run if the
 // process was killed (.design-tiles-restore.json).
 // Output: <out>/<draft>/tile-1280.png, tile-390.png, and <out>/index.html side by side, with each draft's
-// colours and fonts. Fonts a draft names must be installed in the site first (npm i @fontsource-variable/<family>).
+// colours and fonts; <out>/tiles.json lists each tile with the hero layout it shows. Fonts a draft names must be installed in the site first (npm i @fontsource-variable/<family>).
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -22,6 +25,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { parse } from "yaml";
 import { launchBrowser } from "./lib/local-site.mjs";
+import { heroLayout } from "../src/sections/hero-layout.js";
 
 const args = process.argv.slice(2);
 const outIdx = args.indexOf("--out");
@@ -77,6 +81,7 @@ let browser;
 try {
   browser = await launchBrowser();
   cpSync(join(SITE, "scripts/design-tile/tile.astro"), join(SITE, "src/pages/design-tile.astro"));
+  const homeHero = JSON.parse(readFileSync(join(SITE, "src/content/home.json"), "utf8")).sections?.find((x) => x._type === "fb_hero");
   for (const draft of drafts) {
     const name = basename(draft, extname(draft)).replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
     const front = parse(readFileSync(draft, "utf8").match(/^---\n([\s\S]*?)\n---/)?.[1] || "") || {};
@@ -101,17 +106,27 @@ try {
     const dist = existsSync(join(outDir, "client")) ? join(outDir, "client") : outDir;
     const { server, base } = await serve(dist);
     mkdirSync(join(OUT, name), { recursive: true });
+    let shown = {};
     for (const width of [1280, 390]) {
       const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
       await page.goto(`${base}/design-tile`, { waitUntil: "load" });
       await page.evaluate(() => document.fonts.ready);
       await page.screenshot({ path: join(OUT, name, `tile-${width}.png`), fullPage: true });
+      if (width === 1280) shown = await page.evaluate(() => ({ hero: document.querySelector("[data-hero]")?.dataset.hero, heroFor: document.querySelector("[data-hero]")?.dataset.heroFor }));
       await page.close();
     }
     server.closeAllConnections();
     server.close();
-    results.push({ name, ok: true, front });
-    console.log(`✓ ${name}`);
+    // The tile's first screen is the home page's: its hero in the layout this draft gives the home page.
+    const { composition } = JSON.parse(readFileSync(join(SITE, "src/styles/design.json"), "utf8"));
+    const want = heroLayout(homeHero, { home: true, heroes: composition.heroes });
+    if (homeHero && (shown.hero !== want || shown.heroFor !== "home")) {
+      results.push({ name, ok: false, hero: shown.hero, why: `the tile shows the ${shown.heroFor || "unknown"} hero "${shown.hero}", but this draft gives the home page "${want}" (composition.heroes.home)`, front });
+      console.log(`✗ ${name}: ${results.at(-1).why}`);
+      continue;
+    }
+    results.push({ name, ok: true, hero: shown.hero, front });
+    console.log(`✓ ${name} (hero: ${shown.hero || "none"})`);
   }
 } finally {
   await browser?.close();
@@ -138,6 +153,6 @@ ${r.ok ? `<img src="${esc(r.name)}/tile-1280.png" alt="${esc(r.name)} at 1280 px
 </div></main></body></html>`;
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, "index.html"), html);
-writeFileSync(join(OUT, "tiles.json"), JSON.stringify(results.map(({ name, ok, why }) => ({ name, ok, why: why || "" })), null, 2));
+writeFileSync(join(OUT, "tiles.json"), JSON.stringify(results.map(({ name, ok, why, hero }) => ({ name, ok, why: why || "", hero: hero || "" })), null, 2));
 console.log(`\n${results.filter((r) => r.ok).length} of ${results.length} tiles in ${OUT}`);
 process.exit(results.some((r) => r.ok) ? 0 : 1);
