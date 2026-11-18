@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CI fixture: turns the starter into a small full site with images, so the build, e2e and QA gate cover extra
-// pages (src/pages/[page].astro), the hero image, the text-and-image and gallery sections, optimized images and
-// the credits page. Images are generated abstract gradients (credited as such), so no network is needed.
+// pages (src/pages/[page].astro), the hero image, the text-and-image and gallery sections, optimized images,
+// the credits page, and the privacy and thanks pages of a site with a waitlist as well as a contact form. Images are generated abstract gradients (credited as such), so no network is needed.
 // Never run it in a real site.
 //   node scripts/test/fixture-full-site.mjs
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -39,5 +39,11 @@ writeFileSync("src/content/about.json", JSON.stringify({
 }, null, 2) + "\n");
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
 site.nav.splice(Math.max(0, site.nav.length - 1), 0, { label: "About", href: "/about" });
+// A waitlist beside the contact form (after it, so the e2e test still sends the contact form): the generated privacy
+// page then has a line per form, and /thanks speaks to both (src/lib/form-copy.js).
+site.forms.waitlist = {
+  kind: "waitlist", title: "Join the waitlist", submitLabel: "Join the waitlist",
+  fields: [{ name: "name", type: "text", label: "Your name (optional)", autocomplete: "name" }, { name: "email", type: "email", label: "Email", required: true, autocomplete: "email" }],
+};
 writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
-console.log("Full-site fixture: /about with hero image, text and image, gallery; 3 credited images");
+console.log("Full-site fixture: /about with hero image, text and image, gallery; 3 credited images; a waitlist form");

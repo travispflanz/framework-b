@@ -82,6 +82,13 @@ jobs:
         working-directory: starter
       - run: npm run qa
         working-directory: starter
+      - name: The generated privacy and thanks pages describe each form (the full-site fixture adds a waitlist beside the contact form)
+        if: matrix.editing == 'off'
+        run: |
+          grep -q "It depends on the form:" dist/privacy.html
+          grep -q "Join the waitlist</strong>: to email you when there" dist/privacy.html
+          grep -q "If you joined the waitlist, we" dist/thanks.html
+        working-directory: starter
       - name: Every section layout variant, the second composition and an imagery treatment pass the QA gate
         if: matrix.editing == 'off'
         run: node scripts/test/variants.mjs

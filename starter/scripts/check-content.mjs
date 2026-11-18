@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SECTIONS } from "../src/sections/schema.js";
 import { STEPS as AI_STEPS } from "../src/lib/ai-use.js";
+import { FORM_KINDS } from "../src/lib/form-copy.js";
 import { stripJsonc } from "./lib/jsonc.mjs";
 import { missingSections } from "./lib/style-guide.mjs";
 import { FILE as RESEARCH, missingLenses, undatedLenses, unwrittenLenses } from "./lib/design-research.mjs";
@@ -151,6 +152,13 @@ if (existsSync(RESEARCH)) {
   if (todo.length) console.log(`  note  ${RESEARCH}: not written yet: ${todo.join(", ")} (docs/BUILD.md step 3)`);
   const undated = undatedLenses(md);
   if (undated.length) console.log(`  note  ${RESEARCH}: no dated source under ${undated.join(", ")}`);
+}
+
+// A form's kind (src/lib/form-copy.js) decides what the generated privacy and thanks pages say about it. A waitlist
+// signs people up, so it can't be a plain message form.
+for (const [id, form] of Object.entries(site.forms || {})) {
+  if (form.kind !== undefined && !FORM_KINDS.includes(form.kind)) errors.push(`site.config.json forms.${id}.kind "${form.kind}" is not one of: ${FORM_KINDS.join(", ")}`);
+  if (form.kind === "waitlist" && form.consent === "none") errors.push(`site.config.json forms.${id}: a waitlist with consent "none" adds no one to the list; drop the consent or make it kind "message"`);
 }
 
 // Drips (core src/drips.js) need their Workflow binding; without it, leads would silently get no emails.

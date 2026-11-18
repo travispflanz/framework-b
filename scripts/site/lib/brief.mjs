@@ -1,17 +1,36 @@
 // The kickoff brief: the owner's one prompt turned into the answers to docs/SPEC.md section 3, each with where it
 // came from. The agent writes brief.json from the prompt; this module checks it, fills every default, and turns it
-// into create inputs and DECISIONS.md rows. The site keeps brief.json as the record of its kickoff.
+// into create inputs, the site's forms and DECISIONS.md rows. The site keeps brief.json as the record of its kickoff.
+//
+// Who answered (`answeredBy`):
+//   owner     the default: the owner's prompt gave the answers present in the input
+//   agent     autopilot with no owner answers (the agent picked the idea and wrote the brief itself)
 //
 // Source of each answer:
-//   stated    the owner said it (the default for any field present in the input)
-//   inferred  the agent decided it from research or the prompt; list its path in `inferred`
+//   stated    the owner said it (any field present in the input, when `answeredBy` is "owner")
+//   agent     the agent chose it (any field present in the input, when `answeredBy` is "agent")
+//   inferred  the agent decided it from research or the prompt; list its path in `inferred` ("forms.1.consent")
 //   default   absent from the input; the framework default from SPEC section 3 applies
+//
+// Forms: a list of { id, purpose, kind, consent, title, submitLabel }; only `id` is required.
+//   kind      "message" (someone answers it: contact, quote, booking request) or "waitlist" (a sign-up to hear news;
+//             email and an optional name). Default: "waitlist" when the id or purpose says waitlist, mailing list or
+//             newsletter, else "message"
+//   consent   "none" (a plain message form: it adds no one to a list), or "optional" / "required" (in checkbox mode, a
+//             consent box that may or must be ticked; in auto mode the line under the button subscribes either way).
+//             Default: "required" for a waitlist in checkbox mode, else "optional". The site-wide `consent` is the mode
 //
 // Minimal input:  { "business": { "name": "Example Co" }, "owner": { "email": "owner@example.com" } }
 
 // CRM mirror (core src/crm.js): copy each lead to the owner's Google Sheet, a webhook, or both.
 export const CRM = ["none", "sheet", "webhook", "sheet+webhook"];
 export const SHAPES = ["landing", "full", "hybrid"];
+export const ANSWERED_BY = ["owner", "agent"];
+// The same kinds as starter/src/lib/form-copy.js, and the consent values of packages/core/src/config.js (a test checks).
+export const FORM_KINDS = ["message", "waitlist"];
+export const FORM_CONSENT = ["none", "optional", "required"];
+const FORM_ID = /^[a-z][a-z0-9-]{0,31}$/;
+const LIST_WORDS = /wait[\s-]?list|mailing[\s-]?list|newsletter/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GDPR_CASL = new Set(["eu", "uk", "ca", "eea"]);
 // The same lists as starter/scripts/design-tokens.mjs (a test checks they match).
@@ -31,6 +50,9 @@ export function normalizeBrief(input) {
   const warnings = [];
   const inferred = new Set(Array.isArray(input?.inferred) ? input.inferred : []);
   const sources = {};
+  // Who gave the answers present in the input: the owner (default), or the agent on autopilot with no owner answers.
+  const answeredBy = input?.answeredBy ?? "owner";
+  const present = answeredBy === "agent" ? "agent" : "stated";
   const pick = (path, fallback, check) => {
     const v = get(input, path);
     if (v === undefined || v === null || v === "") {
@@ -38,17 +60,20 @@ export function normalizeBrief(input) {
       return typeof fallback === "function" ? fallback() : fallback;
     }
     if (check && !check(v)) errors.push(`${path}: ${JSON.stringify(v)} is not valid`);
-    sources[path] = inferred.has(path) ? "inferred" : "stated";
+    sources[path] = inferred.has(path) ? "inferred" : present;
     return v;
   };
 
   if (!input || typeof input !== "object") return { brief: null, sources, errors: ["the brief must be a JSON object"], warnings };
   if (input.version !== undefined && input.version !== 1) errors.push(`version ${input.version} is not supported (expected 1)`);
+  if (!ANSWERED_BY.includes(answeredBy)) errors.push(`answeredBy: ${JSON.stringify(answeredBy)} is not valid (expected "owner" or "agent")`);
 
   const name = pick("business.name", "", (v) => typeof v === "string" && v.trim().length > 0);
   if (!name) errors.push("business.name is required");
   const email = String(pick("owner.email", "", (v) => EMAIL.test(v))).trim().toLowerCase();
   if (!email) errors.push("owner.email is required");
+  // The inbox is always the owner's, even on autopilot: it is never guessed (docs/BUILD.md step 1).
+  if (sources["owner.email"] === "agent") sources["owner.email"] = "stated";
   const id = pick("business.id", () => slug(name), (v) => /^[a-z][a-z0-9-]{1,40}[a-z0-9]$/.test(v));
   if (!/^[a-z][a-z0-9-]{1,40}[a-z0-9]$/.test(id)) errors.push(`site id "${id}" must be 3-42 lowercase letters, digits or dashes, starting with a letter; set business.id`);
 
@@ -59,7 +84,9 @@ export function normalizeBrief(input) {
   const consent = pick("consent", () => (GDPR_CASL.has(region) ? "checkbox" : "auto"), (v) => ["auto", "checkbox"].includes(v));
   if (GDPR_CASL.has(region) && consent === "auto") warnings.push(`audienceRegion "${region}" with consent "auto": every form opts visitors in automatically, which GDPR and CASL generally don't allow; use consent "checkbox" or ask the owner (SPEC section 5)`);
 
-  const forms = pick("forms", () => [{ id: "contact", purpose: "contact" }], (v) => Array.isArray(v) && v.length > 0 && v.every((f) => f && /^[a-z][a-z0-9-]*$/.test(f.id || "")));
+  const forms = normalizeForms(pick("forms", () => [{ id: "contact", purpose: "contact" }], (v) => Array.isArray(v) && v.length > 0 && v.every((f) => f && typeof f === "object")), {
+    consent, inferred, present, sources, errors, warnings, given: Array.isArray(input.forms) ? input.forms : [], formsInferred: inferred.has("forms"),
+  });
   const newsletter = pick("newsletter", false, isBool);
   if (newsletter && mode === "idea") warnings.push("newsletter on an idea site means subscriber collection only: forms already opt people in; sending starts at launch (DECISIONS 2026-10-23)");
   const autoReply = pick("autoReply", false, isBool);
@@ -67,6 +94,7 @@ export function normalizeBrief(input) {
 
   const brief = {
     version: 1,
+    answeredBy,
     business: {
       name,
       id,
@@ -111,6 +139,98 @@ export function normalizeBrief(input) {
   return { brief, sources, errors, warnings };
 }
 
+// Each form with every setting filled: { id, purpose, kind, consent, title?, submitLabel? }. Records each form's
+// kind and consent source as forms.<n>.kind and forms.<n>.consent.
+function normalizeForms(list, { consent: mode, inferred, present, sources, errors, warnings, given, formsInferred }) {
+  const ids = new Set();
+  return (Array.isArray(list) ? list : []).map((f, i) => {
+    const raw = given[i] || {};
+    const source = (key) => {
+      const v = raw[key];
+      if (v === undefined || v === null || v === "") return "default";
+      return inferred.has(`forms.${i}.${key}`) || formsInferred ? "inferred" : present;
+    };
+    const id = String(f?.id ?? "");
+    if (!FORM_ID.test(id)) errors.push(`forms.${i}.id: ${JSON.stringify(f?.id)} must be 1-32 lowercase letters, digits or dashes, starting with a letter`);
+    else if (ids.has(id)) errors.push(`forms.${i}.id: "${id}" is used twice`);
+    ids.add(id);
+    const purpose = typeof f?.purpose === "string" ? f.purpose : "";
+    const kind = f?.kind ?? (LIST_WORDS.test(`${id} ${purpose}`) ? "waitlist" : "message");
+    if (!FORM_KINDS.includes(kind)) errors.push(`forms.${i}.kind: ${JSON.stringify(kind)} is not valid (expected ${FORM_KINDS.join(" or ")})`);
+    const formConsent = f?.consent ?? (kind === "waitlist" && mode === "checkbox" ? "required" : "optional");
+    if (!FORM_CONSENT.includes(formConsent)) errors.push(`forms.${i}.consent: ${JSON.stringify(formConsent)} is not valid (expected ${FORM_CONSENT.join(", ")})`);
+    if (kind === "waitlist" && formConsent === "none") errors.push(`forms.${i}: a waitlist with consent "none" adds no one to the list; drop the consent or make it kind "message"`);
+    if (mode === "auto" && formConsent === "required") warnings.push(`forms.${i}.consent "required" only applies with consent "checkbox"; in auto mode the line under the button subscribes every visitor who sends "${id}"`);
+    if (kind === "waitlist" && mode === "checkbox" && formConsent === "optional") warnings.push(`forms.${i}: a waitlist with an optional consent box takes sign-ups that can't be emailed; "required" is the default for a waitlist`);
+    for (const key of ["title", "submitLabel"]) if (f?.[key] !== undefined && (typeof f[key] !== "string" || !f[key].trim())) errors.push(`forms.${i}.${key} must be text`);
+    sources[`forms.${i}.kind`] = source("kind");
+    sources[`forms.${i}.consent`] = source("consent");
+    return { id, purpose, kind, consent: formConsent, ...(f?.title ? { title: f.title } : {}), ...(f?.submitLabel ? { submitLabel: f.submitLabel } : {}) };
+  });
+}
+
+// A waitlist form: an email and an optional name. Message forms start from the starter's contact form.
+export const WAITLIST_FORM = {
+  title: "Join the waitlist",
+  submitLabel: "Join the waitlist",
+  fields: [
+    { name: "name", type: "text", label: "Your name (optional)", autocomplete: "name" },
+    { name: "email", type: "email", label: "Email", required: true, autocomplete: "email" },
+  ],
+  thanks: "/thanks",
+};
+
+// The new site's `forms` in site.config.json, from the brief and the starter's forms (its contact form is the model for
+// every message form). Only settings that differ from the defaults are written: `kind` for a waitlist, `consent`
+// unless "optional". The default brief gives exactly the starter's contact form.
+export function siteForms(b, starterForms) {
+  const message = starterForms.contact || Object.values(starterForms)[0];
+  return Object.fromEntries(b.forms.map((f) => {
+    const form = structuredClone(f.kind === "waitlist" ? WAITLIST_FORM : starterForms[f.id] || message);
+    if (f.title) form.title = f.title;
+    if (f.submitLabel) form.submitLabel = f.submitLabel;
+    if (f.kind !== "message") form.kind = f.kind;
+    else delete form.kind;
+    if (f.consent !== "optional") form.consent = f.consent;
+    else delete form.consent;
+    form.thanks = form.thanks || "/thanks";
+    return [f.id, form];
+  }));
+}
+
+// A page's form sections that name a form the site doesn't have (the starter's home page names "contact") show its
+// first form instead. Returns the changed page, or null when nothing changed.
+export function pointFormSections(page, forms) {
+  const first = Object.keys(forms)[0];
+  const stale = (page.sections || []).filter((s) => s._type === "fb_form" && !forms[s.form]);
+  if (!stale.length || !first) return null;
+  const out = structuredClone(page);
+  for (const s of out.sections) if (s._type === "fb_form" && !forms[s.form]) s.form = first;
+  return out;
+}
+
+// What a form does with a visitor's address, in a few words (brief.mjs check and the DECISIONS.md rows).
+export function formSummary(f, mode) {
+  const kind = f.kind === "waitlist" ? "a waitlist sign-up" : "a message the owner answers";
+  const consent = f.consent === "none" ? "adds no one to a list"
+    : mode !== "checkbox" ? "sending it subscribes the visitor (the line under the button)"
+    : f.consent === "required" ? "the consent box must be ticked to send it, and subscribes"
+    : "only a ticked consent box subscribes";
+  return `${kind}; ${consent}`;
+}
+
+// The reason and source columns of a DECISIONS.md row for a kickoff answer, from the sources of its paths.
+export function rowSource(sources, ...paths) {
+  const s = paths.map((p) => sources[p]);
+  if (s.includes("stated")) return ["Kickoff", "owner"];
+  if (s.includes("agent")) return ["Agent's choice", "agent"];
+  if (s.every((x) => x === "default")) return ["Framework default", "inferred"];
+  return ["Agent's research", "inferred"];
+}
+
+// The row for the decision to make the site at all: the owner's kickoff, or the agent's on autopilot.
+export const kickoffSource = (b) => (b?.answeredBy === "agent" ? ["Agent's choice", "agent"] : ["Kickoff", "owner"]);
+
 // Environment for scripts/site/create.mjs.
 export const createInputs = (b) => ({
   SITE_ID: b.business.id,
@@ -124,18 +244,21 @@ export const createInputs = (b) => ({
   CONSENT: b.consent,
 });
 
-// DECISIONS.md rows for the kickoff answers ("owner" for stated, "inferred" for inferred or default).
+// DECISIONS.md rows for the kickoff answers: "owner" for stated, "agent" for the agent's own choices on autopilot
+// (`answeredBy: "agent"`), "inferred" for inferred or default.
 export function decisionRows(b, sources, date) {
-  const who = (...paths) => (paths.some((p) => sources[p] === "stated") ? "owner" : "inferred");
-  const why = (...paths) => (paths.some((p) => sources[p] === "stated") ? "Kickoff" : paths.every((p) => sources[p] === "default") ? "Framework default" : "Agent's research");
-  const row = (decision, ...paths) => `| ${date} | ${decision} | ${why(...paths)} | ${who(...paths)} |`;
+  const row = (decision, ...paths) => `| ${date} | ${decision} | ${rowSource(sources, ...paths).join(" | ")} |`;
+  const noneSubscribe = b.forms.every((f) => f.consent === "none");
   return [
     row(`Business: ${b.business.name}${b.business.offer ? `, "${b.business.offer}"` : ""}`, "business.name", "business.offer"),
     ...(b.business.audience ? [row(`Audience: ${b.business.audience}`, "business.audience")] : []),
     ...(b.business.location || b.business.serviceArea.length ? [row(`Where: ${[b.business.location, b.business.serviceArea.join(", ")].filter(Boolean).join("; ")}`, "business.location", "business.serviceArea")] : []),
     row(`Mode: ${b.mode}`, "mode"),
     row(`Site shape: ${b.shape}`, "shape"),
-    row(`Forms: ${b.forms.map((f) => f.id).join(", ")} (${b.consent === "checkbox" ? "a consent box; only a ticked box subscribes" : "every form opts visitors in"})`, "forms", "consent"),
+    // An EU, UK or Canadian audience chose the consent box when the brief left `consent` out.
+    row(`Opt-in: ${noneSubscribe ? "none (no form subscribes anyone)" : b.consent === "checkbox" ? "checkbox (a consent box; only a ticked box subscribes)" : "auto (a line under the button; sending a form subscribes)"}`,
+      ...(sources.consent === "default" && GDPR_CASL.has(b.audienceRegion) ? ["consent", "audienceRegion"] : ["consent"])),
+    ...b.forms.map((f, i) => row(`Form ${f.id}${f.purpose && f.purpose !== f.id ? ` (${f.purpose})` : ""}: ${formSummary(f, b.consent)}`, "forms", `forms.${i}.kind`, `forms.${i}.consent`)),
     row(`Lead auto-reply: ${b.autoReply ? "on" : "off"}`, "autoReply"),
     row(`Search engines: ${b.indexing ? "indexed" : "noindex"}`, "indexing"),
     row(`Client editing (EmDash): ${b.editing ? "on" : "off"}`, "editing"),
