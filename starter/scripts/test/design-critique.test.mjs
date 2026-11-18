@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
-import { ballotView, changedRegion, cropStack, decideBallots, DIMENSIONS, GAP, makeBallots, parseRubric, rubricPasses, rubricTemplate } from "../design-critique.mjs";
+import { ballotView, changedRegion, cropStack, decideBallots, DIMENSIONS, GAP, makeBallots, pageChanges, parseRubric, rubricPasses, rubricTemplate } from "../design-critique.mjs";
 
 const filled = (scores, tells = [], fixes = []) =>
   rubricTemplate(1, ["home-1280-first.png"])
@@ -85,6 +85,46 @@ test("a change that makes the page longer is one region, not everything below it
   const view = ballotView(region, { ...SCREEN, beforeHeight: 3000, afterHeight: 3200 });
   assert.equal(view.view, "change");
   assert.equal(view.crops.after.length, 1);
+});
+
+// Each side's windows hold that side's whole change, from the first changed row to the end of the change there.
+const holds = (view, region) => {
+  for (const side of ["before", "after"]) {
+    const rows = view.crops[side].flatMap((w) => [w.top, w.top + w.height]);
+    assert.ok(Math.min(...rows) <= region.top && Math.max(...rows) >= region[side], `${side}: ${JSON.stringify(view.crops[side])} holds ${region.top}-${region[side]}`);
+  }
+};
+
+test("a page that grows in its last screen shows the whole change on the longer side", () => {
+  // A 1000 px section added above a 500 px footer: 2000 px before, 3000 px after.
+  const footer = { rows: 500, value: 30 };
+  let region = changedRegion(shot(2000, [{ at: 1500, ...footer }]), shot(3000, [{ at: 1500, rows: 1000, value: 120 }, { at: 2500, ...footer }]));
+  assert.deepEqual(region, { top: 1500, before: 1500, after: 2500 });
+  let view = ballotView(region, { ...SCREEN, beforeHeight: 2000, afterHeight: 3000 });
+  holds(view, region);
+  assert.ok(view.crops.before[0].top + view.crops.before[0].height <= 2000, "the shorter side's window stays on its page");
+  // A page growing from 1000 to 1600 px, the change at rows 950 to 1550.
+  region = changedRegion(shot(1000, [{ at: 950, rows: 50, value: 30 }]), shot(1600, [{ at: 950, rows: 600, value: 120 }, { at: 1550, rows: 50, value: 30 }]));
+  assert.deepEqual(region, { top: 950, before: 950, after: 1550 });
+  view = ballotView(region, { ...SCREEN, beforeHeight: 1000, afterHeight: 1600 });
+  holds(view, region);
+});
+
+test("a page that shrinks in its last screen shows the whole change on the longer side", () => {
+  // The section above the footer taken away: 3000 px before, 2000 px after.
+  const footer = { rows: 500, value: 30 };
+  const region = changedRegion(shot(3000, [{ at: 1500, rows: 1000, value: 120 }, { at: 2500, ...footer }]), shot(2000, [{ at: 1500, ...footer }]));
+  assert.deepEqual(region, { top: 1500, before: 2500, after: 1500 });
+  const view = ballotView(region, { ...SCREEN, beforeHeight: 3000, afterHeight: 2000 });
+  holds(view, region);
+  assert.ok(view.crops.after[0].top + view.crops.after[0].height <= 2000);
+});
+
+test("a round whose fixes add or take away a page is refused", () => {
+  const before = ["home-1280-first.png", "home-1280-full.png", "home-390-first.png", "contact-1280-first.png", "contact-390-first.png"];
+  assert.deepEqual(pageChanges(before, before), { added: [], removed: [] });
+  assert.deepEqual(pageChanges(before, [...before, "about-1280-first.png", "about-390-first.png"]), { added: ["about"], removed: [] });
+  assert.deepEqual(pageChanges(before, before.filter((f) => !f.startsWith("contact"))), { added: [], removed: ["contact"] });
 });
 
 test("two changes far apart are shown as the first and last screen of the change", () => {

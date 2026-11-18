@@ -18,7 +18,8 @@
 //       window round it (a quarter of a screen above and below, one to two screens tall), or, for a change longer
 //       than two screens, its first and last screen stacked. Ballots once showed only the first screen whenever
 //       that changed, so a fix lower on the page (a contact page's message box) couldn't win (roadmap step 2,
-//       2026-11-18). ballot.json records each ballot's view and the rows it shows.
+//       2026-11-18). ballot.json records each ballot's view and the rows it shows. Fixes that add or take away a page
+//       are refused (the round stays open to revise them): a round judges changes to the pages that were there.
 //       Look at each ballot-NN.png in design/critique/round-N/ and write LEFT or RIGHT into ballot.json, then:
 //   node scripts/design-critique.mjs decide
 //       keeps the fixes only if "after" wins both ways round on every changed page; otherwise reverts them.
@@ -115,7 +116,7 @@ export function changedRegion(a, b) {
   return { top, before: a.height - tail, after: b.height - tail };
 }
 
-// What a ballot shows of a changed page (the same rows on both sides): { view: "first" } for the first screen,
+// What a ballot shows of a changed page: { view: "first" } for the first screen,
 // { view: "full" } for the whole page when the rows can't be aligned, or { view: "change", crops: { before, after } },
 // each a list of { top, height } windows on that side's full-page screenshot.
 export function ballotView(region, { screen, beforeHeight, afterHeight }) {
@@ -123,14 +124,14 @@ export function ballotView(region, { screen, beforeHeight, afterHeight }) {
   const end = Math.max(region.before, region.after);
   if (end <= screen) return { view: "first" };
   const margin = Math.round(screen / 4);
-  const shortest = Math.min(beforeHeight, afterHeight);
   if (end - region.top + 2 * margin <= 2 * screen) {
-    // One window, at least a screen tall, the change in the middle of it when it is shorter than that.
+    // One window, at least a screen tall, the change in the middle of it when it is shorter than that. Each side keeps
+    // the window within its own page, so a fix that makes the page longer or shorter near its end still shows the
+    // whole change on the longer side (a shared window, clamped to the shorter page, cut it off).
     const height = Math.max(screen, end - region.top + 2 * margin);
     const centred = Math.round(region.top - (height - (end - region.top)) / 2);
-    const top = Math.max(0, Math.min(centred, shortest - height));
-    const one = { top, height };
-    return { view: "change", crops: { before: [one], after: [one] } };
+    const win = (pageHeight) => ({ top: Math.max(0, Math.min(centred, pageHeight - height)), height });
+    return { view: "change", crops: { before: [win(beforeHeight)], after: [win(afterHeight)] } };
   }
   // A long change (two fixes far apart, or one that moves everything): its first screen and its last.
   const first = { top: Math.max(0, region.top - margin), height: screen };
@@ -156,6 +157,13 @@ export async function cropStack(file, crops) {
     y += c.height;
   }
   return sharp({ create: { width, height: total, channels: 4, background: "#888888" } }).composite(parts).png().toBuffer();
+}
+
+// The pages a round's fixes add or take away, from the before and after screenshot names ("<page>-<width>-first.png").
+export function pageChanges(beforeShots, afterShots) {
+  const pagesIn = (list) => new Set(list.filter((f) => f.endsWith("-first.png")).map((f) => f.replace(/-\d+-first\.png$/, "")));
+  const [was, now] = [pagesIn(beforeShots), pagesIn(afterShots)];
+  return { added: [...now].filter((p) => !was.has(p)), removed: [...was].filter((p) => !now.has(p)) };
 }
 
 const rawPixels = async (file) => {
@@ -294,17 +302,21 @@ if (cmd === "start") {
   }
   const after = join(roundDir(round.n), "after");
   const before = join(roundDir(round.n), "before");
+  rmSync(after, { recursive: true, force: true });
   const shots = await screenshots(after);
+  // A round judges changes to the pages that were there: a page the fixes add has nothing to compare with, and one
+  // they take away can't be judged, so such a round is refused rather than accepted on the other pages alone.
+  const { added, removed } = pageChanges(readdirSync(before), shots);
+  if (added.length || removed.length) {
+    writeState(state);
+    throw new Error(`The fixes ${[added.length && `add ${added.join(", ")}`, removed.length && `take away ${removed.join(", ")}`].filter(Boolean).join(" and ")}. A critique round only judges changes to the pages that were there: undo that part of the fixes (add or remove pages outside the critique), then run compare again.`);
+  }
   const same = (s) => readFileSync(join(before, s)).equals(readFileSync(join(after, s)));
   // Every changed page and width, judged on what changed (see the header): its first screen, or the rows that differ.
   const changed = [];
   for (const first of shots.filter((s) => s.endsWith("-first.png"))) {
     const shot = first.replace(/-first\.png$/, "");
     const full = `${shot}-full.png`;
-    if (!existsSync(join(before, first)) || !existsSync(join(before, full))) {
-      console.log(`note  ${shot}: a new page, with nothing to compare it with, so it isn't judged`);
-      continue;
-    }
     if (same(first) && same(full)) continue;
     const screen = Number(shot.match(/-(\d+)$/)[1]) > 600 ? 900 : 844;
     const [b, a] = await Promise.all([rawPixels(join(before, full)), rawPixels(join(after, full))]);

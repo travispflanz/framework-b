@@ -49,6 +49,7 @@ typography:
 rounded:
   control: 6px
   card: 8px
+  field: 6px
 spacing:
   gutter: 16px
   section: 64px
@@ -82,7 +83,7 @@ components:
   input:
     backgroundColor: "{colors.bg}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
+    rounded: "{rounded.field}"
 ---
 
 # Design
