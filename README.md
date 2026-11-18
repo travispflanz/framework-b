@@ -85,7 +85,7 @@ A site has two modes:
     comparing them in pairs both ways round;
   - with you involved, it shows you this-or-that image pairs first, then the three designs to pick from;
   - after the gates pass, up to three critique rounds, each change kept only if it wins a side-by-side comparison
-    both ways.
+    both ways, on the part of the page it changed.
 - Design research through four lenses, never the industry alone: the business and its goals, its field, current
   design (dated trend reports from outside the field too) and the site's own look (its photos, type and colour).
   Every design step draws on it: the look, the logo, the style guide, images, print and social.

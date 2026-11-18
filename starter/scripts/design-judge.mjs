@@ -11,8 +11,8 @@
 //
 // Two views of every pair, each both ways round: "first", the first screen (1280 × 900, the calibrated view), and
 // "rest", the tile below it (the colours, the type, the site's real form and the first section after the hero).
-// The first screen only once showed nothing of a draft's form, so a draft whose pill buttons rounded the message box
-// into an oval could win (roadmap step 2, 2026-11-18).
+// Until 2026-11-18 the ballots showed the first screen only, so nothing below the hero (a draft's form, say) was ever
+// judged (roadmap step 2).
 // Rules: a tile beats another only if it wins the first screen both ways round, and the other doesn't win the rest
 // both ways round; anything else (a split, one way only, or a lower half that loses both ways) is a tie. The rest of
 // the tile can stop a win but never make one: that view isn't calibrated (untested against the calibration set).
