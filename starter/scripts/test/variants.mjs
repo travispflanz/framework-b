@@ -35,7 +35,7 @@ try {
   // Pill buttons (rounded.control 999px) in a DESIGN.md written before rounded.field existed (no field token, inputs
   // on the control radius): the form fields take the derived field radius (the card's), so the message box is no oval.
   writeFileSync("DESIGN.md", design.replace(/^(composition|imagery):\n(  .*\n)+/gm, "").replace(/\ncomponents:\n/, `\n${composition}components:\n`).replace(/^(  focus: .*\n)/m, `$1${inverse}`)
-    .replace(/^  control: .*$/m, "  control: 999px").replace(/^  field: .*\n/m, "").replaceAll("{rounded.field}", "{rounded.control}"));
+    .replace(/^  control: .*$/m, "  control: 999px").replace(/^(rounded:\n(?:  .*\n)*?)  field: .*\n/m, "$1").replaceAll("{rounded.field}", "{rounded.control}"));
   run("node", ["scripts/design-tokens.mjs"]);
 
   // Test images: plain gradients, given the design's treatment, credited as generated. Two are marked photorealistic
