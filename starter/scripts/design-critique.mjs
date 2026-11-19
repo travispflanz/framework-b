@@ -133,10 +133,15 @@ export function ballotView(region, { screen, beforeHeight, afterHeight }) {
     const win = (pageHeight) => ({ top: Math.max(0, Math.min(centred, pageHeight - height)), height });
     return { view: "change", crops: { before: [win(beforeHeight)], after: [win(afterHeight)] } };
   }
-  // A long change (two fixes far apart, or one that moves everything): its first screen and its last.
+  // A long change (two fixes far apart, or one that moves everything): its first screen and its last. A side whose
+  // own change ends within reach of the first screen (a fix that adds a long stretch shows little on the side
+  // without it) gets one window as tall as the other side's two, so no rows are shown twice or out of order.
   const first = { top: Math.max(0, region.top - margin), height: screen };
-  const last = (height, changeEnd) => ({ top: Math.max(0, Math.min(height, changeEnd + margin) - screen), height: screen });
-  return { view: "change", crops: { before: [first, last(beforeHeight, region.before)], after: [first, last(afterHeight, region.after)] } };
+  const side = (height, changeEnd) => {
+    const last = { top: Math.max(0, Math.min(height, changeEnd + margin) - screen), height: screen };
+    return last.top >= first.top + first.height ? [first, last] : [{ top: first.top, height: 2 * screen + GAP }];
+  };
+  return { view: "change", crops: { before: side(beforeHeight, region.before), after: side(afterHeight, region.after) } };
 }
 
 // One side of a "change" ballot: the windows cut from its full-page screenshot, stacked, with a dark band between

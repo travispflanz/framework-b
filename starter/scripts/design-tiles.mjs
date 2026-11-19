@@ -120,7 +120,10 @@ try {
     // The tile's first screen is the home page's: its hero in the layout this draft gives the home page.
     const { composition } = JSON.parse(readFileSync(join(SITE, "src/styles/design.json"), "utf8"));
     const want = heroLayout(homeHero, { home: true, heroes: composition.heroes });
-    if (homeHero && (shown.hero !== want || shown.heroFor !== "home")) {
+    // A hero without data-hero (a site's own Hero.astro, kept through an update) can't be checked: say so, as the QA
+    // gate skips it.
+    if (homeHero && !shown.hero) console.log(`  note  ${name}: the tile's hero doesn't say its layout (no data-hero on the site's own Hero.astro), so it isn't checked`);
+    else if (homeHero && (shown.hero !== want || shown.heroFor !== "home")) {
       results.push({ name, ok: false, hero: shown.hero, why: `the tile shows the ${shown.heroFor || "unknown"} hero "${shown.hero}", but this draft gives the home page "${want}" (composition.heroes.home)`, front });
       console.log(`✗ ${name}: ${results.at(-1).why}`);
       continue;

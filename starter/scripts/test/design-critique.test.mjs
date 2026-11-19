@@ -137,6 +137,19 @@ test("two changes far apart are shown as the first and last screen of the change
   assert.equal(ballotView({ top: 0, before: 10, after: 10, unaligned: true }, { ...SCREEN, beforeHeight: 10, afterHeight: 10 }).view, "full");
 });
 
+test("a long change on one side only: the short side shows one tall window, never the same rows twice", () => {
+  // A fix that inserts about two screens: the after side has the long change, the before side a short one.
+  const view = ballotView({ top: 1500, before: 1500, after: 3200 }, { screen: 844, beforeHeight: 3300, afterHeight: 5000 });
+  assert.equal(view.crops.after.length, 2);
+  assert.ok(view.crops.after[1].top >= view.crops.after[0].top + view.crops.after[0].height, "the after side's windows are in order");
+  assert.deepEqual(view.crops.before, [{ top: 1289, height: 2 * 844 + GAP }], "one window, as tall as two and the band");
+  // The other way round (a fix that removes the stretch).
+  const back = ballotView({ top: 1500, before: 3200, after: 1500 }, { screen: 844, beforeHeight: 5000, afterHeight: 3300 });
+  assert.equal(back.crops.after.length, 1);
+  assert.equal(back.crops.before.length, 2);
+  for (const side of ["before", "after"]) assert.equal(back.crops[side].reduce((n, c) => n + c.height, 0) + GAP * (back.crops[side].length - 1), 2 * 844 + GAP, `${side}: both sides are as tall`);
+});
+
 test("a ballot side is cut from the full-page screenshot, windows stacked, grey past the end of the page", async () => {
   const dir = mkdtempSync(join(tmpdir(), "fb-critique-"));
   try {
