@@ -8,8 +8,9 @@
 // Checks: content, layout at 360/768/1280/1920 px, console errors, banned fonts, axe (WCAG 2.2 AA tags),
 // page structure, text over images (contrast against the picture behind it, at 360 and 1280 px), one design language
 // (every page title in the home page's treatment, no bare photo banner, pictures at the home page's rhythm, every
-// section balanced about the centre, a focal point on every heavy crop, a logo as tall as the buttons;
-// scripts/lib/cohesion.mjs), Lighthouse (mobile)
+// section balanced about the centre, a focal point on every heavy crop, a logo as tall as the buttons, the home page's
+// hero in the home page's layout; scripts/lib/cohesion.mjs), no multi-line field rounded into an oval
+// (scripts/lib/fields.mjs), Lighthouse (mobile)
 // accessibility / best practices / SEO = 100 and CLS < 0.1.
 // Screenshots, the site sheets (site-sheet-1280.png, site-sheet-360.png: the first screen of every page), the crop
 // sheets (crop-sheet-1280.png, crop-sheet-360.png: every cropped picture, with the part that shows outlined) and a JSON
@@ -30,6 +31,7 @@ import { checker, consoleErrorText, launchBrowser, ownConsoleError, startLocalSi
 import { accessAuth } from "./lib/access-auth.mjs";
 import { measureImageText } from "./lib/image-text.mjs";
 import { balance, bareBanners, cropSheet, crops, logoFit, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
+import { multiLineFields, ovalField } from "./lib/fields.mjs";
 import { unwritten } from "./lib/style-guide.mjs";
 import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
 import { FILE as RESEARCH, unwrittenLenses } from "./lib/design-research.mjs";
@@ -317,6 +319,12 @@ try {
         // bare photo banner (a wide photo goes with the title or with text beside it).
         titles[path] = await titleStyle(page);
         rhythm[path] = await pictureRhythm(page);
+        // The home page's hero takes composition.heroes.home and every other page's the inner pages' family: the
+        // hero says which it took (data-hero-for). A static build once gave the home page the inner pages' hero,
+        // because its URL there is /index.html (2026-11-18).
+        const heroFor = await page.evaluate(() => document.querySelector("[data-hero-for]")?.dataset.heroFor);
+        const wantFor = path === "/" ? "home" : "page";
+        if (heroFor) check(`design ${path}: the hero takes the ${wantFor === "home" ? "home page's" : "inner pages'"} layout (composition.heroes)`, heroFor === wantFor, heroFor === wantFor ? "" : `it took the ${heroFor} layout`);
         const banners = await bareBanners(page);
         check(`layout ${path}: no bare photo banner (a wide photo carries text or sits beside it)`, banners.length === 0, banners.join("; "));
         // Balance (SPEC section 12): no section leaves one side of the page empty.
@@ -331,6 +339,11 @@ try {
         const unset = found.filter((c) => c.needs.length);
         check(`crops ${tag}: every picture cropped by a third or more has a focal point on that axis`, unset.length === 0,
           unset.map((c) => `${c.src} shows ${Math.round(c.shows[0] * 100)}%×${Math.round(c.shows[1] * 100)}%, set ${c.needs.join(" and ")}`).join("; "));
+        // Multi-line fields keep a box's shape whatever the buttons' radius (scripts/lib/fields.mjs).
+        const fields = await multiLineFields(page);
+        const ovals = fields.filter(ovalField);
+        if (fields.length) check(`fields ${tag}: no multi-line field is rounded into an oval (rounded.field in DESIGN.md)`, ovals.length === 0,
+          ovals.map((f) => `"${f.name}" has ${f.radius}px corners on a ${f.height}px field`).join("; "));
         // The logo is at least as tall as the buttons beside it (or in the phone bar).
         const fit = await logoFit(page);
         if (fit) check(`logo ${tag}: the header logo is as tall as the tallest button (composition.logo in DESIGN.md)`, fit.logo + 0.5 >= fit.tallest,

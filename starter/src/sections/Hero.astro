@@ -19,20 +19,23 @@ import Points from "./HeroPoints.astro";
 import Picture from "./Picture.astro";
 import { accent, lines, inline, plain } from "./text.js";
 import Eyebrow from "./Eyebrow.astro";
-import { composition, variantOf } from "./design.js";
-import { VARIANTS } from "./schema.js";
+import { composition } from "./design.js";
+import { heroLayout, isHomePath } from "./hero-layout.js";
 
-interface Props { value: Record<string, any>; blockKey?: string }
-const { value } = Astro.props;
+// home: this is the home page's hero (index.astro and the style tile say so; without it the URL decides).
+interface Props { value: Record<string, any>; blockKey?: string; home?: boolean }
+const { value, home } = Astro.props;
 const points = lines(value.points).slice(0, 4);
 const hasImage = !!value.image?.src;
 // The route sets the hero (composition.heroes in DESIGN.md): one layout for the home page and a family for every
 // other page (a page picks one with `variant`; without one it gets the first), so a page added later looks like the
 // rest. A hero with no picture falls back to a statement, in the same title treatment (composition.titleCase and
-// composition.align), so the page title reads the same on every page.
-const route = composition.heroes ? (Astro.url.pathname.replace(/\/$/, "") === "" ? composition.heroes.home : [].concat(composition.heroes.page)[0]) : undefined;
-const chosen = VARIANTS.fb_hero.includes(value.variant) ? value.variant : route || variantOf("fb_hero", value);
-const variant = hasImage ? chosen : chosen === "bento" ? "bento" : "statement";
+// composition.align), so the page title reads the same on every page. The page says whether it is the home page: the
+// URL alone gave the home page of a static build ("/index.html") and the style tile ("/design-tile") the inner pages'
+// hero. data-hero and data-hero-for name the layout and the route it came from, for the QA gate and the style tiles.
+const isHome = home ?? isHomePath(Astro.url.pathname);
+const variant = heroLayout(value, { home: isHome, heroes: composition.heroes });
+const heroFor = isHome ? "home" : "page";
 const center = composition.align === "center";
 const onDark = variant === "full-bleed";
 const titleCase = { uppercase: composition.titleCase === "upper" };
@@ -49,7 +52,7 @@ const statementSplit = !center && statementRest;
 const longTitle = plain(value.headline).length > 40;
 ---
 {variant === "poster" || variant === "poster-page" ? (
-  <section id={value.anchor_id || undefined} class:list={["panel panel-wide panel-hero", { "panel-page": variant === "poster-page" }]} data-side="left">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class:list={["panel panel-wide panel-hero", { "panel-page": variant === "poster-page" }]} data-side="left">
     <Picture image={value.image} sizes="100vw" class="panel-image" eager />
     <div class="panel-dim" aria-hidden="true"></div>
     <div class="panel-copy scrim-block grid gap-4">
@@ -61,7 +64,7 @@ const longTitle = plain(value.headline).length > 40;
     <h1 class:list={["panel-title font-display text-on-scrim", variant === "poster" ? "type-display-l" : "text-display", titleCase]} set:html={accent(value.headline)} />
   </section>
 ) : variant === "poster-card" ? (
-  <section id={value.anchor_id || undefined} class="hero-card bg-surface px-gutter">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class="hero-card bg-surface px-gutter">
     <div class="hero-card-grid mx-auto w-full max-w-content">
       <div class="hero-card-copy grid content-end gap-6">
         {value.eyebrow && <Eyebrow text={value.eyebrow} class={eyebrowCase} />}
@@ -74,7 +77,7 @@ const longTitle = plain(value.headline).length > 40;
     </div>
   </section>
 ) : variant === "poster-edge" ? (
-  <section id={value.anchor_id || undefined} class="hero-edge bg-surface">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class="hero-edge bg-surface">
     <div class="hero-edge-photo"><Picture image={value.image} sizes="(min-width: 1024px) 40vw, 100vw" eager /></div>
     <div class="hero-edge-copy grid content-end gap-6 px-gutter">
       {value.eyebrow && <Eyebrow text={value.eyebrow} class={eyebrowCase} />}
@@ -85,7 +88,7 @@ const longTitle = plain(value.headline).length > 40;
     </div>
   </section>
 ) : variant === "full-bleed" ? (
-  <section id={value.anchor_id || undefined} class="hero-bleed relative isolate overflow-hidden bg-ink px-gutter py-section">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class="hero-bleed relative isolate overflow-hidden bg-ink px-gutter py-section">
     <Picture image={value.image} sizes="100vw" class="parallax absolute inset-0 -z-20 size-full object-cover" eager />
     <div class="hero-scrim absolute inset-0 -z-10" aria-hidden="true"></div>
     <div class:list={["mx-auto grid w-full max-w-content gap-6 py-16", { "justify-items-center text-center": center }]}>
@@ -97,7 +100,7 @@ const longTitle = plain(value.headline).length > 40;
     </div>
   </section>
 ) : variant === "statement" ? (
-  <section id={value.anchor_id || undefined} class="bg-surface px-gutter pt-section">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class="bg-surface px-gutter pt-section">
     <div class:list={["reveal mx-auto grid w-full max-w-content gap-6", center ? "justify-items-center text-center" : statementSplit && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-x-16"]}>
       <div class:list={["grid gap-6", { "justify-items-center": center }]}>
         {value.eyebrow && <Eyebrow text={value.eyebrow} center={center} class={eyebrowCase} />}
@@ -114,7 +117,7 @@ const longTitle = plain(value.headline).length > 40;
     <div class="pb-section" />
   </section>
 ) : variant === "editorial" ? (
-  <section id={value.anchor_id || undefined} class="bg-surface px-gutter py-section">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class="bg-surface px-gutter py-section">
     <div class="mx-auto grid w-full max-w-content items-end gap-10 lg:grid-cols-12">
       <div class="reveal grid gap-6 lg:col-span-5 lg:pb-12">
         {value.eyebrow && <p class="border-l-4 border-accent pl-3 text-label text-ink">{value.eyebrow}</p>}
@@ -129,7 +132,7 @@ const longTitle = plain(value.headline).length > 40;
     </div>
   </section>
 ) : variant === "bento" ? (
-  <section id={value.anchor_id || undefined} class="bg-surface px-gutter py-section">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class="bg-surface px-gutter py-section">
     <div class="mx-auto grid w-full max-w-content gap-4 md:grid-cols-6">
       <div class="card grid content-end gap-5 p-8 md:col-span-4 md:row-span-2">
         {value.eyebrow && <Eyebrow text={value.eyebrow} center={center} class={eyebrowCase} />}
@@ -146,7 +149,7 @@ const longTitle = plain(value.headline).length > 40;
     </div>
   </section>
 ) : variant === "fade" && hasImage ? (
-  <section id={value.anchor_id || undefined} class="hero-fade relative isolate overflow-hidden bg-bg">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class="hero-fade relative isolate overflow-hidden bg-bg">
     <div class="hero-fade-photo">
       <Picture image={value.image} sizes="(min-width: 1024px) 60vw, 100vw" class="size-full object-cover" eager />
     </div>
@@ -161,7 +164,7 @@ const longTitle = plain(value.headline).length > 40;
     </div>
   </section>
 ) : (
-  <section id={value.anchor_id || undefined} class="bg-surface px-gutter py-section">
+  <section id={value.anchor_id || undefined} data-hero={variant} data-hero-for={heroFor} class="bg-surface px-gutter py-section">
     <div class:list={["mx-auto grid w-full max-w-content items-center gap-10", { "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]": hasImage }]}>
       <div class:list={["reveal grid gap-6", { "justify-items-center text-center": center && !hasImage }]}>
         {value.eyebrow && <p class="w-fit rounded-full bg-highlight px-3 py-1 text-label text-highlight-ink">{value.eyebrow}</p>}

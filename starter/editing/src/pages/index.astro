@@ -11,5 +11,5 @@ const page = await pageContent("home", Astro);
 const title = page?.title && page.title !== "Home" ? page.title : undefined;
 ---
 <Base bleed exactTitle={title} description={page?.description}>
-  <Sections sections={page?.sections || []} />
+  <Sections sections={page?.sections || []} home />
 </Base>

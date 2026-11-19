@@ -1,7 +1,9 @@
 ---
 // A style tile: one DESIGN.md draft rendered on the site's real content. scripts/design-tiles.mjs adds this page to
 // the site only while it builds each draft (into a scratch folder) and removes it afterwards; it never ships.
-// Shows: the real hero, the colour tokens, the type scale, the site's real form, and the first section after the hero.
+// Shows: the home page's real hero in the layout the draft gives the home page (composition.heroes.home: the page is
+// /design-tile, so it says `home` rather than leave the URL to decide), the colour tokens, the type scale, the site's
+// real form, and the first section after the hero.
 export const prerender = true;
 import { parse } from "yaml";
 // Bundled as text: editing sites prerender inside the Workers runtime, which has no filesystem.
@@ -22,7 +24,7 @@ const formId = page.sections.find((s) => s._type === "fb_form")?.form || Object.
 const draft = import.meta.env.TILE_NAME || front.name || "draft";
 ---
 <Base title={`Style tile: ${draft}`} noindex bleed>
-  {hero && <Sections sections={[hero]} />}
+  {hero && <Sections sections={[hero]} home />}
   <section class="bg-surface px-gutter py-section">
     <div class="mx-auto grid max-w-content gap-section">
       <div>

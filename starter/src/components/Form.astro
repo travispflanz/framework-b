@@ -4,6 +4,8 @@
 // Fields may carry "step": n to split the form into steps; validation runs per step, and form.steps[n - 1]
 // ({ title, intro }) heads step n; form.note is a line under the submit button. Hints, the opt-in line, the
 // consent label and the note take inline **bold**, *italic* and [links](/path). radio and checkboxes fields draw their options (grouped by option.group).
+// Text fields, selects and the message box take the field radius (rounded.field in DESIGN.md; by default the smaller
+// of the button and card radii), so pill buttons don't round a multi-line field into an oval.
 import raw from "../../site.config.json";
 import { loadConfig } from "../../core/src/config.js";
 import { inline } from "../sections/text.js";
@@ -85,10 +87,10 @@ const groups = (options) => options.reduce((out, o) => {
             {f.type === "textarea" ? (
               <textarea id={fieldId(f.name)} name={f.name} rows="5" required={f.required} maxlength={f.maxLength} placeholder={f.placeholder}
                 aria-describedby={[f.hint && `${fieldId(f.name)}-hint`, `${fieldId(f.name)}-err`].filter(Boolean).join(" ")}
-                class="rounded-[var(--radius-control)] border border-[var(--color-field)] bg-[var(--color-bg)] p-3"></textarea>
+                class="rounded-field border border-[var(--color-field)] bg-[var(--color-bg)] p-3"></textarea>
             ) : f.type === "select" ? (
               <select id={fieldId(f.name)} name={f.name} required={f.required} aria-describedby={`${fieldId(f.name)}-err`}
-                class="rounded-[var(--radius-control)] border border-[var(--color-field)] bg-[var(--color-bg)] p-3">
+                class="rounded-field border border-[var(--color-field)] bg-[var(--color-bg)] p-3">
                 <option value="">Choose…</option>
                 {f.options.map((o) => <option value={o.value ?? o}>{o.label ?? o}</option>)}
               </select>
@@ -96,7 +98,7 @@ const groups = (options) => options.reduce((out, o) => {
               <input id={fieldId(f.name)} name={f.name} type={f.type} required={f.required} maxlength={f.maxLength}
                 autocomplete={f.autocomplete} placeholder={f.placeholder} inputmode={f.inputmode}
                 aria-describedby={[f.hint && `${fieldId(f.name)}-hint`, `${fieldId(f.name)}-err`].filter(Boolean).join(" ")}
-                class="rounded-[var(--radius-control)] border border-[var(--color-field)] bg-[var(--color-bg)] p-3" />
+                class="rounded-field border border-[var(--color-field)] bg-[var(--color-bg)] p-3" />
             )}
             <p id={`${fieldId(f.name)}-err`} class="text-sm text-[var(--color-error)]" data-fb-error={f.name}></p>
           </div>

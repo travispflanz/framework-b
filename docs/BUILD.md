@@ -160,8 +160,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      each of the owner's conditions. Tell the owner about anything the build changed, with the trade-off.
   9. Write the owner a shot list: each image slot, what the frame has to do and where it leaves room for text.
 - Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette, type pair and composition; install their fonts), then:
-  - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content (drafts that fail the design checks are rejected);
-  - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which, then `node scripts/design-judge.mjs tally`;
+  - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content, with the home page's hero in the layout each draft gives the home page (drafts that fail the design checks are rejected);
+  - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which (ballots marked `first` show the first screens, `rest` the tiles below them: the form, type and next section), then `node scripts/design-judge.mjs tally`: the first screen decides, and the rest of the tile can only stop a win;
   - copy the pick (or, on a tie, the draft closer to the brief) to `DESIGN.md` and record the result in its Overview.
   With an owner intake, the owner picks from `design/tiles/index.html` instead.
 - With or without an owner, the logo and then the style guide (steps 5 and 6 of the route method above) come once
@@ -260,7 +260,8 @@ With editing on, the same command also fills the missing resource IDs. Never com
 When the gates pass, run the critique rounds in the same copy (at most three; SPEC section 8 and the header of
 `scripts/design-critique.mjs`): `node scripts/design-critique.mjs start`, fill in `design/critique/round-N.md`
 (five 1–5 scores, the tells, at most three located fixes), `score`, apply the fixes without committing, `compare`
-(rebuild, QA gate, ballots), answer each ballot LEFT or RIGHT without looking up which side is which, then `decide`.
+(rebuild, QA gate, ballots: each shows what the fixes changed, the first screen or a window on the part of the page
+that changed), answer each ballot LEFT or RIGHT without looking up which side is which, then `decide`.
 A fix is kept only if it wins both ways round on every changed page; otherwise it is reverted. Copy the kept files
 (listed in `design/critique/state.json`) and `design/critique/` back to the site's branch.
 
