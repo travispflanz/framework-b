@@ -132,7 +132,8 @@ A site has two modes:
 - Every lead is stored in Cloudflare D1, with where the visitor came from (UTM tags, referrer, landing page).
 - `/admin` behind a Cloudflare Access email login: a lead list, lead details, file downloads, and CSV exports of
   leads and subscribers.
-- Every form subscribes the visitor (one line under the button says so), or, in checkbox mode, only a visitor who ticks the consent box.
+- Every form subscribes the visitor (one line under the button says so), or, in checkbox mode, only a visitor who ticks the consent box. A plain message form (`consent: "none"`) subscribes no one, and a waitlist form signs people up to hear news.
+- The privacy and thanks pages are written from the forms: what each form does with an address, no sign-up wording when no form subscribes anyone, and a thanks page that says "we'll reply" for a message and "you're on the list" for a waitlist.
 - `/go` for printed QR codes and campaign links: it redirects and keeps the `src` and `utm_*` tags as attribution. Every email carries an unsubscribe link,
   and newsletters and drips also support one-click unsubscribe in the mail app.
 
@@ -301,10 +302,12 @@ pull request first. The inputs for each workflow are in `ops/ops-repo/README.md`
 ### Kickoff brief (`brief.json`)
 
 The agent turns your prompt into this file (format and defaults: `scripts/site/lib/brief.mjs`). Every answer is
-recorded as stated by you, inferred by the agent, or a framework default.
+recorded as stated by you, chosen by the agent (when you let it pick the idea and it wrote the brief itself),
+inferred by the agent, or a framework default.
 
 | Field | Values | Default |
 |---|---|---|
+| `answeredBy` | `owner` (your prompt gave the answers) or `agent` (autopilot: the agent's own choices, recorded as `agent` in `DECISIONS.md`) | `owner` |
 | `business.name` | text | required |
 | `owner.email` | your inbox | required |
 | `business.offer`, `audience`, `location`, `serviceArea`, `phone`, `postalAddress` | text | empty (the agent infers the offer) |
@@ -313,7 +316,7 @@ recorded as stated by you, inferred by the agent, or a framework default.
 | `audienceRegion` | `us`, `eu`, `uk`, `ca`, … | `us` |
 | `consent` | `auto` (every form subscribes) or `checkbox` (a consent box) | `checkbox` for EU, UK and Canada; otherwise `auto` |
 | `shape` | `landing`, `full`, `hybrid` | `landing` |
-| `forms` | list of `{ id, purpose }` | one `contact` form |
+| `forms` | list of `{ id, purpose, kind, consent, title, submitLabel }`: `kind` is `message` (someone answers it) or `waitlist` (an email and an optional name); `consent` is `none` (a plain message form that adds no one to a list), `optional` or `required` (the consent box in checkbox mode) | one `contact` message form; a form whose id, or whole purpose, is a list's name (waitlist, mailing list, newsletter) is a `waitlist`, whose box is `required` in checkbox mode |
 | `autoReply` | `true` / `false` | `false` |
 | `indexing` | `true` / `false` | `false` |
 | `editing` | `true` / `false` | `false` |
@@ -343,7 +346,7 @@ Checked when the Worker starts (`packages/core/src/config.js`); a bad combinatio
 | `site.logo` | The logo file (`/logo.svg`), set by `node scripts/logo.mjs pick` |
 | `site.phone` | Adds a Call button to the phone action bar |
 | `nav` | Menu items `{ label, href }`; one or two items with `"cta": true` become the header buttons and the phone action bar |
-| `forms.<id>` | `title`, `submitLabel`, `fields`, `confirm` (`{ subject, text }` for the auto-reply; `{first_name}` and `{name}` are filled in), `steps` (a `{ title, intro }` heading per step), `file`, `thanks`, `consent` (`required` or `optional` in checkbox mode; `none` for a plain message form that never subscribes anyone) (see below) |
+| `forms.<id>` | `title`, `submitLabel`, `fields`, `confirm` (`{ subject, text }` for the auto-reply; `{first_name}` and `{name}` are filled in), `steps` (a `{ title, intro }` heading per step), `file`, `thanks`, `consent` (`required` or `optional` in checkbox mode; `none` for a plain message form that never subscribes anyone), `kind` (`message`, the default, or `waitlist`; the generated privacy and thanks pages describe each form by its kind and consent) (see below) |
 | `optIn.mode` | `auto` or `checkbox` |
 | `optIn.text` | The line under every submit button (auto mode) |
 | `optIn.label` | The consent box's label (checkbox mode) |

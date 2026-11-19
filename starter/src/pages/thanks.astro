@@ -1,19 +1,26 @@
 ---
 // The text sits beside the title on wide screens, as in a statement hero, so a short title doesn't leave the right
-// of the page empty (scripts/lib/cohesion.mjs, "balance").
+// of the page empty (scripts/lib/cohesion.mjs, "balance"). What it says follows the forms that send visitors here
+// (src/lib/form-copy.js): a reply for a message, the list for a waitlist sign-up, both when both land here.
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
+import raw from "../../site.config.json";
+import { loadConfig } from "../../core/src/config.js";
+import { thanksCopy } from "../lib/form-copy.js";
+const copy = thanksCopy(loadConfig(raw), "/thanks");
 ---
 <Base title="Thanks" noindex>
   <div class="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-x-16">
-    <PageTitle>Thanks, we got it</PageTitle>
+    <PageTitle>{copy.title}</PageTitle>
     <div>
-      <p class="max-w-[var(--container-prose)]">We'll reply soon.</p>
+      {copy.lines.map((line, i) => <p class:list={["max-w-[var(--container-prose)]", i > 0 && "mt-2"]}>{line}</p>)}
       <p class="mt-2"><a href="/">Back to the home page</a></p>
-      <p id="file-failed" class="mt-4 hidden max-w-[var(--container-prose)] text-[var(--color-error)] target:block">
-        Your message was saved, but your file didn't upload. Reply to our email and attach it there.
-      </p>
+      {copy.file && (
+        <p id="file-failed" class="mt-4 hidden max-w-[var(--container-prose)] text-[var(--color-error)] target:block">
+          Your message was saved, but your file didn't upload. Reply to our email and attach it there.
+        </p>
+      )}
     </div>
   </div>
-  <script is:inline>if (location.hash === "#file-failed") document.getElementById("file-failed").classList.remove("hidden");</script>
+  <script is:inline>if (location.hash === "#file-failed") document.getElementById("file-failed")?.classList.remove("hidden");</script>
 </Base>

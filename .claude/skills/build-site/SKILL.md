@@ -10,7 +10,10 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 ## Checklist
 
 1. **Brief.** Write `brief.json` from the prompt (format in `scripts/site/lib/brief.mjs`). Research the business
-   first; list every answer you chose in `inferred`. Run `node scripts/site/brief.mjs check brief.json` until it passes.
+   first; list every answer you chose in `inferred`. On autopilot with no owner answers (you picked the idea), set
+   `"answeredBy": "agent"` so `DECISIONS.md` records your choices as yours. Give each form its `kind` (`message` or
+   `waitlist`) and `consent` (`none` for a plain message form). Run `node scripts/site/brief.mjs check brief.json`
+   until it passes.
 2. **Create.** Dispatch the ops repo's `site create` with the brief JSON in `brief`. Read the run summary for the URL
    and repo.
 3. **Design.** In the site repo on branch `build/initial`: `PRODUCT.md` (facts with sources, inferred promises
