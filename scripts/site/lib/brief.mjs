@@ -212,7 +212,8 @@ export function siteForms(b, starterForms) {
     const form = structuredClone(list ? WAITLIST_FORM : starterForms[f.id] || message);
     if (list) {
       Object.assign(form, listWords(f));
-      form.confirm = { subject: "You're on the list", text: `Thanks for signing up. We'll email you when there's news.\n\n${b.business.name}` };
+      // The email's footer adds the site's current name.
+      form.confirm = { subject: "You're on the list", text: "Thanks for signing up. We'll email you when there's news." };
     }
     const inherited = list || starterForms[f.id] ? form.title : "";
     const candidates = [inherited, ownTitle(f), idTitle(f)].filter(Boolean);

@@ -207,7 +207,6 @@ test("siteForms: a list form's title, button and confirmation follow its name; n
   for (const id of ["newsletter", "list", "early"]) {
     assert.equal(forms[id].confirm.subject, "You're on the list");
     assert.doesNotMatch(forms[id].confirm.text, /reply/, "a list sign-up's confirmation promises no reply");
-    assert.match(forms[id].confirm.text, /Example Co$/);
   }
   assert.equal(forms.contact.confirm, starter.contact.confirm, "a message form keeps the starter's confirmation");
   // A purpose that repeats another form's title doesn't give two forms the same heading.
