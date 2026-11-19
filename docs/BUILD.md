@@ -58,10 +58,13 @@ section 3's kickoff questions.
   `consent` is `none` for a plain message form that adds no one to a list, or `optional` / `required` for the
   consent box in checkbox mode (the site-wide `consent`); in auto mode every form without `none` subscribes through
   the line under the button. A waitlist's box is `required` by default, and a waitlist can't be `none`. `title` and
-  `submitLabel` are optional; without a `title`, each form gets its own (the contact form keeps the starter's, a
-  waitlist "Join the waitlist", others one from their purpose or id), since the privacy page names forms by it.
-  `create` writes them into `site.config.json` (a waitlist as `"kind": "waitlist"`), and the generated privacy and
-  thanks pages describe each form as it is (SPEC section 5).
+  `submitLabel` are optional; without a `title`, each form gets its own, never another form's (the contact form
+  keeps the starter's; a list form "Get the newsletter" or "Join the mailing list" when its name says so, else "Join
+  the waitlist"; others one from their purpose or id), since the privacy page names forms by it. A list form's
+  confirmation email says the visitor is on the list (it promises no reply). The `DECISIONS.md` row for a form
+  follows its `kind` and `consent`: an inferred one is never credited to the owner, even for a form the owner named.
+  `create` writes them into `site.config.json` (a list form as `"kind": "waitlist"`), and the generated privacy and
+  thanks pages describe each form as it is, saying "the list" so the words fit a newsletter too (SPEC section 5).
 - Research before inferring: the business's market, local rules that change the copy, competitors' prices.
   Research results are facts for `PRODUCT.md`, never `claims`. `claims` holds only proof the owner supplied
   (reviews, counts, awards), each with its source.

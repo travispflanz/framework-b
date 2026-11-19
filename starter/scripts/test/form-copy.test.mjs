@@ -46,7 +46,7 @@ test("a plain message form (consent none): no sign-up or unsubscribe wording", (
 
 test("a waitlist on its own: list wording, and a thanks page that doesn't promise a reply", () => {
   const config = site({ forms: { contact: null, waitlist: WAITLIST } });
-  assert.equal(privacyUse(config).text, "To email you when there's news. Joining the waitlist signs you up for those emails. Each one has an unsubscribe link, and you can unsubscribe at any time.");
+  assert.equal(privacyUse(config).text, "To email you when there's news. Joining the list signs you up for those emails. Each one has an unsubscribe link, and you can unsubscribe at any time.");
   const thanks = thanksCopy(config);
   assert.deepEqual(thanks, { title: "You're on the list", lines: ["We'll email you when there's news."], file: false });
   assert.doesNotMatch(thanks.lines.join(" "), /reply/);
@@ -70,7 +70,7 @@ test("a waitlist beside a plain message form: one line per form, and thanks copy
   });
   assert.deepEqual(thanksCopy(config), {
     title: "Thanks, we got it",
-    lines: ["If you sent us a message, we'll reply soon.", "If you joined the waitlist, we'll email you when there's news."],
+    lines: ["If you sent us a message, we'll reply soon.", "If you joined the list, we'll email you when there's news."],
     file: true,
   });
   // A form with its own thanks page leaves /thanks to the others.
@@ -85,7 +85,11 @@ test("checkbox mode: an optional box is explained per form, a required one signs
     { title: "Get in touch", text: "to answer you, and, if you tick the box, to send you occasional emails." },
     { title: "Join the waitlist", text: "to email you when there's news." },
   ]);
-  assert.equal(thanksCopy(config).lines[1], "If you joined the waitlist, we'll email you when there's news.");
+  assert.equal(thanksCopy(config).lines[1], "If you joined the list, we'll email you when there's news.");
+  // The generated sentences say "the list" (the form's own title aside), so they fit a newsletter or a mailing list too.
+  const newsletter = site({ forms: { newsletter: { ...WAITLIST, title: "Get the newsletter", consent: "required" } }, optIn: { mode: "checkbox" } });
+  const only = site({ forms: { contact: null, newsletter: { ...WAITLIST, title: "Get the newsletter" } } });
+  for (const s of [text(privacyUse(newsletter)), ...thanksCopy(newsletter).lines, text(privacyUse(only)), ...thanksCopy(only).lines]) assert.doesNotMatch(s, /waitlist/i);
 });
 
 test("none of the copy uses the copy lint's words", () => {

@@ -173,7 +173,8 @@ function normalizeForms(list, { consent: mode, inferred, present, sources, error
   });
 }
 
-// A waitlist form: an email and an optional name. Message forms start from the starter's contact form.
+// A list form (kind "waitlist": a waitlist, a newsletter or a mailing list): an email and an optional name. Message
+// forms start from the starter's contact form. Its title and button follow the list's name (listWords).
 export const WAITLIST_FORM = {
   title: "Join the waitlist",
   submitLabel: "Join the waitlist",
@@ -185,24 +186,37 @@ export const WAITLIST_FORM = {
 };
 
 // A form's own title when the brief gives none: its purpose when that is short ("Quote request"), else its id.
-const ownTitle = (f) => {
-  const words = f.purpose.trim() && f.purpose.trim().length <= 40 ? f.purpose.trim() : f.id.replace(/-/g, " ");
-  return words.charAt(0).toUpperCase() + words.slice(1);
-};
+const capital = (words) => words.charAt(0).toUpperCase() + words.slice(1);
+const ownTitle = (f) => capital(f.purpose.trim() && f.purpose.trim().length <= 40 ? f.purpose.trim() : f.id.replace(/-/g, " "));
+const idTitle = (f) => capital(f.id.replace(/-/g, " "));
+
+// A list form's title and button from its name: a newsletter or a mailing list isn't called a waitlist.
+export function listWords(f) {
+  const name = `${f.id} ${f.purpose || ""}`;
+  if (/news[\s-]?letter/i.test(name)) return { title: "Get the newsletter", submitLabel: "Sign up" };
+  if (/mailing[\s-]?list/i.test(name)) return { title: "Join the mailing list", submitLabel: "Sign up" };
+  return { title: WAITLIST_FORM.title, submitLabel: WAITLIST_FORM.submitLabel };
+}
 
 // The new site's `forms` in site.config.json, from the brief and the starter's forms (its contact form is the model for
 // every message form). Only settings that differ from the defaults are written: `kind` for a waitlist, `consent`
 // unless "optional". The default brief gives exactly the starter's contact form. Each form has its own title (the
-// privacy page names forms by it): the brief's, else the starter form's of the same id, else the first waitlist's
-// "Join the waitlist", else one from its purpose or id.
+// privacy page names forms by it): the brief's, else the first unused of the starter form's of the same id (or a
+// list form's listWords), one from its purpose, one from its id, and that with a number. A list form's confirmation
+// email (sent only when the site has a confirm mailer) says it's on the list, not that someone will reply.
 export function siteForms(b, starterForms) {
   const message = starterForms.contact || Object.values(starterForms)[0];
   const used = new Set();
   return Object.fromEntries(b.forms.map((f) => {
-    const model = f.kind === "waitlist" ? WAITLIST_FORM : starterForms[f.id] || message;
-    const form = structuredClone(model);
-    const inherited = f.kind === "waitlist" || starterForms[f.id] ? form.title : "";
-    form.title = f.title || (inherited && !used.has(inherited) ? inherited : ownTitle(f));
+    const list = f.kind === "waitlist";
+    const form = structuredClone(list ? WAITLIST_FORM : starterForms[f.id] || message);
+    if (list) {
+      Object.assign(form, listWords(f));
+      form.confirm = { subject: "You're on the list", text: `Thanks for signing up. We'll email you when there's news.\n\n${b.business.name}` };
+    }
+    const inherited = list || starterForms[f.id] ? form.title : "";
+    const candidates = [inherited, ownTitle(f), idTitle(f)].filter(Boolean);
+    form.title = f.title || candidates.find((t) => !used.has(t)) || `${idTitle(f)} ${used.size + 1}`;
     used.add(form.title);
     if (f.submitLabel) form.submitLabel = f.submitLabel;
     if (f.kind !== "message") form.kind = f.kind;
@@ -260,6 +274,16 @@ export const createInputs = (b) => ({
   CONSENT: b.consent,
 });
 
+// A form's row: its kind and consent decide; the list of forms only when both are framework defaults. A row that is
+// partly the agent's choice or research is never credited to the owner.
+export function formRowSource(sources, i) {
+  const own = [`forms.${i}.kind`, `forms.${i}.consent`].map((p) => sources[p]).filter((x) => x && x !== "default");
+  if (!own.length) return rowSource(sources, "forms");
+  if (own.includes("agent")) return ["Agent's choice", "agent"];
+  if (own.includes("inferred")) return ["Agent's research", "inferred"];
+  return ["Kickoff", "owner"];
+}
+
 // DECISIONS.md rows for the kickoff answers: "owner" for stated, "agent" for the agent's own choices on autopilot
 // (`answeredBy: "agent"`), "inferred" for inferred or default.
 export function decisionRows(b, sources, date) {
@@ -274,7 +298,7 @@ export function decisionRows(b, sources, date) {
     // An EU, UK or Canadian audience chose the consent box when the brief left `consent` out.
     row(`Opt-in: ${noneSubscribe ? "none (no form subscribes anyone)" : b.consent === "checkbox" ? "checkbox (a consent box; only a ticked box subscribes)" : "auto (a line under the button; sending a form subscribes)"}`,
       ...(sources.consent === "default" && GDPR_CASL.has(b.audienceRegion) ? ["consent", "audienceRegion"] : ["consent"])),
-    ...b.forms.map((f, i) => row(`Form ${f.id}${f.purpose && f.purpose !== f.id ? ` (${f.purpose})` : ""}: ${formSummary(f, b.consent)}`, "forms", `forms.${i}.kind`, `forms.${i}.consent`)),
+    ...b.forms.map((f, i) => `| ${date} | Form ${f.id}${f.purpose && f.purpose !== f.id ? ` (${f.purpose})` : ""}: ${formSummary(f, b.consent)} | ${formRowSource(sources, i).join(" | ")} |`),
     row(`Lead auto-reply: ${b.autoReply ? "on" : "off"}`, "autoReply"),
     row(`Search engines: ${b.indexing ? "indexed" : "noindex"}`, "indexing"),
     row(`Client editing (EmDash): ${b.editing ? "on" : "off"}`, "editing"),

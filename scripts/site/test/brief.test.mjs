@@ -128,7 +128,8 @@ test("forms: per-form kind and consent, checked, defaulted and shown in the deci
   const rows = decisionRows(brief, sources, "2026-11-18");
   assert.ok(rows.includes("| 2026-11-18 | Opt-in: auto (a line under the button; sending a form subscribes) | Framework default | inferred |"));
   assert.ok(rows.includes("| 2026-11-18 | Form waitlist (early access): a waitlist sign-up; sending it subscribes the visitor (the line under the button) | Kickoff | owner |"));
-  assert.ok(rows.includes("| 2026-11-18 | Form contact (questions): a message the owner answers; adds no one to a list | Kickoff | owner |"));
+  // The owner named the contact form, but its consent is the agent's inference: the row isn't credited to the owner.
+  assert.ok(rows.includes("| 2026-11-18 | Form contact (questions): a message the owner answers; adds no one to a list | Agent's research | inferred |"));
   // In checkbox mode a waitlist's box is required by default; an EU audience chose that mode.
   const eu = normalizeBrief({ ...base, audienceRegion: "eu", forms: [{ id: "list", purpose: "mailing list" }, { id: "quote" }] });
   assert.deepEqual(eu.brief.forms.map((f) => [f.kind, f.consent]), [["waitlist", "required"], ["message", "optional"]]);
@@ -186,7 +187,7 @@ test("siteForms: the default brief gives the starter's contact form; a waitlist 
   assert.equal(forms.contact.title, "Get in touch", "the contact form keeps the starter's title");
   // Every form has its own title: only the contact form takes the starter's, and only the first waitlist "Join the waitlist".
   const titled = siteForms(normalizeBrief({ ...base, forms: [{ id: "contact" }, { id: "quote", purpose: "quote request" }, { id: "book-a-visit" }, { id: "waitlist" }, { id: "newsletter" }] }).brief, starter);
-  assert.deepEqual(Object.values(titled).map((f) => f.title), ["Get in touch", "Quote request", "Book a visit", "Join the waitlist", "Newsletter"]);
+  assert.deepEqual(Object.values(titled).map((f) => f.title), ["Get in touch", "Quote request", "Book a visit", "Join the waitlist", "Get the newsletter"]);
   assert.equal(forms.quote.consent, undefined, "optional is the default consent, not written");
   assert.equal(starter.contact.consent, undefined, "the starter's form is not changed");
   for (const f of Object.values(forms)) assert.equal(f.thanks, "/thanks");
@@ -196,4 +197,37 @@ test("siteForms: the default brief gives the starter's contact form; a waitlist 
   assert.equal(pointFormSections(home, waitlistOnly).sections.find((x) => x._type === "fb_form").form, "waitlist");
   assert.equal(home.sections.find((x) => x._type === "fb_form").form, "contact", "the starter's page is not changed");
   assert.equal(pointFormSections(home, starter), null, "nothing to change when the form exists");
+});
+
+test("siteForms: a list form's title, button and confirmation follow its name; no two forms share a title", () => {
+  const base = { business: { name: "Example Co", offer: "x" }, owner: { email: "o@example.com" } };
+  const starter = JSON.parse(readFileSync(new URL("../../../starter/site.config.json", import.meta.url), "utf8")).forms;
+  const forms = siteForms(normalizeBrief({ ...base, forms: [{ id: "contact" }, { id: "newsletter" }, { id: "list", purpose: "mailing list" }, { id: "early", kind: "waitlist" }] }).brief, starter);
+  assert.deepEqual(Object.values(forms).map((f) => [f.title, f.submitLabel]), [["Get in touch", "Send"], ["Get the newsletter", "Sign up"], ["Join the mailing list", "Sign up"], ["Join the waitlist", "Join the waitlist"]]);
+  for (const id of ["newsletter", "list", "early"]) {
+    assert.equal(forms[id].confirm.subject, "You're on the list");
+    assert.doesNotMatch(forms[id].confirm.text, /reply/, "a list sign-up's confirmation promises no reply");
+    assert.match(forms[id].confirm.text, /Example Co$/);
+  }
+  assert.equal(forms.contact.confirm, starter.contact.confirm, "a message form keeps the starter's confirmation");
+  // A purpose that repeats another form's title doesn't give two forms the same heading.
+  const twice = siteForms(normalizeBrief({ ...base, forms: [{ id: "contact" }, { id: "general", purpose: "Get in touch" }, { id: "quote", purpose: "General" }] }).brief, starter);
+  const titles = Object.values(twice).map((f) => f.title);
+  assert.equal(new Set(titles).size, titles.length, titles.join(", "));
+  assert.deepEqual(titles, ["Get in touch", "General", "Quote"]);
+});
+
+test("decision rows: a form's kind and consent decide its source, the list of forms only when both are defaults", () => {
+  const base = { business: { name: "Example Co", offer: "x" }, owner: { email: "o@example.com" } };
+  const date = "2026-11-19";
+  // The owner asked for a contact form and an early-access list; the agent set both forms' kind and consent.
+  const b = normalizeBrief({ ...base, forms: [{ id: "contact", consent: "none" }, { id: "early", purpose: "early access", kind: "waitlist", consent: "optional" }], inferred: ["forms.0.consent", "forms.1.kind", "forms.1.consent"] });
+  const rows = decisionRows(b.brief, b.sources, date);
+  assert.ok(rows.includes(`| ${date} | Form contact: a message the owner answers; adds no one to a list | Agent's research | inferred |`), rows.join("\n"));
+  assert.ok(rows.some((r) => r.startsWith(`| ${date} | Form early (early access): a waitlist sign-up;`) && r.endsWith("| Agent's research | inferred |")), rows.join("\n"));
+  // On autopilot every form row is the agent's choice; with the owner's own kind and consent, the owner's.
+  const auto = normalizeBrief({ ...base, answeredBy: "agent", forms: [{ id: "contact", consent: "none" }] });
+  assert.ok(decisionRows(auto.brief, auto.sources, date).some((r) => r.startsWith(`| ${date} | Form contact:`) && r.endsWith("| Agent's choice | agent |")));
+  const owner = normalizeBrief({ ...base, forms: [{ id: "contact", consent: "none" }] });
+  assert.ok(decisionRows(owner.brief, owner.sources, date).some((r) => r.startsWith(`| ${date} | Form contact:`) && r.endsWith("| Kickoff | owner |")));
 });

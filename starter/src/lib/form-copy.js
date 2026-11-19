@@ -1,7 +1,8 @@
 // What the generated privacy and thanks pages (src/pages/privacy.astro, src/pages/thanks.astro) say about the site's
 // forms, worked out from site.config.json so the copy follows what each form actually does.
 //   kind     "message" (the default): someone answers it, as with a contact, quote or booking request.
-//            "waitlist": a sign-up to hear news; nobody answers it one to one.
+//            "waitlist": a sign-up to hear news (a waitlist, a newsletter, a mailing list); nobody answers it one to
+//            one. The copy says "the list", so it fits any of them.
 //   consent  whether sending it subscribes anyone, as packages/core/src/forms.js decides: "none" never does; in auto
 //            mode (`optIn.mode`) every other form does; in checkbox mode only a ticked box does, and a "required" box
 //            must be ticked to send the form at all.
@@ -29,7 +30,7 @@ export function describeForms(config) {
   });
 }
 
-// One form's use of what it collects, after its title ("Join the waitlist: to email you when there's news.").
+// One form's use of what it collects, after its title ("Get the newsletter: to email you when there's news.").
 const USE = {
   message: {
     always: "to answer you, and to send you occasional emails.",
@@ -39,7 +40,7 @@ const USE = {
   waitlist: {
     always: "to email you when there's news.",
     "if-ticked": "to email you when there's news, if you tick the box.",
-    never: "to keep your place on the waitlist. It doesn't add you to any mailing list.",
+    never: "to keep your place on the list. It doesn't add you to any mailing list.",
   },
 };
 // The same, when every form does the same thing.
@@ -50,9 +51,9 @@ const ALL = {
     never: () => "Only to answer you. Sending a form doesn't add you to any mailing list.",
   },
   waitlist: {
-    always: () => "To email you when there's news. Joining the waitlist signs you up for those emails.",
+    always: () => "To email you when there's news. Joining the list signs you up for those emails.",
     "if-ticked": () => "To email you when there's news, if you tick the box on the form. Only a ticked box signs you up.",
-    never: () => "To keep your place on the waitlist. It doesn't add you to any mailing list.",
+    never: () => "To keep your place on the list. It doesn't add you to any mailing list.",
   },
 };
 
@@ -99,7 +100,7 @@ export function thanksCopy(config, path = "/thanks") {
     title: "Thanks, we got it",
     lines: [
       "If you sent us a message, we'll reply soon.",
-      sure ? "If you joined the waitlist, we'll email you when there's news." : "If you joined the waitlist and ticked the box, we'll email you when there's news.",
+      sure ? "If you joined the list, we'll email you when there's news." : "If you joined the list and ticked the box, we'll email you when there's news.",
     ],
     file,
   };
