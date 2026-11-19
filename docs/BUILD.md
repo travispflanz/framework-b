@@ -32,7 +32,8 @@ section 3's kickoff questions.
   "owner": { "email": "owner@example.com" },
   "mode": "idea",
   "shape": "landing",
-  "forms": [{ "id": "contact", "purpose": "quote request" }],
+  "forms": [{ "id": "contact", "purpose": "quote request" },
+            { "id": "waitlist", "kind": "waitlist" }],
   "autoReply": false,
   "indexing": false,
   "editing": false,
@@ -47,11 +48,29 @@ section 3's kickoff questions.
 - Only `business.name` and `owner.email` are required. Ask for those if the prompt lacks them; never guess an inbox.
 - Anything the owner didn't say but the agent chose goes in `inferred`; anything left out takes the framework
   default. `DECISIONS.md` records each answer's source.
+- On autopilot with no owner answers (the owner let the agent pick the idea, and the agent wrote the brief itself),
+  set `"answeredBy": "agent"`: every answer in the brief is then recorded as the agent's choice ("Agent's choice",
+  `agent`), not the owner's. The default, `"owner"`, records them as the owner's ("Kickoff", `owner`).
+- Forms: each one has an `id`, a `purpose` (what it is for, which decides its fields in step 4), a `kind` and a
+  `consent`. `kind` is `message` (someone answers it: contact, quote, booking) or `waitlist` (an email and an
+  optional name, to hear news; the default when the id, or the whole purpose, is a list's name such as waitlist,
+  mailing list or newsletter: set `kind` when in doubt).
+  `consent` is `none` for a plain message form that adds no one to a list, or `optional` / `required` for the
+  consent box in checkbox mode (the site-wide `consent`); in auto mode every form without `none` subscribes through
+  the line under the button. A waitlist's box is `required` by default, and a waitlist can't be `none`. `title` and
+  `submitLabel` are optional; without a `title`, each form gets its own, never another form's (the contact form
+  keeps the starter's; a list form "Get the newsletter" or "Join the mailing list" when its name says so, else "Join
+  the waitlist"; others one from their purpose or id), since the privacy page names forms by it. A list form's
+  confirmation email says the visitor is on the list (it promises no reply). The `DECISIONS.md` row for a form
+  follows its `kind` and `consent`: an inferred one is never credited to the owner, even for a form the owner named.
+  `create` writes them into `site.config.json` (a list form as `"kind": "waitlist"`), and the generated privacy and
+  thanks pages describe each form as it is, saying "the list" so the words fit a newsletter too (SPEC section 5).
 - Research before inferring: the business's market, local rules that change the copy, competitors' prices.
   Research results are facts for `PRODUCT.md`, never `claims`. `claims` holds only proof the owner supplied
   (reviews, counts, awards), each with its source.
 - `node scripts/site/brief.mjs check brief.json`. Fix every error. A warning (EU or Canadian audience, newsletter
-  on an idea, CRM) is shown to the owner with the build's first report.
+  on an idea, CRM, a consent that does nothing in its mode) is shown to the owner with the build's first report. The
+  check also prints who answered, each form's kind and consent, and the `DECISIONS.md` rows `create` will write.
 
 ## 2. Create
 
@@ -59,9 +78,13 @@ Run the ops repo's **site create** with the brief's JSON in the `brief` field (t
 from a session: `gh api repos/<owner>/framework-b-ops/actions/workflows/site-create.yml/dispatches -f ref=main
 -f "inputs[brief]=$(jq -c . brief.json)"`.
 
-It creates every resource, the private repo `site-<id>` with `brief.json` and the kickoff rows in `DECISIONS.md`,
+It creates every resource, the private repo `site-<id>` with `brief.json`, the brief's forms in `site.config.json`
+and the kickoff rows in `DECISIONS.md`,
 the first deploy, Access on `/admin` and previews (with the agent's Service Auth policy), Workers Builds, and the
-uptime monitors (SPEC section 2). The run summary has the URL and the repo.
+uptime monitors (SPEC section 2). The run summary has the URL and the repo. Writing the brief's forms into
+`site.config.json`, pointing the home page's form section at the first form when there is no `contact` form, and the
+`agent` rows of an `"answeredBy": "agent"` brief are unit-tested but *untested* live (the weekly self-test's brief
+leaves `forms` and `answeredBy` at their defaults, which give the starter's contact form and `owner` rows as before).
 
 ## 3. Design (P2)
 
@@ -203,7 +226,9 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 
 ## 4. Content (P3)
 
-- `site.config.json`: forms (fields from the brief's purpose), navigation (one `cta` item), indexing as briefed.
+- `site.config.json`: forms (fields from the brief's purpose; keep each form's `kind` and `consent` as briefed),
+  navigation (one `cta` item), indexing as briefed. A site without a `contact` form shows its first form on `/contact`
+  and in the home page's form section until the content replaces them.
 - `src/content/home.json` (and one file per page for `full` or `hybrid`, each with a `title` and `description`, added to
   `nav`): sections from the library, following the page's argument. Copy uses the owner's facts; nothing invented.
 - Sections: pick each section's `variant` (layout) for what it has to say, and its `phone` behaviour where the default

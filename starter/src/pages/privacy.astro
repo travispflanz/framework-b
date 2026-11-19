@@ -1,7 +1,9 @@
 ---
-// Generated from what the site actually collects (site.config.json), so it can't drift from the forms. A site
-// whose owner has their own privacy wording puts it in src/content/privacy.json, which replaces this page. Each topic's
-// heading sits beside its text on wide screens (.split-row), so the page is balanced (scripts/lib/cohesion.mjs).
+// Generated from what the site actually collects (site.config.json), so it can't drift from the forms: what each form
+// does with an address (a plain message form adds no one to a list, a waitlist signs people up) comes from
+// src/lib/form-copy.js. A site whose owner has their own privacy wording puts it in src/content/privacy.json, which
+// replaces this page. Each topic's heading sits beside its text on wide screens (.split-row), so the page is balanced
+// (scripts/lib/cohesion.mjs).
 import Base from "../layouts/Base.astro";
 import PageTitle from "../components/PageTitle.astro";
 import Sections from "../sections/Sections.astro";
@@ -10,11 +12,16 @@ import { pageContent } from "../lib/page-content.js";
 const custom: any = await pageContent("privacy", Astro);
 import raw from "../../site.config.json";
 import { loadConfig } from "../../core/src/config.js";
+import { privacyUse } from "../lib/form-copy.js";
 const config = loadConfig(raw);
 const forms = Object.entries(config.forms);
 const anyFile = forms.some(([, f]) => f.file.enabled);
-const labels = [...new Set(forms.flatMap(([, f]) => f.fields.filter((x) => x.type !== "hidden").map((x) => x.label || x.name)))];
-const autoReply = config.email.confirm !== "none";
+// One line per field: a field two forms share (a name) is listed once, under the first form's label, and every label
+// is shown without a trailing "(optional)" ("Phone (optional)" is listed as "Phone").
+const named = new Map();
+for (const [, f] of forms) for (const x of f.fields) if (x.type !== "hidden" && !named.has(x.name)) named.set(x.name, (x.label || x.name).replace(/\s*\(optional\)\s*$/i, ""));
+const labels = [...new Set(named.values())];
+const use = privacyUse(config);
 ---
 {custom ? (
 <Base title={custom.title} description={custom.description} bleed>
@@ -35,7 +42,17 @@ const autoReply = config.email.confirm !== "none";
     </div>
     <div class="split-row">
       <h2 class="text-xl font-semibold">How we use it</h2>
-      <p class="max-w-(--container-prose)">To answer you, and to send you occasional emails. Every form signs you up for those emails. Each one has an unsubscribe link, and you can unsubscribe at any time.{autoReply && " After you send a form, you get one confirmation email."}</p>
+      {use.text ? (
+        <p class="max-w-(--container-prose)">{use.text}</p>
+      ) : (
+        <div class="max-w-(--container-prose)">
+          <p>{use.intro}</p>
+          <ul class="mt-2 list-disc pl-6">
+            {use.forms.map((f) => <li><strong>{f.title}</strong>: {f.text}</li>)}
+          </ul>
+          {use.after && <p class="mt-2">{use.after}</p>}
+        </div>
+      )}
     </div>
     <div class="split-row">
       <h2 class="text-xl font-semibold">Spam protection</h2>

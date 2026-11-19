@@ -27,7 +27,7 @@ refuse it.
 ## Leads
 
 Every form submission is stored in the site's database and listed at `/admin` (Cloudflare Access login), with CSV
-export. Every form also subscribes the visitor (one line under the button says so); `/u` unsubscribes them.
+export. Every form also subscribes the visitor (one line under the button says so), except a plain message form (`consent: "none"`); `/u` unsubscribes them.
 
 ## Records
 

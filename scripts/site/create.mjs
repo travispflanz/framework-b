@@ -5,7 +5,8 @@
 //
 // Inputs (environment):
 //   BRIEF            optional: a kickoff brief as JSON (scripts/site/lib/brief.mjs). When set, it supplies SITE_ID,
-//                    SITE_NAME, SITE_TAGLINE, OWNER_EMAIL, EDITING, INDEXING and CRM, and is kept in the site as brief.json
+//                    SITE_NAME, SITE_TAGLINE, OWNER_EMAIL, EDITING, INDEXING, CRM, the consent mode and the forms (each
+//                    with its kind and consent), and is kept in the site as brief.json
 //   SITE_ID          lowercase letters, digits, dashes; becomes the Worker name and repo "site-<id>"
 //   SITE_NAME        display name
 //   SITE_TAGLINE     one line (optional)
@@ -29,7 +30,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { cf, gh, env, log, ApiError } from "./lib/api.mjs";
 import { connectBuilds } from "./lib/builds.mjs";
 import { AGENT_POLICY, attachAgentPolicy, ensureAgentPolicy } from "./lib/access-agent.mjs";
-import { createInputs, decisionRows, normalizeBrief } from "./lib/brief.mjs";
+import { createInputs, decisionRows, kickoffSource, normalizeBrief, pointFormSections, siteForms } from "./lib/brief.mjs";
 import { addMonitors, uptimeEnabled } from "./lib/uptime.mjs";
 import { SELFTEST_UPLOAD_MAX_BYTES, isSelftestSite, selftestUploads } from "./lib/selftest.mjs";
 
@@ -203,6 +204,16 @@ const mailer = process.env.MAILER_URL && process.env.MAILER_SECRET;
 // The phone action bar gets a Call button when the brief has the business's phone number.
 if (kickoff?.brief.business.phone) config.site.phone = String(kickoff.brief.business.phone).trim();
 if (consentMode === "checkbox") config.optIn = { ...(config.optIn || {}), mode: "checkbox" };
+// The brief's forms, each with its kind and consent (a plain message form, a waitlist); the starter's contact form is the
+// model for message forms, and the default brief keeps it exactly. Without a "contact" form, the home page's form
+// section shows the first form (the /contact page does the same), until the content step writes the pages.
+if (kickoff) {
+  config.forms = siteForms(kickoff.brief, config.forms);
+  const homeFile = join(dir, "src/content/home.json");
+  const home = pointFormSections(JSON.parse(readFileSync(homeFile, "utf8")), config.forms);
+  if (home) writeFileSync(homeFile, JSON.stringify(home, null, 2) + "\n");
+  done("forms", kickoff.brief.forms.map((f) => `${f.id} (${f.kind}, consent ${f.consent})`).join(", "));
+}
 config.email = { notify: mailer ? "apps-script" : "none", confirm: mailer && autoReply ? "apps-script" : "none" };
 if (autoReply && !mailer) warn("lead auto-reply asked for, but no Apps Script mailer is configured: auto-replies stay off");
 if (!mailer) warn("No mailer configured: leads are saved in D1 and visible in /admin, but no email is sent yet");
@@ -272,7 +283,7 @@ chmodSync(join(dir, ".githooks/pre-push"), 0o755);
 const today = new Date().toISOString().slice(0, 10);
 if (kickoff) writeFileSync(join(dir, "brief.json"), JSON.stringify(kickoff.brief, null, 2) + "\n");
 appendFileSync(join(dir, "DECISIONS.md"), [
-  `| ${today} | Created in idea mode at https://${host} | Kickoff | owner |`,
+  `| ${today} | Created in idea mode at https://${host} | ${kickoffSource(kickoff?.brief).join(" | ")} |`,
   ...(kickoff
     ? decisionRows(kickoff.brief, kickoff.sources, today)
     : [

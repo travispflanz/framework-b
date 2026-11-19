@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Checks a kickoff brief and prints what a build from it would do.
 //
-//   node scripts/site/brief.mjs check <brief.json>    errors, warnings, every answer with its source; exit 1 on errors
+//   node scripts/site/brief.mjs check <brief.json>    errors, warnings, who answered, every answer with its source, each
+//                                                     form's kind and consent, and the DECISIONS.md rows; exit 1 on errors
 //   node scripts/site/brief.mjs inputs <brief.json>   the create inputs as JSON (for the ops repo's site create)
 //
 // Format and defaults: scripts/site/lib/brief.mjs. Runbook: docs/BUILD.md.
 import { readFileSync } from "node:fs";
-import { createInputs, normalizeBrief } from "./lib/brief.mjs";
+import { createInputs, decisionRows, formSummary, normalizeBrief } from "./lib/brief.mjs";
 
 const [cmd, file] = process.argv.slice(2);
 if (!["check", "inputs"].includes(cmd) || !file) {
@@ -24,6 +25,15 @@ if (cmd === "inputs") {
 }
 for (const e of errors) console.log(`error    ${e}`);
 for (const w of warnings) console.log(`warning  ${w}`);
-if (brief) for (const [path, source] of Object.entries(sources)) console.log(`${source.padEnd(8)} ${path} = ${JSON.stringify(path.split(".").reduce((v, k) => v?.[k], brief))}`);
+if (brief) {
+  console.log(`answers  ${brief.answeredBy === "agent" ? "the agent's own choices (answeredBy agent: no owner answers)" : "the owner's (answeredBy owner)"}`);
+  for (const [path, source] of Object.entries(sources)) console.log(`${source.padEnd(8)} ${path} = ${JSON.stringify(path.split(".").reduce((v, k) => v?.[k], brief))}`);
+  console.log("\nForms");
+  for (const f of brief.forms) console.log(`  ${f.id.padEnd(12)} ${f.kind}, consent ${f.consent}: ${formSummary(f, brief.consent)}`);
+  if (!errors.length) {
+    console.log("\nDECISIONS.md rows");
+    for (const r of decisionRows(brief, sources, new Date().toISOString().slice(0, 10))) console.log(`  ${r}`);
+  }
+}
 console.log(errors.length ? `\n${errors.length} error(s)` : "\nBrief OK");
 process.exit(errors.length ? 1 : 0);
