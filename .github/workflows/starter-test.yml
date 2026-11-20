@@ -5,10 +5,10 @@
 name: starter tests
 on:
   pull_request:
-    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", "scripts/site/lib/emdash-agent.mjs", ".github/workflows/starter-test.yml"]
+    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", ".github/workflows/starter-test.yml"]
   push:
     branches-ignore: [main]
-    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", "scripts/site/lib/emdash-agent.mjs", ".github/workflows/starter-test.yml"]
+    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", ".github/workflows/starter-test.yml"]
   workflow_dispatch:
 permissions:
   contents: read

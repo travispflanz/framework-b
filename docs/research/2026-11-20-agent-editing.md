@@ -118,8 +118,8 @@ Token format, from [@emdash-cms/auth tokens.ts](https://unpkg.com/@emdash-cms/au
   Subscriber, `content:write` and `media:write` Contributor, `schema:read`, `taxonomies:manage`, `menus:manage` and
   `settings:read` Editor, and `schema:write`, `settings:manage`, `mcp:tools`, the transfer scopes and `admin` Admin.
   EmDash clamps a token's scopes to its user's role (`clampScopes`) when it issues one through the device flow or an
-  OAuth code; a token written straight into the database skips that, so `scripts/site/lib/emdash-agent.mjs` refuses
-  a scope the agent's role may not hold. (Added after stage A, 2026-11-20.)
+  OAuth code; a token written straight into the database skips that, so `starter/scripts/lib/emdash-agent.mjs`
+  refuses a scope the agent's role may not hold. (Added after stage A, 2026-11-20.)
 
 The table, from [016_api_tokens.ts](https://unpkg.com/emdash@1.3.1/src/database/migrations/016_api_tokens.ts):
 
@@ -201,7 +201,10 @@ Sources: [content routes](https://unpkg.com/emdash@1.3.1/src/astro/routes/api/co
   able to send the two Access headers as well as the Bearer token (untested with any MCP client).
   - EmDash's MCP server is stateless: each `POST` gets a fresh server, so `tools/list` and `tools/call` work without
     an `initialize` on the same request (proven in CI: 72 tools listed). Stage A sends
-    `Accept: application/json, text/event-stream`, as the Streamable HTTP transport asks; without it is untested.
+    `Accept: application/json, text/event-stream`: "The client MUST include an Accept header, listing both
+    application/json and text/event-stream" (MCP specification 2025-06-18,
+    [Transports, Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports),
+    checked 2026-11-20). Without it is untested.
   - EmDash's own tools need no `mcp:tools` scope (an Admin-only scope, for plugin tools): the content tools check
     `content:read` or `content:write` and the user's role (proven in CI for `content_get` with an Editor's token).
 - **For a shell agent: the CLI.** It is REST underneath.
@@ -323,24 +326,28 @@ It asserts:
 5. `POST /_emdash/api/mcp` with `tools/list`, then `content_get`, works with the same token. Without a Bearer token it
    gets 401 with `WWW-Authenticate`.
 
-Also unit-test `scripts/site/lib/emdash-agent.mjs` (below): its token and hash must equal what the installed EmDash's
-own `hashPrefixedToken` gives for the same input. That way an EmDash update that changes the format fails CI, not a
-live run.
+Also unit-test `starter/scripts/lib/emdash-agent.mjs` (below; first planned in `scripts/site/lib/`, moved after
+stage A): its token and hash must equal what the installed EmDash's own `hashPrefixedToken` gives for the same
+input. That way an EmDash update that changes the format fails CI, not a live run.
 
 ### Stage B: the preview check (live; no Access change)
 
 New files in framework-b:
 
-- `scripts/site/lib/emdash-agent.mjs` (built in stage A as pure statement builders, `{ sql, params }`: `mintAgent`,
-  `agentToken`, `setAgentDisabled`, `revokeAgent`, `sweepAgents`, and `inlineSql` for `wrangler d1 execute`. Stage B
-  sends the same statements to the D1 query API; the wrappers below are what it adds):
+- `starter/scripts/lib/emdash-agent.mjs` (built in stage A as pure statement builders, `{ sql, params }`:
+  `mintAgent`, `agentToken`, `setAgentDisabled`, `revokeAgent`, `sweepAgents`, and `inlineSql` for
+  `wrangler d1 execute`. It is in the starter, not `scripts/site/lib/` as first planned, so no starter file imports
+  from outside `starter/`; stage B imports it with `join(FRAMEWORK, "starter/scripts/lib/emdash-agent.mjs")`, as the
+  ops scripts import `jsonc.mjs`. A token lives at most 120 minutes. Stage B sends the same statements to the D1
+  query API; the wrappers below are what it adds):
   - `mintAgentToken(A, dbUuid, { role: 40, scopes, minutes: 30 })` makes the raw token in memory, writes the user
     (`fb-agent-<run>`, email `agent-<run>@framework-b.invalid`, name "Framework B agent", role 40) and the token row
     (name "framework-b agent check `<run>`", `expires_at` 30 minutes ahead) with the D1 query API and bound parameters.
     `.invalid` is reserved (RFC 2606), so the address can't be anyone's Access identity.
   - `revokeAgent(A, dbUuid, run)` deletes the token row, then the user.
   - `sweepAgents(A, dbUuid)` removes rows from crashed runs older than 60 minutes, as `sweepCheckTokens` does for
-    service tokens.
+    service tokens. It matches only per-run rows: an id starting `fb-agent-` and an `agent-<run>@framework-b.invalid`
+    address.
 - `scripts/site/agent-edit-check.mjs --site <checkout> --site-id <id> --branch <branch> [--report <file.md>]`.
 - `.github/workflows/site-agent-edit-check.yml` (reusable), shaped like `site-preview-check.yml`.
   - Inputs: `framework_repo`, `framework_ref`, `site_id`, `branch`.
@@ -402,6 +409,9 @@ What changes:
     Section 4 says what that exposes.
 - **Content database:** one persistent agent user in `<id>-cms`: role Editor, email `agent@framework-b.invalid`,
   `disabled = 1` between runs.
+  - It must never be sweepable: the sweep matches only per-run addresses (`agent-<run>@framework-b.invalid`), and
+    `agent@` is not one (the unit test keeps such a user through a sweep). Its tokens are deleted by each run, not
+    by the sweep.
   - It is created only if an Admin already exists, so the owner stays the first Admin.
   - Its edits show in the revision history under "Framework B agent".
 
@@ -468,7 +478,7 @@ wants it. A copy change on a live site is the owner's call.
 `starter/scripts/test/editing-agent-api.mjs` runs in the starter tests' editing job (`.github/workflows/starter-test.yml`),
 before the round trip switches editing off. It builds the full-site fixture with editing on, starts the local Worker,
 brings the seed's pages into the local content database with EmDash's CLI, and writes agent users and tokens with
-`wrangler d1 execute --local` from `scripts/site/lib/emdash-agent.mjs`. Every assertion of section 7's stage A passed
+`wrangler d1 execute --local` from `starter/scripts/lib/emdash-agent.mjs`. Every assertion of section 7's stage A passed
 on the real EmDash 1.3.1:
 
 | Check | Result |
@@ -496,7 +506,11 @@ stage A, each marked where it is:
   refuses a scope the role may not hold. `mcp:tools` is Admin-only, and EmDash's own MCP tools don't need it.
 - Section 2: ids that aren't ULIDs work for the agent user and its token.
 - Section 3: publish takes an optional `_rev`; MCP is stateless, needs no `initialize` per request, and is sent
-  `Accept: application/json, text/event-stream`.
-- Section 7, stage B: the lib's functions are statement builders; stage B's wrappers send them to the D1 API.
+  `Accept: application/json, text/event-stream`, as the MCP specification's Streamable HTTP transport requires (cited
+  there).
+- Section 7, stage B: the lib's functions are statement builders; stage B's wrappers send them to the D1 API. The
+  lib moved to `starter/scripts/lib/`, a token lives at most 120 minutes, and the sweep matches only per-run
+  addresses.
+- Section 7, stage C: the persistent agent user must never be sweepable.
 - Section 9: what stage A proved, and why the cache purge on an API publish is still untested (the local Worker
   serves no cache).

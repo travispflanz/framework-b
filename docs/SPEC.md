@@ -438,7 +438,7 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
   untested):
   - **Proven in CI** (stage A, `starter/scripts/test/editing-agent-api.mjs`, in the editing job, against the real
     EmDash 1.3.1 on the local Worker): an Editor agent user and its API token, written straight into the content
-    database with `wrangler d1 execute --local` by `scripts/site/lib/emdash-agent.mjs`, read the home page through
+    database with `wrangler d1 execute --local` by `starter/scripts/lib/emdash-agent.mjs`, read the home page through
     `GET /_emdash/api/content/pages/home` (200 and a `_rev`), saved a new hero headline with `PUT` as a draft (EmDash's
     live row and the rendered page kept the old one) and published it (`POST …/publish`; the page showed it). A
     `content:read` token read and got 403 `INSUFFICIENT_SCOPE` on the `PUT`; an expired token, a disabled user's token

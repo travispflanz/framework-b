@@ -3,7 +3,7 @@
 // (roadmap 3d, stage A; docs/research/2026-11-20-agent-editing.md section 7). Run it in a starter that
 // `editing.mjs on` switched on, with fill-test-placeholders. It builds, starts the local Worker, brings the seed's
 // pages into the local content database, then writes agent users and tokens there with `wrangler d1 execute --local`,
-// using the same code a live check would (scripts/site/lib/emdash-agent.mjs, so it runs in a Framework B checkout).
+// using the same code a live check would (scripts/lib/emdash-agent.mjs).
 // It asserts, against the real EmDash:
 // 1. GET /_emdash/api/content/pages/home with an Editor's content:read + content:write token: 200 and a _rev. The
 //    token is checked before EmDash's Access check: with it, a bad Access JWT is never looked at; without it, 401.
@@ -19,19 +19,13 @@
 // headers and the Authorization header is stage B's to prove, on a preview. Local files only; nothing is left changed
 // but dist/.
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
+import * as agent from "../lib/emdash-agent.mjs";
 import { startLocalSite } from "../lib/local-site.mjs";
 
-const libPath = fileURLToPath(new URL("../../../scripts/site/lib/emdash-agent.mjs", import.meta.url));
-if (!existsSync(libPath)) {
-  console.error("Run this in a Framework B checkout: it uses scripts/site/lib/emdash-agent.mjs.");
-  process.exit(1);
-}
-const agent = await import(libPath);
 assert.ok(JSON.parse(readFileSync("site.config.json", "utf8")).editing?.enabled, "switch client editing on first (scripts/editing.mjs on)");
 
 const NAME = "agentapi";
@@ -170,7 +164,8 @@ try {
 
   // 6. Clean-up: the sweep removes what an older run left, then the run revokes its own agent.
   const oldRun = `${RUN}-old`;
-  const stale = agent.mintAgent({ run: oldRun, now: new Date(Date.now() - 2 * 3600_000), minutes: 24 * 60 });
+  // Made 70 minutes ago with a 2-hour token: still valid, and older than the sweep's 60 minutes.
+  const stale = agent.mintAgent({ run: oldRun, now: new Date(Date.now() - 70 * 60_000), minutes: 120 });
   d1(stale.statements);
   assert.equal((await api("/content/pages/home", stale.token.raw)).status, 200, "an older run's token that hasn't expired still works");
   d1(agent.sweepAgents({ olderThanMinutes: 60 }));

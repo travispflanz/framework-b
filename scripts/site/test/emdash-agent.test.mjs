@@ -1,9 +1,10 @@
-// An agent's EmDash user and API token (scripts/site/lib/emdash-agent.mjs): the token and its hash are what EmDash's
+// An agent's EmDash user and API token (starter/scripts/lib/emdash-agent.mjs): the token and its hash are what EmDash's
 // own code makes, the scopes follow EmDash's role table, and the statements do what they say on EmDash's two tables.
 //   node --test scripts/site/test/emdash-agent.test.mjs
 // The comparison with EmDash needs @emdash-cms/auth at the version the pinned emdash depends on: CI installs it into a
-// folder of its own and sets EMDASH_AUTH_DIR (.github/workflows/site-scripts-test.yml); locally, a starter with client
-// editing on has it in starter/node_modules. Without either, those tests are skipped, except in CI, where they fail.
+// folder of its own and sets EMDASH_AUTH_DIR and EMDASH_AUTH_VERSION (.github/workflows/site-scripts-test.yml), and the
+// installed version must be that one. Locally, a starter with client editing on has it in starter/node_modules.
+// Without either, those tests are skipped, except in CI, where they fail.
 // The statements run against the real EmDash in starter/scripts/test/editing-agent-api.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -13,9 +14,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import {
-  AGENT_EMAIL_DOMAIN, ROLES, SCOPE_MIN_ROLE, TOKEN_PREFIX, agentToken, agentUser, hashApiToken, inlineSql, insertAgentUser,
-  makeApiToken, mintAgent, revokeAgent, setAgentDisabled, sweepAgents,
-} from "../lib/emdash-agent.mjs";
+  AGENT_EMAIL_DOMAIN, MAX_TOKEN_MINUTES, ROLES, SCOPE_MIN_ROLE, TOKEN_PREFIX, agentToken, agentUser, hashApiToken, inlineSql,
+  insertAgentUser, makeApiToken, mintAgent, revokeAgent, setAgentDisabled, sweepAgents,
+} from "../../../starter/scripts/lib/emdash-agent.mjs";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const FIXED = Uint8Array.from({ length: 32 }, (_, i) => i);
@@ -53,6 +54,7 @@ test("a token is ec_pat_ and 32 bytes in base64url, hashed whole with SHA-256 (a
 
 test(`the token, hash and prefix match ${withEmdash}`, { skip: !installed }, () => {
   const { auth, encoding } = installed;
+  if (process.env.EMDASH_AUTH_VERSION) assert.equal(installed.version, process.env.EMDASH_AUTH_VERSION, "the auth package the pinned emdash depends on");
   assert.equal(auth.TOKEN_PREFIXES.PAT, TOKEN_PREFIX);
   // The same bytes encode the same way as EmDash's encoder, and the same raw token hashes the same.
   assert.equal(makeApiToken(FIXED).raw, TOKEN_PREFIX + encoding.encodeBase64urlNoPadding(FIXED));
@@ -91,6 +93,16 @@ test("an agent is at most an Editor, and its token holds only scopes that role m
   assert.throws(() => agentToken({ run: "r1", scopes: ["content:read"], label: "Bad label" }), /token label/);
 });
 
+test(`a token lives at most ${MAX_TOKEN_MINUTES} minutes`, () => {
+  assert.equal(MAX_TOKEN_MINUTES, 120);
+  const now = new Date("2026-11-20T10:00:00.000Z");
+  assert.equal(agentToken({ run: "r1", scopes: ["content:read"], minutes: 120, now }).expiresAt, "2026-11-20T12:00:00.000Z");
+  assert.throws(() => agentToken({ run: "r1", scopes: ["content:read"], minutes: 121 }), /at most 120 minutes/);
+  assert.throws(() => mintAgent({ run: "r1", minutes: 24 * 60 }), /at most 120 minutes/);
+  assert.throws(() => agentToken({ run: "r1", scopes: ["content:read"], minutes: Infinity }), /lifetime in minutes/);
+  assert.equal(agentToken({ run: "r1", scopes: ["content:read"], minutes: -1, now }).expiresAt, "2026-11-20T09:59:00.000Z", "an expired one, for tests");
+});
+
 test("the statements carry their values as parameters, and inlineSql writes them in as literals", () => {
   const now = new Date("2026-11-20T10:00:00.000Z");
   const { user, token, statements } = mintAgent({ run: "r1", now, bytes: FIXED });
@@ -117,6 +129,7 @@ test("minted, disabled, swept and revoked on EmDash's users and _emdash_api_toke
       user_id text NOT NULL, scopes text NOT NULL, expires_at text, last_used_at text, created_at text DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT api_tokens_user_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE);
     INSERT INTO users (id, email, role) VALUES ('01OWNER', 'owner@example.com', 50);
+    INSERT INTO users (id, email, role, disabled, created_at) VALUES ('fb-agent-persistent', 'agent@framework-b.invalid', 40, 1, '2026-01-01T00:00:00.000Z');
     INSERT INTO _emdash_api_tokens (id, name, token_hash, prefix, user_id, scopes) VALUES ('01OWNTOKEN', 'mine', 'h', 'ec_pat_xxxx', '01OWNER', '["admin"]');`);
   const exec = (statements) => db.exec(statements.map(inlineSql).join(";\n"));
   const now = new Date("2026-11-20T10:00:00.000Z");
@@ -127,12 +140,13 @@ test("minted, disabled, swept and revoked on EmDash's users and _emdash_api_toke
   exec([setAgentDisabled("r1", true, now)]);
   const users = () => db.prepare("SELECT id, role, disabled FROM users ORDER BY id").all().map((u) => ({ ...u }));
   const tokens = () => db.prepare("SELECT id, user_id FROM _emdash_api_tokens ORDER BY id").all().map((t) => t.id);
-  assert.deepEqual(users(), [{ id: "01OWNER", role: 50, disabled: 0 }, { id: "fb-agent-r0", role: 40, disabled: 0 }, { id: "fb-agent-r1", role: 40, disabled: 1 }]);
+  assert.deepEqual(users(), [{ id: "01OWNER", role: 50, disabled: 0 }, { id: "fb-agent-persistent", role: 40, disabled: 1 }, { id: "fb-agent-r0", role: 40, disabled: 0 }, { id: "fb-agent-r1", role: 40, disabled: 1 }]);
   assert.deepEqual(tokens(), ["01OWNTOKEN", "fb-agent-r0-check", "fb-agent-r1-check", "fb-agent-r1-read"]);
   exec(sweepAgents({ now, olderThanMinutes: 60 }));
   assert.deepEqual(tokens(), ["01OWNTOKEN", "fb-agent-r1-check", "fb-agent-r1-read"], "the sweep takes only the older run's agent");
+  assert.ok(users().some((u) => u.id === "fb-agent-persistent"), "a persistent agent user (not a per-run address) is never swept");
   exec(revokeAgent("r1"));
-  assert.deepEqual(users().map((u) => u.id), ["01OWNER"], "the owner is never touched");
+  assert.deepEqual(users().map((u) => u.id), ["01OWNER", "fb-agent-persistent"], "the owner is never touched");
   assert.deepEqual(tokens(), ["01OWNTOKEN"]);
   db.close();
 });
@@ -140,6 +154,8 @@ test("minted, disabled, swept and revoked on EmDash's users and _emdash_api_toke
 test("CI installs EmDash's auth package at the version the pinned emdash uses", () => {
   const wf = readFileSync(join(repo, ".github/workflows/site-scripts-test.yml"), "utf8");
   assert.match(wf, /EMDASH_AUTH_DIR/);
+  assert.match(wf, /EMDASH_AUTH_VERSION/);
+  assert.match(wf, /lists no @emdash-cms\/auth dependency/, "an empty version fails rather than installing the latest");
   assert.match(wf, /starter\/editing\/packages\.json/);
   assert.ok(existsSync(join(repo, "starter/scripts/test/editing-agent-api.mjs")), "the statements are run against the real EmDash");
 });
