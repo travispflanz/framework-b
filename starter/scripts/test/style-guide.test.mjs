@@ -7,9 +7,18 @@ import { readFileSync } from "node:fs";
 import { inline } from "../../src/sections/text.js";
 import { missingSections, parseGuide, PLACEHOLDER, renderProse, REQUIRED, SPECS, unwritten } from "../lib/style-guide.mjs";
 import { hash, staleInputs } from "../lib/style-guide-stamp.mjs";
+import { STARTER_ONLY } from "./in-site.mjs";
 
-test("the starter's template has every section, all still unwritten", () => {
+test("the starter's template has every section, all still unwritten", { skip: STARTER_ONLY }, () => {
   const md = readFileSync("STYLE-GUIDE.md", "utf8");
+  assert.deepEqual(missingSections(md), []);
+  assert.deepEqual(parseGuide(md).sections.map((s) => s.heading), REQUIRED);
+  assert.deepEqual(unwritten(md), REQUIRED);
+});
+
+test("a template with every section, each still to be written, counts every section as unwritten", () => {
+  // Shaped like the starter's STYLE-GUIDE.md, which in a site is the site's own guide.
+  const md = `# Style guide\n\n<!-- note to the agent -->\n\n${REQUIRED.map((h) => `## ${h}\n\n${PLACEHOLDER}\n\n<!-- what to write -->\n`).join("\n")}`;
   assert.deepEqual(missingSections(md), []);
   assert.deepEqual(parseGuide(md).sections.map((s) => s.heading), REQUIRED);
   assert.deepEqual(unwritten(md), REQUIRED);
