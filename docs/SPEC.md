@@ -433,7 +433,25 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
   - A framework update's preview of the same editing site passed the preview check through Access (119 checks).
 - **Not tested yet:**
   - Sandboxed plugins (Workers Paid only) and Cloudflare email sign-in (sending to arbitrary recipients needs Workers Paid).
-- **Agents editing content:** EmDash has a CLI (`emdash login --url … -H …`), a REST API and an MCP server at `/_emdash/api/mcp`. Behind Access, an agent would need an Access service token. Untested.
+- **Agents editing content** (researched 2026-11-20 in `docs/research/2026-11-20-agent-editing.md`, read in EmDash
+  1.3.1's npm source and Cloudflare's Access docs; nothing run yet, so all untested):
+  - EmDash can't use an Access service token as an identity. Its `access()` provider finds the EmDash user by the
+    Access identity's email, and a service token has none (its JWT's `sub` is empty, `common_name` is the client ID:
+    [application token](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/),
+    checked 2026-11-20). So a request with only the service token headers would get 401 from EmDash.
+  - EmDash checks a Bearer token first on all of `/_emdash`, though. An EmDash API token (`ec_pat_`) is scoped
+    (`content:read`, `content:write`, ...), may expire, and belongs to a user whose role still applies (Editor to
+    edit and publish seeded pages). When it is valid, EmDash skips the Access JWT check. So an agent sends both: the
+    service token's headers (`CF-Access-Client-Id`, `CF-Access-Client-Secret`) get it past Access, and the API token
+    makes it an EmDash user.
+  - REST, the CLI (`EMDASH_TOKEN`, `EMDASH_HEADERS`) and the MCP server (Bearer tokens only) all take that pair.
+    `emdash login` doesn't work in Access mode, because EmDash offers no device flow there.
+  - Only a hash of an API token is stored. So an ops run can write a 30-minute token for an agent user straight into
+    the content database, with no person and no long-lived secret.
+  - The plan's first live test runs on a preview, with no Access change. The previews application already admits the
+    preview check's per-run service token, and previews have their own content database. The test creates, edits,
+    publishes and trashes a throwaway page, and checks that the preview renders each step.
+  - Production needs a Service Auth policy on the `<id> editor` application. That waits for the owner's approval.
 
 ## 10. Modules
 
