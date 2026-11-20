@@ -434,7 +434,25 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
 - **Not tested yet:**
   - Sandboxed plugins (Workers Paid only) and Cloudflare email sign-in (sending to arbitrary recipients needs Workers Paid).
 - **Agents editing content** (researched 2026-11-20 in `docs/research/2026-11-20-agent-editing.md`, read in EmDash
-  1.3.1's npm source and Cloudflare's Access docs; nothing run yet, so all untested):
+  1.3.1's npm source and Cloudflare's Access docs; the EmDash half proven in CI since 2026-11-20, the Access half
+  untested):
+  - **Proven in CI** (stage A, `starter/scripts/test/editing-agent-api.mjs`, in the editing job, against the real
+    EmDash 1.3.1 on the local Worker): an Editor agent user and its API token, written straight into the content
+    database with `wrangler d1 execute --local` by `scripts/site/lib/emdash-agent.mjs`, read the home page through
+    `GET /_emdash/api/content/pages/home` (200 and a `_rev`), saved a new hero headline with `PUT` as a draft (EmDash's
+    live row and the rendered page kept the old one) and published it (`POST …/publish`; the page showed it). A
+    `content:read` token read and got 403 `INSUFFICIENT_SCOPE` on the `PUT`; an expired token, a disabled user's token
+    and an unknown token got 401 `INVALID_TOKEN`. With the token, a bad Access JWT was never checked; without it,
+    EmDash's Access check refused the request (401). MCP (`POST /_emdash/api/mcp`): `initialize`, listing the tools and
+    `content_get` worked with the same token, and without one it answered 401 with `WWW-Authenticate`. The sweep
+    removed an older run's agent and kept the current one; revoking removed the rest.
+  - `scripts/site/test/emdash-agent.test.mjs` checks the token, its hash and display prefix, and the role and scope
+    tables against the installed EmDash's own `@emdash-cms/auth` (the version the pinned `emdash` depends on), so an
+    EmDash update that changes the format fails CI. The lib refuses a scope the agent's role may not hold (EmDash
+    clamps scopes to the role only when it issues a token itself) and never makes an Admin.
+  - Still untested: everything Access does (the service token's headers, and whether `Authorization` reaches the
+    Worker unchanged), the cache purge when a page is published through the API (the local Worker serves no cache),
+    and any MCP client sending the Access headers. Stage B, the preview check, tests these.
   - EmDash can't use an Access service token as an identity. Its `access()` provider finds the EmDash user by the
     Access identity's email, and a service token has none (its JWT's `sub` is empty, `common_name` is the client ID:
     [application token](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/),

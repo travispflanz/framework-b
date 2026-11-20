@@ -429,7 +429,9 @@ These are enforced by the scripts and the QA gate, not left to the agent's judgm
 
 CI checks every pull request:
 - the core tests;
-- the starter build, end-to-end test and QA gate, static and with editing;
+- the starter build, end-to-end test and QA gate, static and with editing; with editing, also an agent editing a page
+  through EmDash's API with an EmDash API token (`starter/scripts/test/editing-agent-api.mjs`) and the round trip
+  back to files;
 - the site scripts tests and the ops tests;
 - a docs check (`node scripts/docs-check.mjs`), which fails if a doc names a file, script or workflow that doesn't
   exist.

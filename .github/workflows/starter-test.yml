@@ -1,14 +1,14 @@
 # Builds the starter with the current core, runs its end-to-end test in a real browser, then the QA gate,
 # twice: as a static site (plus every layout variant and the logo method), and with client editing (EmDash) switched
-# on, then switched off again.
+# on (an agent then edits a page through EmDash's API with an API token), then switched off again.
 # Local Worker, local D1 and R2, Turnstile test keys, no email, no Cloudflare account access.
 name: starter tests
 on:
   pull_request:
-    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", ".github/workflows/starter-test.yml"]
+    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", "scripts/site/lib/emdash-agent.mjs", ".github/workflows/starter-test.yml"]
   push:
     branches-ignore: [main]
-    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", ".github/workflows/starter-test.yml"]
+    paths: ["starter/**", "packages/core/**", "scripts/vendor-core.mjs", "scripts/site/lib/emdash-agent.mjs", ".github/workflows/starter-test.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -109,6 +109,11 @@ jobs:
         working-directory: starter
       - name: Style guide and Website assets read the files (with editing on, an editor's change in EmDash reaches neither); the spot-colour tools are linked
         run: node scripts/test/editing-guide-assets.mjs
+        working-directory: starter
+      # Before the switch off below, which turns editing off for the rest of the job.
+      - name: An agent edits through EmDash's API (an API token written into the content database reads, drafts and publishes; scope, expiry, a disabled user and MCP checked)
+        if: matrix.editing == 'on'
+        run: node scripts/test/editing-agent-api.mjs
         working-directory: starter
       - name: Switch client editing off (editors' changes, a new page and an image come back as files), then test the static site
         if: matrix.editing == 'on'
