@@ -6,8 +6,33 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { loadConfig } from "../../core/src/config.js";
 import { describeForms, privacyUse, thanksCopy } from "../../src/lib/form-copy.js";
+import { STARTER_ONLY } from "./in-site.mjs";
 
-const starter = JSON.parse(readFileSync(new URL("../../site.config.json", import.meta.url), "utf8"));
+// The starter's site.config.json as it ships, kept here so these tests mean the same in a site, whose own
+// site.config.json is the owner's. The last test checks, in the starter only, that its forms and email still agree.
+const starter = {
+  site: {
+    id: "example-idea", name: "Example Co", tagline: "One line that says what Example Co offers and for whom.", mode: "idea",
+    canonicalHost: "example-idea.example.workers.dev", ownerEmail: "owner@example.com", postalAddress: "", indexing: false, locale: "en-US",
+  },
+  turnstile: { siteKey: "1x00000000000000000000AA" },
+  email: { notify: "apps-script", confirm: "none" },
+  nav: [{ label: "Home", href: "/" }, { label: "Contact", href: "/contact" }],
+  forms: {
+    contact: {
+      title: "Get in touch",
+      submitLabel: "Send",
+      fields: [
+        { name: "name", type: "text", label: "Your name", required: true, autocomplete: "name" },
+        { name: "email", type: "email", label: "Email", required: true, autocomplete: "email" },
+        { name: "phone", type: "tel", label: "Phone (optional)", autocomplete: "tel" },
+        { name: "message", type: "textarea", label: "How can we help?" },
+      ],
+      file: { label: "Do you need to send us something?", hint: "PDF, image, Word or Excel, up to 10 MB." },
+      thanks: "/thanks",
+    },
+  },
+};
 const WAITLIST = {
   kind: "waitlist", title: "Join the waitlist", submitLabel: "Join the waitlist",
   fields: [{ name: "name", type: "text", label: "Your name (optional)" }, { name: "email", type: "email", label: "Email", required: true }],
@@ -105,4 +130,10 @@ test("none of the copy uses the copy lint's words", () => {
     const all = `${text(privacyUse(config))} ${Object.values(thanksCopy(config)).flat().join(" ")}`;
     assert.deepEqual(lint(all), [], all);
   }
+});
+
+test("the fixture's forms and email are still the starter's", { skip: STARTER_ONLY }, () => {
+  const shipped = JSON.parse(readFileSync(new URL("../../site.config.json", import.meta.url), "utf8"));
+  const part = (c) => ({ forms: c.forms, email: c.email, optIn: c.optIn });
+  assert.deepEqual(part(starter), part(shipped), "the starter's site.config.json changed: copy it into this test's fixture");
 });

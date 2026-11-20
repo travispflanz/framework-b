@@ -9,6 +9,7 @@ import {
 } from "../lib/logo.mjs";
 import { LENSES, PLACEHOLDER, missingLenses, undatedLenses, unwrittenLenses } from "../lib/design-research.mjs";
 import { readFileSync } from "node:fs";
+import { STARTER_ONLY } from "./in-site.mjs";
 
 const GOOD = `<svg xmlns="http://www.w3.org/2000/svg" data-type="combination" data-idea="A doorway that is also the letter E" data-from="PRODUCT.md: the shop's red door" data-trend="Simple Twist: one negative-space cut (trend report, 2026-01-01)" data-look="Flat shapes in the site's ink and its one accent, like its square-cornered cards">
   <symbol id="mark" viewBox="auto">
@@ -101,8 +102,18 @@ test("the brief: every section has to be written", () => {
   assert.match(briefProblems(done.replace(/## Clichés to avoid[\s\S]*?(?=## )/, "")).join(), /"Clichés to avoid" is missing/);
 });
 
-test("design research: the starter's file has all four lenses, unwritten; a written lens names a dated source", () => {
+// A research file as the starter ships it: every lens, each still to be written (the starter's own file is checked
+// below, in the starter only; in a site, design/research.md is the site's own).
+const RESEARCH = `# Design research\n\n<!-- note to the agent -->\n\n${LENSES.map((h) => `## ${h}\n\n${PLACEHOLDER}\n\n<!-- what to write -->\n`).join("\n")}`;
+
+test("design research: the starter's file has all four lenses, unwritten", { skip: STARTER_ONLY }, () => {
   const md = readFileSync("design/research.md", "utf8");
+  assert.deepEqual(missingLenses(md), []);
+  assert.deepEqual(unwrittenLenses(md), LENSES);
+});
+
+test("design research: every lens is found and starts unwritten; a written lens names a dated source", () => {
+  const md = RESEARCH;
   assert.deepEqual(missingLenses(md), []);
   assert.deepEqual(unwrittenLenses(md), LENSES);
   const written = md.replaceAll(PLACEHOLDER, "Looked at three sites on 2026-01-01.");
