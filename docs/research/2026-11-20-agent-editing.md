@@ -1,8 +1,10 @@
 # Agents editing content through EmDash behind Cloudflare Access (research, 2026-11-20)
 
 Roadmap step 3d: "An agent editing content through EmDash's API with an Access service token." This is the research
-and the plan. Nothing here has been run against a live site or account yet: every behaviour below is read in source
-or docs and is **untested** until the checks in section 7 pass.
+and the plan. Nothing here has been run against a live site or account yet. Stage A of the plan (section 7) ran in
+CI on 2026-11-20, against the real EmDash 1.3.1 on a local Worker: what it proved is marked "proven in CI" below, and
+section 10 lists the results and what this document changed after it. Everything else is read in source or docs and
+is **untested** until stage B runs on a preview.
 
 - EmDash version: 1.3.1 (`emdash` and `@emdash-cms/cloudflare`, pinned in `starter/editing/packages.json`).
 - EmDash source was read in the published npm packages at 1.3.1, on unpkg (each file below was compared byte for byte
@@ -19,13 +21,14 @@ or docs and is **untested** until the checks in section 7 pass.
    its CLI, which adds the two Access headers to the requests it makes.
 2. **EmDash has its own API tokens, and checks them before Access.** On every `/_emdash` route the middleware tries
    `Authorization: Bearer ec_pat_…` (a personal access token) or `ec_oat_…` (an OAuth token) first. A valid one sets
-   the user and its scopes and **skips the Access JWT check entirely**. So an agent sends both: the service token's
+   the user and its scopes and **skips the Access JWT check entirely** (proven in CI against EmDash's own Access
+   check: with the token, a bad Access JWT is never looked at). So an agent sends both: the service token's
    headers get the request past Cloudflare Access, and the API token makes it an EmDash user. Access still has to let
    the request through, and EmDash still checks the user's role.
 3. **API tokens are tied to a user, scoped, and optionally expire.** Admins make them in the admin (Settings > API
    Tokens) or with `POST /_emdash/api/admin/api-tokens`. Only a SHA-256 hash is stored, in `_emdash_api_tokens`, so a
-   token can also be written straight into the content database. That is the plan's way to make one per run, with no
-   person and no long-lived secret.
+   token can also be written straight into the content database (proven in CI). That is the plan's way to make one
+   per run, with no person and no long-lived secret.
 4. **REST, the CLI and MCP all take the same pair of credentials.** REST is the simplest for a scripted check. The
    CLI takes `EMDASH_TOKEN` and `EMDASH_HEADERS`. The MCP server at `/_emdash/api/mcp` accepts only Bearer tokens.
    `emdash login` is no use in Access mode, because EmDash offers no device flow there.
@@ -92,7 +95,8 @@ Same middleware, `onRequest` and `handleBearerAuth`:
 - On every `/_emdash/admin` and `/_emdash/api` route that isn't public, `Authorization: Bearer <token>` is tried first.
   `ec_pat_` is looked up in `_emdash_api_tokens`, `ec_oat_` in `_emdash_oauth_tokens`. Any other Bearer value is 401
   "Invalid or expired token".
-- A valid token sets the user (a disabled or missing user makes it invalid) and its scopes. Then
+- A valid token sets the user (a disabled or missing user makes it invalid: 401 `INVALID_TOKEN`, proven in CI) and its
+  scopes. Then
   `enforceTokenScope` runs, and **session and external (Access) auth are skipped**. CSRF checks are skipped too,
   because a token is not an ambient credential.
 - `/_emdash/api/mcp` is Bearer only: "Session/external auth should never be consulted for this endpoint."
@@ -109,6 +113,13 @@ Token format, from [@emdash-cms/auth tokens.ts](https://unpkg.com/@emdash-cms/au
 - Valid scopes: `content:read`, `content:write`, `media:read`, `media:write`, `schema:read`, `schema:write`,
   `taxonomies:manage`, `menus:manage`, `settings:read`, `settings:manage`, `mcp:tools`, three transfer scopes, and
   `admin`. `admin` grants everything, and `content:write` also grants `menus:manage` and `taxonomies:manage`.
+- Each scope has a lowest role that may hold it (`SCOPE_MIN_ROLE` in
+  [@emdash-cms/auth rbac.ts](https://unpkg.com/@emdash-cms/auth@1.3.1/src/rbac.ts)): `content:read` and `media:read`
+  Subscriber, `content:write` and `media:write` Contributor, `schema:read`, `taxonomies:manage`, `menus:manage` and
+  `settings:read` Editor, and `schema:write`, `settings:manage`, `mcp:tools`, the transfer scopes and `admin` Admin.
+  EmDash clamps a token's scopes to its user's role (`clampScopes`) when it issues one through the device flow or an
+  OAuth code; a token written straight into the database skips that, so `starter/scripts/lib/emdash-agent.mjs`
+  refuses a scope the agent's role may not hold. (Added after stage A, 2026-11-20.)
 
 The table, from [016_api_tokens.ts](https://unpkg.com/emdash@1.3.1/src/database/migrations/016_api_tokens.ts):
 
@@ -128,7 +139,8 @@ How a token is made:
   ([route](https://unpkg.com/emdash@1.3.1/src/astro/routes/api/admin/api-tokens/index.ts)). A service token can't
   reach it, because it isn't a user.
 - By writing the row directly: an id, the hash, the prefix, the user id, the scopes and an expiry. EmDash only ever
-  compares hashes. This is what the plan does, through the D1 API, as each check run starts.
+  compares hashes. This is what the plan does, through the D1 API, as each check run starts. Proven in CI with ids
+  that aren't ULIDs (`fb-agent-<run>` for the user, `fb-agent-<run>-<label>` for the token).
 
 The token's user still needs the role. Routes and MCP tools check both scope and role ("A scope never grants a
 permission the user lacks", MCP reference). Role levels, from
@@ -174,7 +186,7 @@ Seeded pages have no author, so editing and publishing them needs **Editor (40)*
 | Read a page | `GET /content/pages/<id or slug>`: the item and its `_rev` | `content get pages <id>` | `content_get` |
 | Change a field in a section | `PUT /content/pages/<id>` with `{ data: { sections: [...] }, _rev }`: the whole `sections` array, same `_key`s, one field changed | `content update pages <id> --rev <rev> --data '…' --draft` | `content_update` with `_rev` |
 | Save a draft | That same `PUT`: a change to a published page is kept as a draft until it is published | `--draft` (without it, `update` publishes) | Default: "a change to a published item is staged as a draft" |
-| Publish | `POST /content/pages/<id>/publish` | `content publish pages <id>` | `content_publish` with `_rev` |
+| Publish | `POST /content/pages/<id>/publish`, optionally with `{ _rev }` ([publish route](https://unpkg.com/emdash@1.3.1/src/astro/routes/api/content/%5Bcollection%5D/%5Bid%5D/publish.ts); stage A sends the `PUT`'s) | `content publish pages <id>` | `content_publish` with `_rev` |
 | Scope | `content:read`, `content:write` | the same | the same, per tool |
 | Lowest role (seeded pages) | Editor | Editor | Editor (`requireRole` too) |
 
@@ -187,6 +199,14 @@ Sources: [content routes](https://unpkg.com/emdash@1.3.1/src/astro/routes/api/co
   and each assertion is one status code.
 - **For an AI agent editing a site: MCP.** Its tool descriptions explain `_rev`, drafts and locks. Its client must be
   able to send the two Access headers as well as the Bearer token (untested with any MCP client).
+  - EmDash's MCP server is stateless: each `POST` gets a fresh server, so `tools/list` and `tools/call` work without
+    an `initialize` on the same request (proven in CI: 72 tools listed). Stage A sends
+    `Accept: application/json, text/event-stream`: "The client MUST include an Accept header, listing both
+    application/json and text/event-stream" (MCP specification 2025-06-18,
+    [Transports, Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports),
+    checked 2026-11-20). Without it is untested.
+  - EmDash's own tools need no `mcp:tools` scope (an Admin-only scope, for plugin tools): the content tools check
+    `content:read` or `content:write` and the user's role (proven in CI for `content_get` with an Editor's token).
 - **For a shell agent: the CLI.** It is REST underneath.
 - A page's sections are a `blocks` field (`starter/scripts/editing.mjs` writes the collection). A hero is
   `{ "_type": "fb_hero", "_key": "hero", "headline": "…" }`, as `starter/scripts/test/editing-round-trip.mjs` writes it.
@@ -288,7 +308,7 @@ the D1 Free limits above come from the Workers pricing page.
 
 ## 7. Plan
 
-### Stage A: prove the EmDash half in CI (no account, no approval)
+### Stage A: prove the EmDash half in CI (no account, no approval) (done 2026-11-20; results in section 10)
 
 Add a starter test, `starter/scripts/test/editing-agent-api.mjs`, to the editing CI job:
 
@@ -306,22 +326,28 @@ It asserts:
 5. `POST /_emdash/api/mcp` with `tools/list`, then `content_get`, works with the same token. Without a Bearer token it
    gets 401 with `WWW-Authenticate`.
 
-Also unit-test `scripts/site/lib/emdash-agent.mjs` (below): its token and hash must equal what the installed EmDash's
-own `hashPrefixedToken` gives for the same input. That way an EmDash update that changes the format fails CI, not a
-live run.
+Also unit-test `starter/scripts/lib/emdash-agent.mjs` (below; first planned in `scripts/site/lib/`, moved after
+stage A): its token and hash must equal what the installed EmDash's own `hashPrefixedToken` gives for the same
+input. That way an EmDash update that changes the format fails CI, not a live run.
 
 ### Stage B: the preview check (live; no Access change)
 
 New files in framework-b:
 
-- `scripts/site/lib/emdash-agent.mjs`:
+- `starter/scripts/lib/emdash-agent.mjs` (built in stage A as pure statement builders, `{ sql, params }`:
+  `mintAgent`, `agentToken`, `setAgentDisabled`, `revokeAgent`, `sweepAgents`, and `inlineSql` for
+  `wrangler d1 execute`. It is in the starter, not `scripts/site/lib/` as first planned, so no starter file imports
+  from outside `starter/`; stage B imports it with `join(FRAMEWORK, "starter/scripts/lib/emdash-agent.mjs")`, as the
+  ops scripts import `jsonc.mjs`. A token lives at most 120 minutes. Stage B sends the same statements to the D1
+  query API; the wrappers below are what it adds):
   - `mintAgentToken(A, dbUuid, { role: 40, scopes, minutes: 30 })` makes the raw token in memory, writes the user
     (`fb-agent-<run>`, email `agent-<run>@framework-b.invalid`, name "Framework B agent", role 40) and the token row
     (name "framework-b agent check `<run>`", `expires_at` 30 minutes ahead) with the D1 query API and bound parameters.
     `.invalid` is reserved (RFC 2606), so the address can't be anyone's Access identity.
   - `revokeAgent(A, dbUuid, run)` deletes the token row, then the user.
   - `sweepAgents(A, dbUuid)` removes rows from crashed runs older than 60 minutes, as `sweepCheckTokens` does for
-    service tokens.
+    service tokens. It matches only per-run rows: an id starting `fb-agent-` and an `agent-<run>@framework-b.invalid`
+    address.
 - `scripts/site/agent-edit-check.mjs --site <checkout> --site-id <id> --branch <branch> [--report <file.md>]`.
 - `.github/workflows/site-agent-edit-check.yml` (reusable), shaped like `site-preview-check.yml`.
   - Inputs: `framework_repo`, `framework_ref`, `site_id`, `branch`.
@@ -383,6 +409,9 @@ What changes:
     Section 4 says what that exposes.
 - **Content database:** one persistent agent user in `<id>-cms`: role Editor, email `agent@framework-b.invalid`,
   `disabled = 1` between runs.
+  - It must never be sweepable: the sweep matches only per-run addresses (`agent-<run>@framework-b.invalid`), and
+    `agent@` is not one (the unit test keeps such a user through a sweep). Its tokens are deleted by each run, not
+    by the sweep.
   - It is created only if an Admin already exists, so the owner stays the first Admin.
   - Its edits show in the revision history under "Framework B agent".
 
@@ -426,12 +455,16 @@ wants it. A copy change on a live site is the owner's call.
   - The application PUT that keeps an application's policies and audience (2026-10-23).
   - The D1 query API, in `promote`, `adopt` and `newsletter`.
   - EmDash invalidating cached pages when an editor publishes in the admin (2026-10-27).
+- **Proven in CI, 2026-11-20 (stage A, section 10):**
+  - EmDash taking an API token written straight into its database.
+  - The Bearer token being checked before EmDash's own Access check.
+  - Scope checks; an Editor editing and publishing a seeded page; expired tokens and disabled users refused.
+  - MCP with a Bearer token, and its 401 without one.
 - **Read in source or docs, untested:**
   - EmDash refusing a service-token identity.
-  - EmDash taking an API token written straight into its database.
-  - The Bearer token being checked before Access.
-  - Scope and role checks.
-  - Publishing through the API invalidating the cache.
+  - Roles below Editor being refused on seeded pages.
+  - Publishing through the API invalidating the cache (the local Worker serves no cache: a change written straight
+    into the database shows on the next request).
   - MCP through Access with custom headers.
   - The tag-based policy.
 - **Not verified tonight:**
@@ -439,3 +472,45 @@ wants it. A copy change on a live site is the owner's call.
   - What `get-identity` returns for a service token. Either way EmDash gets no email.
   - EmDash's GitHub source at a tag (the npm package source on unpkg was used instead).
   - Cloudflare's D1 query API reference and D1 pricing pages (fetches blocked in this session).
+
+## 10. Stage A results (CI, 2026-11-20)
+
+`starter/scripts/test/editing-agent-api.mjs` runs in the starter tests' editing job (`.github/workflows/starter-test.yml`),
+before the round trip switches editing off. It builds the full-site fixture with editing on, starts the local Worker,
+brings the seed's pages into the local content database with EmDash's CLI, and writes agent users and tokens with
+`wrangler d1 execute --local` from `starter/scripts/lib/emdash-agent.mjs`. Every assertion of section 7's stage A passed
+on the real EmDash 1.3.1:
+
+| Check | Result |
+|---|---|
+| `GET /_emdash/api/content/pages/home`, Editor's `content:read` + `content:write` token | 200, `data._rev` and `data.item` |
+| The same with a bad `Cf-Access-Jwt-Assertion` header; then that header alone; then nothing | 200; 401; 401 |
+| `PUT /content/pages/<id>` with `{ data: { sections }, _rev }` (the hero's headline changed), no `X-EmDash-Request` | 200: `item.status` stays `published`, `item.draftRevisionId` is set; EmDash's live row and the rendered `/` keep the old headline; `GET` shows the draft to the Editor |
+| `POST /content/pages/<id>/publish` with the `PUT`'s `_rev` | 200; `/` shows the new headline |
+| `content:read`-only token: `GET`, then the `PUT` | 200; 403 `INSUFFICIENT_SCOPE` |
+| Expired token, disabled user's token, unknown `ec_pat_` token | 401 `INVALID_TOKEN` each |
+| MCP `initialize`, `tools/list`, `tools/call content_get` with the token | 200 each; 72 tools including `content_get`, `content_update`, `content_publish`; `content_get` returns the new headline and a `_rev` |
+| MCP `tools/list` without a Bearer token | 401, `WWW-Authenticate: Bearer resource_metadata="…"` |
+| Sweep (an agent made 2 hours earlier), then revoke | The older agent's token 401, the current one 200; after revoking, 401 and no agent rows left |
+
+`scripts/site/test/emdash-agent.test.mjs` (site scripts tests) compares the lib with the installed
+`@emdash-cms/auth`, at the version the pinned `emdash` depends on: the token's encoding, its hash for the same input
+(`hashPrefixedToken`), the hash and display prefix of tokens EmDash makes itself (`generatePrefixedToken`), the role
+levels, and the scopes each role may hold (`scopesForRole`). CI installs only that package (about 11 MB, a few
+seconds, without its Astro peer).
+
+Where the real EmDash differed from this document: nowhere on the points asserted. What this document changed after
+stage A, each marked where it is:
+
+- Section 2: the scope-to-role table, and that a token written into the database skips EmDash's clamping, so the lib
+  refuses a scope the role may not hold. `mcp:tools` is Admin-only, and EmDash's own MCP tools don't need it.
+- Section 2: ids that aren't ULIDs work for the agent user and its token.
+- Section 3: publish takes an optional `_rev`; MCP is stateless, needs no `initialize` per request, and is sent
+  `Accept: application/json, text/event-stream`, as the MCP specification's Streamable HTTP transport requires (cited
+  there).
+- Section 7, stage B: the lib's functions are statement builders; stage B's wrappers send them to the D1 API. The
+  lib moved to `starter/scripts/lib/`, a token lives at most 120 minutes, and the sweep matches only per-run
+  addresses.
+- Section 7, stage C: the persistent agent user must never be sweepable.
+- Section 9: what stage A proved, and why the cache purge on an API publish is still untested (the local Worker
+  serves no cache).

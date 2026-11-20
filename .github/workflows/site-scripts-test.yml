@@ -2,10 +2,10 @@
 name: site scripts tests
 on:
   pull_request:
-    paths: ["scripts/site/**", ".github/workflows/site-scripts-test.yml"]
+    paths: ["scripts/site/**", "starter/scripts/lib/emdash-agent.mjs", "starter/editing/packages.json", ".github/workflows/site-scripts-test.yml"]
   push:
     branches-ignore: [main]
-    paths: ["scripts/site/**", ".github/workflows/site-scripts-test.yml"]
+    paths: ["scripts/site/**", "starter/scripts/lib/emdash-agent.mjs", "starter/editing/packages.json", ".github/workflows/site-scripts-test.yml"]
 permissions:
   contents: read
 jobs:
@@ -17,4 +17,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      # The emdash-agent test compares its token code with EmDash's own. Only EmDash's small auth package is installed
+      # (about 11 MB, a few seconds), at the version the pinned emdash depends on, without its Astro peer.
+      - name: EmDash's auth package, at the version sites pin
+        run: |
+          emdash=$(jq -r '.dependencies.emdash' starter/editing/packages.json)
+          auth=$(npm view "emdash@$emdash" 'dependencies.@emdash-cms/auth')
+          # Without a version npm would install the latest auth package, and the test would pass against the wrong EmDash.
+          [ -n "$auth" ] || { echo "::error::emdash@$emdash lists no @emdash-cms/auth dependency"; exit 1; }
+          npm install --prefix "$RUNNER_TEMP/emdash-auth" --no-save --no-package-lock --ignore-scripts --legacy-peer-deps --no-audit --no-fund "@emdash-cms/auth@$auth"
+          echo "EMDASH_AUTH_DIR=$RUNNER_TEMP/emdash-auth" >> "$GITHUB_ENV"
+          echo "EMDASH_AUTH_VERSION=$auth" >> "$GITHUB_ENV"
       - run: node --test scripts/site/test/*.test.mjs
