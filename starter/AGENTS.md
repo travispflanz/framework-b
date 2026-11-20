@@ -22,7 +22,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
 ## Commands
 - Build: `npm run build`.
 - Local run: `npm run db:migrate:local`, then `npm run dev`. Put test values in `.dev.vars` (copy `.dev.vars.example`).
-- Unit tests: `node --test scripts/test/*.test.mjs`. The three that check the starter's own templates (its forms in `site.config.json`, `design/research.md`, `STYLE-GUIDE.md`) skip themselves in a site, where those files are the owner's (`scripts/test/in-site.mjs`); the rest run on their own fixtures.
+- Unit tests: `node --test scripts/test/*.test.mjs`. The three that check the starter's own templates (its forms in `site.config.json`, `design/research.md`, `STYLE-GUIDE.md`) skip themselves in a site, where those files are the owner's (`scripts/test/in-site.mjs`); the rest use only their own fixtures and framework files.
 - End-to-end test: `npm run build && npm run test:e2e`. It uses a local Worker, a real browser and Turnstile test keys, and sends no email.
 - QA gate: `npm run build && npm run qa` (local), `npm run qa -- --url <preview-url>` (P6), `npm run qa -- --url https://<domain> --launch` (P8). It fails on any check; screenshots and the report land in `qa-output/`.
 - Migrations: `npm run db:migrate:remote` (never `d1 execute` with schema SQL).
