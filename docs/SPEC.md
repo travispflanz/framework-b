@@ -496,8 +496,8 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
       [astro/middleware/auth.ts](https://unpkg.com/emdash@1.3.1/src/astro/middleware/auth.ts)); anyone else gets the
       Access provider's default role, Author (30: `defaultRole` in
       [cloudflare-access.ts](https://unpkg.com/@emdash-cms/cloudflare@1.3.1/src/auth/cloudflare-access.ts)), and keeps
-      it (both read 2026-11-21). So a person who first signs in to a preview's admin while an agent user is there stays an Author. To
-      fix it, an Admin changes their role in the admin, or the ops repo runs
+      it (both read 2026-11-21). So a person who first signs in to a preview's admin while an agent user is there stays
+      an Author. To fix it, an Admin changes their role in the admin, or the ops repo runs
       `UPDATE users SET role = 50 WHERE email = '<their email>'` on `<id>-cms-preview` through the D1 API.
   - EmDash can't use an Access service token as an identity. Its `access()` provider finds the EmDash user by the
     Access identity's email, and a service token has none (its JWT's `sub` is empty, `common_name` is the client ID:
