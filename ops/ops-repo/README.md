@@ -24,7 +24,7 @@ workflow in `framework-b`, at a branch or tag you choose with its `framework_ref
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | everything | Deploy token (`docs/TOKENS.md` section 1) |
 | `CLOUDFLARE_ACCOUNT_ID` | everything | Your Cloudflare account ID (dashboard → **Workers & Pages** → **Account Details** → copy **Account ID**; [Cloudflare's guide](https://developers.cloudflare.com/fundamentals/account/find-account-and-zone-ids/), checked 2026-10-27) |
-| `CF_BUILDS_TOKEN` | create, connect builds, preview check, park, teardown, selftest | Workers Builds user token (`docs/TOKENS.md` section 2) |
+| `CF_BUILDS_TOKEN` | create, connect builds, preview check, agent edit check, park, teardown, selftest | Workers Builds user token (`docs/TOKENS.md` section 2) |
 | `GH_SITES_TOKEN` | create, update, promote, newsletter, … | GitHub fine-grained token that creates site repos and opens pull requests in them (`docs/TOKENS.md`, GitHub section) |
 | `D1_BACKUP_TOKEN` | deploy backup worker | D1 Edit only (`docs/TOKENS.md` section 3) |
 | `MAILER_URL`, `MAILER_SECRET` | optional: owner notifications on idea sites, the CRM Google Sheet | The Apps Script mailer's web app URL and secret (`ops/apps-script-mailer/README.md`) |
@@ -46,6 +46,7 @@ with `gh workflow run "<name>" -R <you>/<ops repo> -f site_id=...`.
 | **site create** | `brief` (the kickoff brief JSON), or `site_id`, `site_name`, `site_tagline`, `owner_email`, `editing`, `indexing` | Makes a new idea site: Worker, data, spam check, logins, private repo `site-<id>`, Workers Builds, monitors |
 | **site connect builds** | `site_id` | Retries just the Workers Builds connection, if `site create` couldn't make it |
 | **site preview check** | `site_id`, `branch` | Runs the QA gate on a branch's preview (through Access) and posts the result on its pull request |
+| **site agent edit check** | `site_id`, `branch` | On an editing site's branch preview, an agent makes, edits, publishes and trashes a page of its own through EmDash's API (an Access service token plus a 30-minute EmDash API token in the previews' content database, both deleted at the end), and posts the result on its pull request. Nothing live changes (*untested* live) |
 | **site update** | `site_id`, `base` (only for very old sites) | Brings a site up to the current framework on a branch, tests it, opens a pull request |
 | **site mailer** | `site_id`, `check_only` | Connects a site made before the mailer existed; `check_only: yes` just sends a test notification |
 | **site promote** | `site_id`, `domain`, `phase` (`prepare` then `finish`), `postal_address`, `dry_run` | Moves an idea site to its own domain (launch mode). Merge the pull request `prepare` opens before `finish` |

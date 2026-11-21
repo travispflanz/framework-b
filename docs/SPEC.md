@@ -452,7 +452,53 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     clamps scopes to the role only when it issues a token itself) and never makes an Admin.
   - Still untested: everything Access does (the service token's headers, and whether `Authorization` reaches the
     Worker unchanged), the cache purge when a page is published through the API (the local Worker serves no cache),
-    and any MCP client sending the Access headers. Stage B, the preview check, tests these.
+    and any MCP client sending the Access headers. Stage B, the agent edit check below, tests the first two (the purge
+    only when the page was served from Cloudflare's cache before the publish; its report says whether it was).
+  - **Stage B, the agent edit check** (built 2026-11-21; *untested* live until its first run, which waits for the
+    owner's go-ahead): the ops workflow **site agent edit check** (inputs: site id, branch) calls the reusable
+    `site-agent-edit-check.yml`, which runs `scripts/site/agent-edit-check.mjs` on the branch's deployed preview:
+    1. It refuses unless editing is on and the previews bind `CMS_DB` to `<id>-cms-preview`, a database that isn't
+       production's (`scripts/site/lib/agent-edit.mjs`, unit-tested), and writes only there.
+    2. As the preview check does, it makes sure the previews application has the "framework-b agent" policy, waits for
+       the branch's build, and mints a 30-minute service token. It reads the preview URL from the build log, which the
+       branch's own build also writes to, so it refuses any URL that isn't one of the Worker's previews on the
+       account's `workers.dev` subdomain (`https://<branch>-<worker>.<subdomain>.workers.dev`) before sending a
+       credential.
+    3. It writes a per-run Editor agent user and a 30-minute API token into that database through the D1 query API
+       (`starter/scripts/lib/emdash-agent.mjs`; agent rows a crashed run left more than an hour ago are swept first,
+       and a check page a failed run left published is trashed).
+    4. It checks that the API token alone is refused by Access, that the service token alone gets 401 from EmDash and
+       makes no EmDash user (it counts the users before and after), and that with both, pages can be listed.
+    5. With both, it runs `starter/scripts/lib/emdash-agent-edit.mjs`: a page of the check's own
+       (`/fb-agent-check-<run>`) is made as a draft (the preview answers 404), published (the preview shows it), changed
+       as a draft (the preview keeps the published headline), published again (the preview shows the change within
+       30 s, after EmDash purges the `pages` cache tag), read through MCP, and trashed (404 again). The report records
+       Cloudflare's `cf-cache-status` on the read before the second publish: the purge counts as tested only when that
+       read was a `HIT`.
+    6. It always cleans up, also when the edit stops half way or the run gets SIGINT or SIGTERM: it trashes its page
+       (through EmDash, which purges the cache), deletes the agent user and its token, then the service token, each
+       retried up to three times; when the page's id isn't known (the edit stopped on a network error or a signal), it
+       moves the run's page to the trash in D1 by its slug. It writes the run id and whether it cleaned up to a state
+       file; the workflow's last step runs `--cleanup-run` straight against D1 (no token needed) after a run that was
+       killed first. It posts the report on the branch's pull request. The test page stays in the previews' trash:
+       emptying it needs an Admin, and the agent is an Editor on purpose. Signal handling and the fallback step are
+       untested.
+    - The same `emdash-agent-edit.mjs` steps run in the starter's editing CI job on the local Worker (proven
+      2026-11-21, against the real EmDash 1.3.1), so only the Access half and the cache purge are new on a preview.
+    - It runs no EmDash setup. A previews database that was never set up has the content model (EmDash applies the
+      seed's collections on its first request) but no pages, so previews render each branch's own files. Setup with
+      the sample content would fill it with one branch's copy, and every later preview would show that instead (one
+      previews database serves all of a site's previews). The research plan had the check run setup; this replaced it
+      (`docs/DECISIONS.md`, 2026-11-21).
+    - While the agent user exists (a run's few minutes, or longer if every clean-up failed), EmDash counts it as a
+      user. In EmDash 1.3.1 the first person to sign in through Access becomes Admin only when the `users` table is
+      empty (`handleExternalAuth` in
+      [astro/middleware/auth.ts](https://unpkg.com/emdash@1.3.1/src/astro/middleware/auth.ts)); anyone else gets the
+      Access provider's default role, Author (30: `defaultRole` in
+      [cloudflare-access.ts](https://unpkg.com/@emdash-cms/cloudflare@1.3.1/src/auth/cloudflare-access.ts)), and keeps
+      it (both read 2026-11-21). So a person who first signs in to a preview's admin while an agent user is there stays
+      an Author. To fix it, an Admin changes their role in the admin, or the ops repo runs
+      `UPDATE users SET role = 50 WHERE email = '<their email>'` on `<id>-cms-preview` through the D1 API.
   - EmDash can't use an Access service token as an identity. Its `access()` provider finds the EmDash user by the
     Access identity's email, and a service token has none (its JWT's `sub` is empty, `common_name` is the client ID:
     [application token](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/),

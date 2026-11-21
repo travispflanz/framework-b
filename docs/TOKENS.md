@@ -15,12 +15,12 @@ Used by the builder agent for everything except Workers Builds. Scope it to the 
 | Permission | Used for | Status |
 |---|---|---|
 | Workers Scripts: Edit | Deploy Workers, enable `workers.dev` and preview URLs | Verified |
-| D1: Edit | Create databases, run migrations, read leads | Verified |
+| D1: Edit | Create databases, run migrations, read leads; **site agent edit check** writes and deletes its per-run agent user and API token in a site's previews content database | Verified |
 | Workers R2 Storage: Edit | Upload and backup buckets, CORS | Verified |
 | Turnstile Sites: Edit | Create the widget and add hostnames | Verified |
 | Email Routing Addresses: Edit | Destination addresses (verification click is still human) | Verified |
 | Access: Apps and Policies: Edit | `/admin` login and preview protection; the reusable `framework-b agent` Service Auth policy on each site's previews application | Verified |
-| Access: Service Tokens: Edit | **site preview check** mints a 30-minute service token for each run and deletes it at the end, so QA can open Access-protected previews ([service tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/), checked 2026-10-23: creating, refreshing and deleting need `Access: Service Tokens Write`) | Verified 2026-10-26. Only the ops repo's copy needs it. Without it the create call returned `auth.forbidden` (2026-10-23) |
+| Access: Service Tokens: Edit | **site preview check** and **site agent edit check** mint a 30-minute service token for each run and delete it at the end, so QA can open Access-protected previews ([service tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/), checked 2026-10-23: creating, refreshing and deleting need `Access: Service Tokens Write`) | Verified 2026-10-26. Only the ops repo's copy needs it. Without it the create call returned `auth.forbidden` (2026-10-23) |
 | Access: Organizations, Identity Providers, and Groups: Edit | Read or create the one-time PIN login method | Verified |
 | Account Analytics: Edit | Create Web Analytics sites | Verified |
 | Workers KV Storage: Edit | EmDash session storage (only for sites with client editing); `create` makes the namespaces | Required for client editing. Checked by the ops repo's `verify secrets` workflow |

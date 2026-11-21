@@ -15,6 +15,9 @@
 //    it is 401 with WWW-Authenticate.
 // 6. The sweep removes an agent user left by an older run (and its token) and keeps the current one; revoking removes
 //    the current one's rows.
+// 7. (Run before 6.) The agent edit check's steps (scripts/lib/emdash-agent-edit.mjs): a new page is a draft and not on
+//    the site, is published and shown, is changed as a draft (the site keeps the published headline), is published
+//    again and shown, is read through MCP, and is trashed (the site answers 404).
 // No Cloudflare Access in front: the local Worker is reached directly, so what Access does with the service token's
 // headers and the Authorization header is stage B's to prove, on a preview. Local files only; nothing is left changed
 // but dist/.
@@ -24,6 +27,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import * as agent from "../lib/emdash-agent.mjs";
+import { agentEdit, trashPage } from "../lib/emdash-agent-edit.mjs";
 import { startLocalSite } from "../lib/local-site.mjs";
 
 assert.ok(JSON.parse(readFileSync("site.config.json", "utf8")).editing?.enabled, "switch client editing on first (scripts/editing.mjs on)");
@@ -161,6 +165,18 @@ try {
   assert.equal(anonymous.status, 401, "MCP without a Bearer token is refused");
   assert.match(anonymous.headers.get("www-authenticate") || "", /^Bearer resource_metadata="/, "with a WWW-Authenticate header");
   console.log(`5. MCP: initialize, tools/list (${names.length} tools) and content_get work with the token; without one, 401 with WWW-Authenticate.`);
+
+  // 7. The live check's own steps (scripts/lib/emdash-agent-edit.mjs, which Framework B's agent edit check runs on a
+  // preview through Access): a new page, drafted, published, changed as a draft, published again, read through MCP and
+  // trashed, with the rendered page checked at every step.
+  const edit = await agentEdit({ base, token: editor.token.raw, run: RUN, settleMs: 10_000, everyMs: 500 });
+  for (const s of edit.steps) console.log(`   ${s.step}: ${s.detail}`);
+  const trashed = rows(`SELECT deleted_at FROM ec_pages WHERE slug = '${edit.slug}'`);
+  assert.ok(trashed.length === 1 && trashed[0].deleted_at, "the check page is in the trash, not deleted");
+  // The live check's clean-up trashes a page a failed run made; on a page already in the trash it answers 404.
+  assert.equal(await trashPage({ base, token: editor.token.raw, id: edit.id }), 404, "trashing a trashed page again is a 404, not an error");
+  assert.equal(edit.purgeSeen, false, "the local Worker serves no cache, so no purge is claimed");
+  console.log(`7. The agent edit check's steps passed: /${edit.slug} was made, published, changed, published again, read through MCP and trashed.`);
 
   // 6. Clean-up: the sweep removes what an older run left, then the run revokes its own agent.
   const oldRun = `${RUN}-old`;

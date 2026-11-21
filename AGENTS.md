@@ -19,7 +19,7 @@ To build a site from an owner's prompt, follow `docs/BUILD.md` step by step (Cla
 - `.claude/skills/build-site/`: the agent skill that follows `docs/BUILD.md`
 - `starter/`: the template copied for each new site (its `AGENTS.md` is the site agent's guide)
 - `packages/core/`: the versioned runtime every site's Worker is built from, including the CRM mirror and drips
-- `scripts/site/`: the scripts behind the ops workflows (create, update, preview check, promote, newsletter, CRM sync, snapshot, park, teardown)
+- `scripts/site/`: the scripts behind the ops workflows (create, update, preview check, agent edit check, promote, newsletter, CRM sync, snapshot, park, teardown)
 - `.github/workflows/`: reusable workflows the ops repo calls (`site-*.yml`, `deploy-backup-worker.yml`) and this repo's CI
 - `ops/`: shared services (backup Worker, Apps Script mailer, webhook check) and `ops/ops-repo/`, the template for the owner's private ops repo
 
