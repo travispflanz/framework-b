@@ -98,16 +98,16 @@ test("clean-up retries each step and goes on when one fails", async () => {
   assert.match(r.lines[0], /may still be published/);
   assert.deepEqual(sent, revokeAgent("p-1"), "the agent is still revoked after the trash failed");
 
-  const ok = await cleanUp({ run: "p-2", db: async () => [], revoke: revokeAgent, trash: async () => 200, waitMs: 1 });
-  assert.deepEqual(ok, { ok: true, lines: ["Clean-up: the check page is in the trash (HTTP 200)", "Clean-up: the agent user and its API token are deleted"] });
+  const ok = await cleanUp({ run: "p-2", db: async () => [], revoke: revokeAgent, trash: async () => "the check page is in the trash", waitMs: 1 });
+  assert.deepEqual(ok, { ok: true, lines: ["Clean-up: the check page is in the trash", "Clean-up: the agent user and its API token are deleted"] });
   const lost = await cleanUp({ run: "p-3", db: async () => { throw new Error("D1 down"); }, revoke: revokeAgent, waitMs: 1 });
   assert.equal(lost.ok, false);
   assert.match(lost.lines[0], /agent user for run `p-3` may be left/);
 });
 
-test("the fallback clean-up trashes only that run's page and removes only its agent", () => {
+test("the fallback clean-up removes only that run's agent, first, then trashes only its page", () => {
   const page = checkPage("p-4");
   const st = fallbackCleanup({ run: "p-4", slug: page.slug, revokeAgent, now: new Date("2026-11-21T00:00:00Z") });
-  assert.deepEqual(st[0], { sql: "UPDATE ec_pages SET deleted_at = ? WHERE slug = ? AND deleted_at IS NULL", params: ["2026-11-21T00:00:00.000Z", "fb-agent-check-p-4"] });
-  assert.deepEqual(st.slice(1), revokeAgent("p-4"));
+  assert.deepEqual(st.slice(0, -1), revokeAgent("p-4"), "the agent goes first: a failed page update can't leave it");
+  assert.deepEqual(st.at(-1), { sql: "UPDATE ec_pages SET deleted_at = ? WHERE slug = ? AND deleted_at IS NULL", params: ["2026-11-21T00:00:00.000Z", "fb-agent-check-p-4"] });
 });

@@ -43,6 +43,7 @@ export function runId(label, now = Date.now()) {
  * True when `url` is one of this Worker's preview URLs on the account's workers.dev subdomain:
  * https://<branch>-<worker>.<subdomain>.workers.dev (docs/SPEC.md, "Checking a preview (P6)"). The check reads the URL
  * from the build log, which the branch's own build also writes to, so it never sends its credentials anywhere else.
+ * A preview of another Worker in the same account whose name ends in "-<worker>" also matches: the same owner's.
  */
 export function isPreviewOrigin(url, { worker, subdomain }) {
   let u;
@@ -71,7 +72,7 @@ export async function retry(fn, { attempts = 3, waitMs = 2000 } = {}) {
 }
 
 /**
- * The run's clean-up, in order: trash its check page (through EmDash, which purges the page's cache), then delete the
+ * The run's clean-up, in order: trash its check page (`trash` returns what it did, for the report), then delete the
  * agent user and its tokens. Each step is retried; a failed step doesn't stop the next. Returns report lines and
  * whether everything was cleaned.
  */
@@ -80,8 +81,8 @@ export async function cleanUp({ run, db, revoke, trash = null, waitMs = 2000 }) 
   let ok = true;
   if (trash) {
     try {
-      const status = await retry(trash, { waitMs });
-      lines.push(`Clean-up: the check page is in the trash (HTTP ${status})`);
+      const how = await retry(trash, { waitMs });
+      lines.push(`Clean-up: ${how}`);
     } catch (e) {
       ok = false;
       lines.push(`**Clean-up failed:** the check page may still be published: ${e.message}`);
@@ -103,8 +104,11 @@ export async function cleanUp({ run, db, revoke, trash = null, waitMs = 2000 }) 
  * EmDash 1.3.1). EmDash's cache of that page then expires on its own (maxAge 300 s, starter/editing/astro.config.mjs).
  */
 export function fallbackCleanup({ run, slug, revokeAgent, now = new Date() }) {
-  return [
-    { sql: "UPDATE ec_pages SET deleted_at = ? WHERE slug = ? AND deleted_at IS NULL", params: [new Date(now).toISOString(), slug] },
-    ...revokeAgent(run),
-  ];
+  // The agent first: a leftover agent user is what does lasting harm (section "Agents editing content", docs/SPEC.md).
+  return [...revokeAgent(run), trashBySlug(slug, now)];
+}
+
+/** Moves a page to the trash in D1 the way EmDash does (deleted_at), for when EmDash's API can't be used. */
+export function trashBySlug(slug, now = new Date()) {
+  return { sql: "UPDATE ec_pages SET deleted_at = ? WHERE slug = ? AND deleted_at IS NULL", params: [new Date(now).toISOString(), slug] };
 }

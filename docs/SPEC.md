@@ -477,10 +477,12 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
        read was a `HIT`.
     6. It always cleans up, also when the edit stops half way or the run gets SIGINT or SIGTERM: it trashes its page
        (through EmDash, which purges the cache), deletes the agent user and its token, then the service token, each
-       retried up to three times. It writes the run id and whether it cleaned up to a state file; the workflow's last
-       step runs `--cleanup-run` straight against D1 (no token needed) after a run that was killed first. It posts the
-       report on the branch's pull request. The test page stays in the previews' trash: emptying it needs an Admin, and
-       the agent is an Editor on purpose. Signal handling and the fallback step are untested.
+       retried up to three times; when the page's id isn't known (the edit stopped on a network error or a signal), it
+       moves the run's page to the trash in D1 by its slug. It writes the run id and whether it cleaned up to a state
+       file; the workflow's last step runs `--cleanup-run` straight against D1 (no token needed) after a run that was
+       killed first. It posts the report on the branch's pull request. The test page stays in the previews' trash:
+       emptying it needs an Admin, and the agent is an Editor on purpose. Signal handling and the fallback step are
+       untested.
     - The same `emdash-agent-edit.mjs` steps run in the starter's editing CI job on the local Worker (proven
       2026-11-21, against the real EmDash 1.3.1), so only the Access half and the cache purge are new on a preview.
     - It runs no EmDash setup. A previews database that was never set up has the content model (EmDash applies the
@@ -491,8 +493,10 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     - While the agent user exists (a run's few minutes, or longer if every clean-up failed), EmDash counts it as a
       user. In EmDash 1.3.1 the first person to sign in through Access becomes Admin only when the `users` table is
       empty (`handleExternalAuth` in
-      [astro/middleware/auth.ts](https://unpkg.com/emdash@1.3.1/src/astro/middleware/auth.ts), read 2026-11-21);
-      anyone else gets the default role, Author (30), and keeps it. So a person who first signs in to a preview's admin while an agent user is there stays an Author. To
+      [astro/middleware/auth.ts](https://unpkg.com/emdash@1.3.1/src/astro/middleware/auth.ts)); anyone else gets the
+      Access provider's default role, Author (30: `defaultRole` in
+      [cloudflare-access.ts](https://unpkg.com/@emdash-cms/cloudflare@1.3.1/src/auth/cloudflare-access.ts)), and keeps
+      it (both read 2026-11-21). So a person who first signs in to a preview's admin while an agent user is there stays an Author. To
       fix it, an Admin changes their role in the admin, or the ops repo runs
       `UPDATE users SET role = 50 WHERE email = '<their email>'` on `<id>-cms-preview` through the D1 API.
   - EmDash can't use an Access service token as an identity. Its `access()` provider finds the EmDash user by the

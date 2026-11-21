@@ -34,7 +34,7 @@ import { fileURLToPath } from "node:url";
 import { cf, env, log } from "./lib/api.mjs";
 import { attachAgentPolicy, deleteCheckToken, ensureAgentPolicy, mintCheckToken, previewsApp, sweepCheckTokens, waitForToken } from "./lib/access-agent.mjs";
 import { previewsAppName } from "./lib/adopt.mjs";
-import { cleanUp, d1, fallbackCleanup, isPreviewOrigin, previewContentDb, retry, runId } from "./lib/agent-edit.mjs";
+import { cleanUp, d1, fallbackCleanup, isPreviewOrigin, previewContentDb, retry, runId, trashBySlug } from "./lib/agent-edit.mjs";
 import { buildLog, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
 
 const FRAMEWORK = resolve(join(dirname(fileURLToPath(import.meta.url)), "../.."));
@@ -115,7 +115,17 @@ async function cleanupAll() {
   cleaning ??= (async () => {
     let clean = true;
     if (wrote && db) {
-      const trash = pageId && origin ? () => trashPage({ base: origin, token: minted.token.raw, id: pageId, access }) : null;
+      // Through EmDash when the page's id is known (it purges the page's cache); otherwise (the edit stopped on a
+      // network error or a signal before it said) straight in D1 by the run's slug, which is a no-op if none was made.
+      const trash = async () => {
+        if (pageId && origin) {
+          try {
+            return `the check page is in the trash (through EmDash, HTTP ${await trashPage({ base: origin, token: minted.token.raw, id: pageId, access })})`;
+          } catch {}
+        }
+        await db([trashBySlug(checkPage(RUN).slug)]);
+        return "no check page of this run is left published (checked in D1)";
+      };
       const r = await cleanUp({ run: RUN, db, revoke: agent.revokeAgent, trash });
       for (const l of r.lines) line(l);
       clean = r.ok;
