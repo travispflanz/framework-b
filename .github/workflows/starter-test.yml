@@ -111,7 +111,7 @@ jobs:
         run: node scripts/test/editing-guide-assets.mjs
         working-directory: starter
       # Before the switch off below, which turns editing off for the rest of the job.
-      - name: An agent edits through EmDash's API (an API token written into the content database reads, drafts and publishes; scope, expiry, a disabled user and MCP checked)
+      - name: An agent edits through EmDash's API (an API token written into the content database reads, drafts and publishes; scope, expiry, a disabled user and MCP checked; then the agent edit check's own steps on a new page)
         if: matrix.editing == 'on'
         run: node scripts/test/editing-agent-api.mjs
         working-directory: starter

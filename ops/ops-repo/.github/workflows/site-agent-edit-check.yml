@@ -1,0 +1,19 @@
+# Caller: agent edit check for one site branch's preview (an agent edits a page of its own through EmDash's API, behind
+# Access; nothing live changes). Writes a 30-minute agent user and API token into the previews' content database and
+# deletes them at the end. Replace OWNER.
+name: site agent edit check
+on:
+  workflow_dispatch:
+    inputs:
+      site_id: { description: "site id (client editing on)", required: true }
+      branch: { description: "site branch whose preview to check (not main)", required: true }
+      framework_ref: { description: "framework-b branch or tag", required: false, default: main }
+jobs:
+  check:
+    uses: OWNER/framework-b/.github/workflows/site-agent-edit-check.yml@main
+    with:
+      framework_repo: OWNER/framework-b
+      framework_ref: ${{ inputs.framework_ref }}
+      site_id: ${{ inputs.site_id }}
+      branch: ${{ inputs.branch }}
+    secrets: inherit

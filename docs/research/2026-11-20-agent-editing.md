@@ -330,7 +330,7 @@ Also unit-test `starter/scripts/lib/emdash-agent.mjs` (below; first planned in `
 stage A): its token and hash must equal what the installed EmDash's own `hashPrefixedToken` gives for the same
 input. That way an EmDash update that changes the format fails CI, not a live run.
 
-### Stage B: the preview check (live; no Access change)
+### Stage B: the preview check (live; no Access change) (built 2026-11-21, untested live; section 11)
 
 New files in framework-b:
 
@@ -366,7 +366,7 @@ What the script does, in order:
 4. **Service token:** sweeps stale check tokens, then mints a 30-minute one (`mintCheckToken`) and waits until Access
    accepts it (`waitForToken`). It warms `/`, because EmDash's first request on a fresh database can take over a
    minute.
-5. **Setup if needed:** `GET /_emdash/api/setup/status`. If setup isn't complete, it posts `/_emdash/api/setup` with
+5. **Setup if needed** (*dropped when stage B was built, 2026-11-21; section 11*): `GET /_emdash/api/setup/status`. If setup isn't complete, it posts `/_emdash/api/setup` with
    the site's name, its tagline and `includeContent: true`, repeating until `seedComplete`. The report says so.
 6. **Check 1 (Access still gates):** a request with only an API token, and no service token headers, is refused by
    Access (302 to the login, or 401/403).
@@ -514,3 +514,34 @@ stage A, each marked where it is:
 - Section 7, stage C: the persistent agent user must never be sweepable.
 - Section 9: what stage A proved, and why the cache purge on an API publish is still untested (the local Worker
   serves no cache).
+
+## 11. Stage B as built (2026-11-21)
+
+Built as `scripts/site/agent-edit-check.mjs`, the reusable `.github/workflows/site-agent-edit-check.yml` and the ops
+workflow **site agent edit check**. Untested live: its first run waits for the owner's go-ahead (section 7, "What the
+owner must approve"). What changed from section 7:
+
+- **No EmDash setup** (step 5 dropped). EmDash 1.3.1 applies the seed's collections on its first request, without
+  content (`emdash-runtime.ts`, the auto-seed gate: `applySeed(db, seed, { onConflict: "skip" })`; `includeContent`
+  defaults to false in `seed/apply.ts`), and its setup check only redirects `/_emdash/admin`, never the API
+  (`astro/middleware/setup.ts`). So the API works on a previews database that was never set up. Setup with
+  `includeContent: true` would put one branch's copy into the database all of a site's previews share, and every later
+  preview would render that instead of its branch's files (`src/lib/page-content.js`: EmDash's page first). A read-only
+  query of the first editing site's previews database on 2026-11-21 found 1 collection, 0 pages, 0 users and no
+  `emdash:setup_complete`. The check lists pages with both credentials instead, and fails clearly without the model.
+- **The edit runs on shared code.** Steps 9.1 to 9.7 are `starter/scripts/lib/emdash-agent-edit.mjs`, which the
+  starter's editing CI job also runs on the local Worker (`starter/scripts/test/editing-agent-api.mjs`, step 7).
+  Proven there on 2026-11-21 against the real EmDash 1.3.1: create (201, a draft; the page answers 404), publish (the
+  page shows headline A), `GET` and `PUT` (200, a draft revision; the page still shows A), publish (the page shows B),
+  MCP `content_get` (B), `DELETE` (200; the page answers 404; the row is in the trash with `deleted_at` set).
+- **Check 2 also counts EmDash's users** before and after the service-token-only request. If EmDash ever made a user
+  from a service token (the first one would be an Admin), the check fails and says so, and leaves the user for the
+  owner to see.
+- **The routes it uses**, read in EmDash 1.3.1's npm package on 2026-11-21: `POST /_emdash/api/content/{collection}`
+  takes `{ data, slug }` and answers 201 with a draft (`api/schemas/content.ts` `contentCreateBody`); `DELETE
+  /_emdash/api/content/{collection}/{id}` sets `deleted_at` (`ContentRepository.delete`) and purges the page's cache
+  tags, as publish does (`invalidateRouteCache`). The editing site's `/[page]` route carries the `pages` tag
+  (`starter/editing/astro.config.mjs`), so a cached 404 from the draft step is purged by the publish.
+- The agent's page has the agent as its author (`author_id` has no foreign key on content tables, `schema/registry.ts`),
+  so deleting the agent user leaves the trashed page in place. Create makes no byline unless asked.
+
