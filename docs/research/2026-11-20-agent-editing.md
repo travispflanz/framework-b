@@ -534,6 +534,17 @@ owner must approve"). What changed from section 7:
   Proven there on 2026-11-21 against the real EmDash 1.3.1: create (201, a draft; the page answers 404), publish (the
   page shows headline A), `GET` and `PUT` (200, a draft revision; the page still shows A), publish (the page shows B),
   MCP `content_get` (B), `DELETE` (200; the page answers 404; the row is in the trash with `deleted_at` set).
+- **Credentials go only to the Worker's own preview.** The preview URL comes from the build log, which the branch's
+  own build also writes to, so the check refuses any host that isn't `<branch>-<worker>.<subdomain>.workers.dev` on the
+  account's subdomain (`GET /accounts/<id>/workers/subdomain`, as `create` reads it) before sending either credential.
+- **Clean-up on every path.** A failed edit returns the page's id, and the clean-up trashes the page before revoking
+  the agent; each clean-up step is retried; SIGINT and SIGTERM run the same clean-up; a state file lets the workflow's
+  last step clean up straight in D1 after a run that was killed. Each run also trashes any check page an earlier run
+  left published. The first-Admin effect of a leftover agent user is permanent for the person it affects (EmDash makes
+  the first user Admin only when `users` is empty; anyone else gets Author, 30), which is why this matters.
+- **The cache purge is claimed only when seen.** The page's `cf-cache-status` is recorded on the read before the second
+  publish (the editing site's responses carry `Cache-Tag` and `Cloudflare-CDN-Cache-Control` from `@astrojs/cloudflare`
+  14.4.2's cache provider); the report says the purge was exercised only after a `HIT`.
 - **Check 2 also counts EmDash's users** before and after the service-token-only request. If EmDash ever made a user
   from a service token (the first one would be an Admin), the check fails and says so, and leaves the user for the
   owner to see.

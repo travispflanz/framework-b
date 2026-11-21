@@ -53,9 +53,28 @@ jobs:
           BRANCH: ${{ inputs.branch }}
         run: |
           set +e
-          node framework/scripts/site/agent-edit-check.mjs --site site --site-id "$SITE_ID" --branch "$BRANCH" --commit "$COMMIT" --report agent-edit-report.md
+          node framework/scripts/site/agent-edit-check.mjs --site site --site-id "$SITE_ID" --branch "$BRANCH" --commit "$COMMIT" --report agent-edit-report.md --state agent-edit-run.json
           echo "code=$?" >> "$GITHUB_OUTPUT"
           cat agent-edit-report.md >> "$GITHUB_STEP_SUMMARY"
+      # A run that was cancelled or killed before its own clean-up leaves an agent user in the previews' content
+      # database, and EmDash counts it when it decides whether the first person to sign in is the Admin. This step runs
+      # even after a cancel, and deletes what the run's state file says is left (straight to D1; no token is needed).
+      - name: Clean up after a run that stopped early
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SITE_ID: ${{ inputs.site_id }}
+        run: |
+          [ -f agent-edit-run.json ] || { echo "The check never started; nothing to clean up."; exit 0; }
+          if [ "$(jq -r .cleaned agent-edit-run.json)" = true ]; then echo "The run cleaned up after itself."; exit 0; fi
+          run=$(jq -r .run agent-edit-run.json)
+          set +e
+          node framework/scripts/site/agent-edit-check.mjs --site site --site-id "$SITE_ID" --cleanup-run "$run" --report cleanup-report.md
+          status=$?
+          cat cleanup-report.md >> "$GITHUB_STEP_SUMMARY"
+          cat cleanup-report.md >> agent-edit-report.md 2>/dev/null || true
+          exit $status
       - name: Post the result on the pull request
         if: always()
         env:

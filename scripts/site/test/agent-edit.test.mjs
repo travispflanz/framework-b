@@ -1,11 +1,12 @@
 // The agent edit check's helpers (scripts/site/lib/agent-edit.mjs): it writes only to the previews' own content
-// database, sends the agent's SQL with bound parameters, and names its page and rows per run.
+// database, sends the agent's SQL with bound parameters, names its page and rows per run, sends its credentials only to
+// the Worker's own preview, and cleans up (retrying, and on to the next step when one fails).
 //   node --test scripts/site/test/agent-edit.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { d1, previewContentDb, runId } from "../lib/agent-edit.mjs";
+import { cleanUp, d1, fallbackCleanup, isPreviewOrigin, previewContentDb, retry, runId } from "../lib/agent-edit.mjs";
 import { checkPage } from "../../../starter/scripts/lib/emdash-agent-edit.mjs";
-import { agentUser, sweepAgents } from "../../../starter/scripts/lib/emdash-agent.mjs";
+import { agentUser, revokeAgent, sweepAgents } from "../../../starter/scripts/lib/emdash-agent.mjs";
 
 const config = { editing: { enabled: true } };
 const wrangler = (preview, prod = { binding: "CMS_DB", database_name: "example-cms", database_id: "p1" }) => ({
@@ -62,4 +63,51 @@ test("each run has its own id, agent user and check page", () => {
   assert.equal(page.slug, `fb-agent-check-${a}`);
   assert.notEqual(page.first, page.second);
   assert.throws(() => checkPage("Not A Run"), /run id/);
+});
+
+test("credentials go only to this Worker's previews on the account's workers.dev subdomain", () => {
+  const ours = { worker: "example", subdomain: "acct" };
+  assert.ok(isPreviewOrigin("https://feat-x-example.acct.workers.dev", ours));
+  assert.ok(isPreviewOrigin("https://feat-x-example.acct.workers.dev/some/path", ours));
+  for (const url of [
+    "https://example.com",
+    "http://feat-x-example.acct.workers.dev",
+    "https://feat-x-example.acct.workers.dev:8443",
+    "https://feat-x-other.acct.workers.dev",
+    "https://feat-x-example.someone-else.workers.dev",
+    "https://example.acct.workers.dev",
+    "https://feat-x-example.acct.workers.dev.example.com",
+    "https://evil.feat-x-example.acct.workers.dev",
+    "not a url",
+  ]) assert.ok(!isPreviewOrigin(url, ours), url);
+});
+
+test("clean-up retries each step and goes on when one fails", async () => {
+  let tries = 0;
+  assert.equal(await retry(async () => (++tries < 3 ? Promise.reject(new Error("lost")) : "ok"), { waitMs: 1 }), "ok");
+  assert.equal(tries, 3);
+  await assert.rejects(retry(async () => { throw new Error("down"); }, { attempts: 2, waitMs: 1 }), /down/);
+
+  const sent = [];
+  const db = async (statements) => sent.push(...statements);
+  let trashes = 0;
+  const failingTrash = async () => { trashes++; throw new Error("HTTP 500"); };
+  const r = await cleanUp({ run: "p-1", db, revoke: revokeAgent, trash: failingTrash, waitMs: 1 });
+  assert.equal(trashes, 3, "the trash is tried three times");
+  assert.equal(r.ok, false);
+  assert.match(r.lines[0], /may still be published/);
+  assert.deepEqual(sent, revokeAgent("p-1"), "the agent is still revoked after the trash failed");
+
+  const ok = await cleanUp({ run: "p-2", db: async () => [], revoke: revokeAgent, trash: async () => 200, waitMs: 1 });
+  assert.deepEqual(ok, { ok: true, lines: ["Clean-up: the check page is in the trash (HTTP 200)", "Clean-up: the agent user and its API token are deleted"] });
+  const lost = await cleanUp({ run: "p-3", db: async () => { throw new Error("D1 down"); }, revoke: revokeAgent, waitMs: 1 });
+  assert.equal(lost.ok, false);
+  assert.match(lost.lines[0], /agent user for run `p-3` may be left/);
+});
+
+test("the fallback clean-up trashes only that run's page and removes only its agent", () => {
+  const page = checkPage("p-4");
+  const st = fallbackCleanup({ run: "p-4", slug: page.slug, revokeAgent, now: new Date("2026-11-21T00:00:00Z") });
+  assert.deepEqual(st[0], { sql: "UPDATE ec_pages SET deleted_at = ? WHERE slug = ? AND deleted_at IS NULL", params: ["2026-11-21T00:00:00.000Z", "fb-agent-check-p-4"] });
+  assert.deepEqual(st.slice(1), revokeAgent("p-4"));
 });

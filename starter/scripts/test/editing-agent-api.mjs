@@ -27,7 +27,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import * as agent from "../lib/emdash-agent.mjs";
-import { agentEdit } from "../lib/emdash-agent-edit.mjs";
+import { agentEdit, trashPage } from "../lib/emdash-agent-edit.mjs";
 import { startLocalSite } from "../lib/local-site.mjs";
 
 assert.ok(JSON.parse(readFileSync("site.config.json", "utf8")).editing?.enabled, "switch client editing on first (scripts/editing.mjs on)");
@@ -173,6 +173,9 @@ try {
   for (const s of edit.steps) console.log(`   ${s.step}: ${s.detail}`);
   const trashed = rows(`SELECT deleted_at FROM ec_pages WHERE slug = '${edit.slug}'`);
   assert.ok(trashed.length === 1 && trashed[0].deleted_at, "the check page is in the trash, not deleted");
+  // The live check's clean-up trashes a page a failed run made; on a page already in the trash it answers 404.
+  assert.equal(await trashPage({ base, token: editor.token.raw, id: edit.id }), 404, "trashing a trashed page again is a 404, not an error");
+  assert.equal(edit.purgeSeen, false, "the local Worker serves no cache, so no purge is claimed");
   console.log(`7. The agent edit check's steps passed: /${edit.slug} was made, published, changed, published again, read through MCP and trashed.`);
 
   // 6. Clean-up: the sweep removes what an older run left, then the run revokes its own agent.

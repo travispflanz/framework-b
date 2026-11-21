@@ -31,37 +31,53 @@ export function checkPage(run) {
 const hero = (headline) => ({ _type: "fb_hero", _key: "hero", _version: 1, headline, subheadline: "A page an automated check made through EmDash's API. It is moved to the trash when the check ends." });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Calls EmDash's API on a site's own origin with an agent's token (and Access headers); the body parsed when JSON. */
+export async function emdashApi(origin, token, path, { access = {}, ...init } = {}) {
+  const t0 = Date.now();
+  const r = await fetch(`${new URL(origin).origin}/_emdash/api${path}`, {
+    ...init,
+    redirect: "manual",
+    signal: AbortSignal.timeout(60_000),
+    headers: { ...access, Authorization: `Bearer ${token}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
+  });
+  const text = await r.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {}
+  return { status: r.status, body, text, ms: Date.now() - t0, location: r.headers.get("location"), type: r.headers.get("content-type") || "" };
+}
+
 /**
- * Runs the edit and returns its steps ({ step, detail }). Throws on the first step that fails, with the steps so far
- * on `error.steps`. `base` is the site's origin; `token` the agent's raw API token; `access` the headers that get a
+ * Moves a page to the trash (idempotent: a page already in the trash, or never made, answers 404). Returns the HTTP
+ * status. Clean-up for a check that failed after making its page, so the page never stays on the site.
+ */
+export async function trashPage({ base, token, id, access = {} }) {
+  const r = await emdashApi(base, token, `/content/pages/${encodeURIComponent(id)}`, { method: "DELETE", access });
+  if (r.status !== 200 && r.status !== 404) throw new Error(`trash page ${id}: HTTP ${r.status}`);
+  return r.status;
+}
+
+/**
+ * Runs the edit and returns its steps ({ step, detail }), the page's id and whether a publish was seen to purge a
+ * cached copy (`purgeSeen`: the page was read from Cloudflare's cache, HIT, just before the second publish). Throws on
+ * the first step that fails, with the steps so far on `error.steps` and the page's id, once made, on `error.id` (trash
+ * it with trashPage). `base` is the site's origin; `token` the agent's raw API token; `access` the headers that get a
  * request past Cloudflare Access (none on the local Worker); `settleMs` how long the rendered page may take to follow
- * a publish or a trash (Workers Cache is purged by EmDash; a first response from the cache is retried).
+ * a publish or a trash (EmDash purges the page's cache tags; a stale cached response is retried).
  */
 export async function agentEdit({ base, token, run, access = {}, settleMs = 30_000, everyMs = 2000, onStep = () => {} }) {
   const origin = new URL(base).origin;
   const { slug, first, second } = checkPage(run);
   const steps = [];
+  let id = null;
   const done = (step, detail) => {
     steps.push({ step, detail });
     onStep(step, detail);
   };
-  const fail = (message) => Object.assign(new Error(message), { steps });
+  const fail = (message) => Object.assign(new Error(message), { steps, id });
 
-  const api = async (path, init = {}) => {
-    const t0 = Date.now();
-    const r = await fetch(`${origin}/_emdash/api${path}`, {
-      ...init,
-      redirect: "manual",
-      signal: AbortSignal.timeout(60_000),
-      headers: { ...access, Authorization: `Bearer ${token}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
-    });
-    const text = await r.text();
-    let body = null;
-    try {
-      body = text ? JSON.parse(text) : null;
-    } catch {}
-    return { status: r.status, body, text, ms: Date.now() - t0, location: r.headers.get("location"), type: r.headers.get("content-type") || "" };
-  };
+  const api = (path, init = {}) => emdashApi(origin, token, path, { ...init, access });
   const expect = (what, res, status) => {
     if (res.status !== status) {
       const why = res.body?.error ? `${res.body.error.code}: ${res.body.error.message}` : res.location ? `redirect to ${res.location.split("?")[0]}` : res.text.slice(0, 200);
@@ -75,7 +91,8 @@ export async function agentEdit({ base, token, run, access = {}, settleMs = 30_0
     let last = null;
     for (;;) {
       const r = await fetch(`${origin}/${slug}`, { headers: access, redirect: "manual", signal: AbortSignal.timeout(60_000) }).catch((e) => ({ status: 0, error: e }));
-      last = { status: r.status, html: r.text ? await r.text() : "", location: r.headers?.get?.("location") };
+      // cf-cache-status and age say whether Cloudflare's cache served the page (Cache-Tag is set by @astrojs/cloudflare).
+      last = { status: r.status, html: r.text ? await r.text() : "", location: r.headers?.get?.("location"), cache: r.headers?.get?.("cf-cache-status") || null, age: r.headers?.get?.("age") || null };
       if (want(last)) return { ...last, ms: Date.now() - t0 };
       if (Date.now() - t0 > settleMs) throw fail(`${what}: after ${Math.round(settleMs / 1000)} s /${slug} still answers HTTP ${last.status}${last.location ? ` (to ${last.location.split("?")[0]})` : ""}`);
       await sleep(everyMs);
@@ -86,7 +103,7 @@ export async function agentEdit({ base, token, run, access = {}, settleMs = 30_0
 
   // 1. A new page, as a draft.
   const created = expect("create the check page", await api("/content/pages", { method: "POST", body: JSON.stringify({ slug, data: { title: `Agent check ${run}`, sections: [hero(first)] } }) }), 201);
-  const id = created.body?.data?.item?.id;
+  id = created.body?.data?.item?.id || null;
   if (!id) throw fail(`create the check page: no item id in ${created.text.slice(0, 200)}`);
   if (created.body.data.item.status !== "draft") throw fail(`create the check page: status ${created.body.data.item.status}, expected draft`);
   done("create", `POST /content/pages: 201, a draft (${created.ms} ms)`);
@@ -108,12 +125,14 @@ export async function agentEdit({ base, token, run, access = {}, settleMs = 30_0
   if (!put.body?.data?.item?.draftRevisionId) throw fail("change the headline: EmDash kept no draft revision");
   const still = await page("the site keeps the published headline while the change is a draft", shows(first));
   if (still.html.includes(second)) throw fail("the draft headline is already on the site");
-  done("draft", `GET (a _rev), then PUT: 200, kept as a draft (${put.ms} ms); /${slug} still shows "${first}"`);
+  const cached = still.cache ? `, cache ${still.cache}${still.age ? `, age ${still.age} s` : ""}` : ", no cache status";
+  done("draft", `GET (a _rev), then PUT: 200, kept as a draft (${put.ms} ms); /${slug} still shows "${first}"${cached}`);
 
   // 4. Publish the change: the site shows it.
   const pub2 = expect("publish the change", await api(`/content/pages/${id}/publish`, { method: "POST", body: JSON.stringify({ _rev: put.body.data._rev }) }), 200);
   const shown2 = await page("the site shows the published change", shows(second));
-  done("publish change", `POST …/publish: 200 (${pub2.ms} ms); /${slug} shows "${second}" after ${shown2.ms} ms`);
+  const purgeSeen = still.cache === "HIT";
+  done("publish change", `POST …/publish: 200 (${pub2.ms} ms); /${slug} shows "${second}" after ${shown2.ms} ms${shown2.cache ? ` (cache ${shown2.cache})` : ""}${purgeSeen ? "; the cached copy was purged" : ""}`);
 
   // 5. MCP reads the same page with the same credentials.
   const call = await api("/mcp", { method: "POST", headers: { Accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "content_get", arguments: { collection: "pages", id } } }) });
@@ -129,5 +148,5 @@ export async function agentEdit({ base, token, run, access = {}, settleMs = 30_0
   const del = expect("trash the check page", await api(`/content/pages/${id}`, { method: "DELETE" }), 200);
   const gone = await page("a trashed page is not on the site", missing);
   done("trash", `DELETE: 200 (${del.ms} ms); /${slug} answers HTTP ${gone.status} after ${gone.ms} ms`);
-  return { id, slug, steps };
+  return { id, slug, steps, purgeSeen };
 }
