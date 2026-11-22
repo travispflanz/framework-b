@@ -1,10 +1,10 @@
 // The agent edit check's helpers (scripts/site/lib/agent-edit.mjs): it writes only to the previews' own content
-// database, sends the agent's SQL with bound parameters, names its page and rows per run, sends its credentials only to
-// the Worker's own preview, and cleans up (retrying, and on to the next step when one fails).
+// database, sends the agent's SQL with bound parameters, names its page and rows per run, and cleans up (retrying, and
+// on to the next step when one fails). Where it sends its credentials is tested with the preview URL, in builds.test.mjs.
 //   node --test scripts/site/test/agent-edit.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanUp, d1, fallbackCleanup, isPreviewOrigin, previewContentDb, retry, runId } from "../lib/agent-edit.mjs";
+import { cleanUp, d1, fallbackCleanup, previewContentDb, retry, runId } from "../lib/agent-edit.mjs";
 import { checkPage } from "../../../starter/scripts/lib/emdash-agent-edit.mjs";
 import { agentUser, revokeAgent, sweepAgents } from "../../../starter/scripts/lib/emdash-agent.mjs";
 
@@ -63,23 +63,6 @@ test("each run has its own id, agent user and check page", () => {
   assert.equal(page.slug, `fb-agent-check-${a}`);
   assert.notEqual(page.first, page.second);
   assert.throws(() => checkPage("Not A Run"), /run id/);
-});
-
-test("credentials go only to this Worker's previews on the account's workers.dev subdomain", () => {
-  const ours = { worker: "example", subdomain: "acct" };
-  assert.ok(isPreviewOrigin("https://feat-x-example.acct.workers.dev", ours));
-  assert.ok(isPreviewOrigin("https://feat-x-example.acct.workers.dev/some/path", ours));
-  for (const url of [
-    "https://example.com",
-    "http://feat-x-example.acct.workers.dev",
-    "https://feat-x-example.acct.workers.dev:8443",
-    "https://feat-x-other.acct.workers.dev",
-    "https://feat-x-example.someone-else.workers.dev",
-    "https://example.acct.workers.dev",
-    "https://feat-x-example.acct.workers.dev.example.com",
-    "https://evil.feat-x-example.acct.workers.dev",
-    "not a url",
-  ]) assert.ok(!isPreviewOrigin(url, ours), url);
 });
 
 test("clean-up retries each step and goes on when one fails", async () => {

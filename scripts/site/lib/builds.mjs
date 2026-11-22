@@ -63,3 +63,22 @@ export async function buildLog({ A, uuid }) {
 // `npx wrangler preview` prints "Preview URL: https://<branch>-<worker>.<subdomain>.workers.dev"
 // (seen in Workers Builds logs, 2026-10-23). The stable URL follows the branch's latest deployment.
 export const previewUrlFrom = (lines) => lines.map((l) => String(l).trim().match(/^Preview URL:\s*(https:\/\/\S+)/)?.[1]).find(Boolean) || null;
+
+/**
+ * True when `url` is one of this Worker's preview URLs on the account's workers.dev subdomain:
+ * https://<branch>-<worker>.<subdomain>.workers.dev (docs/SPEC.md, "Checking a preview (P6)"). The preview check and
+ * the agent edit check read the URL from the build log, which the branch's own build also writes to, so they test it
+ * with this before sending a credential there. A preview of another Worker in the same account whose name ends in
+ * "-<worker>" also matches: the same owner's.
+ */
+export function isPreviewOrigin(url, { worker, subdomain }) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  const suffix = `-${worker}.${subdomain}.workers.dev`.toLowerCase();
+  const host = u.hostname.toLowerCase();
+  return u.protocol === "https:" && !u.port && host.endsWith(suffix) && /^[a-z0-9][a-z0-9-]*$/.test(host.slice(0, -suffix.length));
+}

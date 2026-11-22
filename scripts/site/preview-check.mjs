@@ -11,7 +11,8 @@
 //
 // 1. Makes sure the site's previews Access application ("<id> previews", or adopt.json previewsApp) admits the "framework-b agent" Service Auth policy.
 // 2. Waits for the branch's build of that commit; fails with the end of the build log if the build failed.
-// 3. Reads the preview URL from the build log.
+// 3. Reads the preview URL from the build log, and refuses it unless it is one of this Worker's previews on the
+//    account's workers.dev subdomain: the branch's own build writes to that log too, and the token goes to the URL.
 // 4. Mints a 30-minute service token, runs `npm run qa -- --url <preview>` with it, and deletes the token.
 // Exit code: 0 when the preview built and QA passed, 1 otherwise. The report says which.
 import { spawnSync } from "node:child_process";
@@ -20,7 +21,7 @@ import { join, resolve } from "node:path";
 import { cf, env, log } from "./lib/api.mjs";
 import { attachAgentPolicy, deleteCheckToken, ensureAgentPolicy, mintCheckToken, previewsApp, sweepCheckTokens } from "./lib/access-agent.mjs";
 import { previewsAppName } from "./lib/adopt.mjs";
-import { buildLog, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
+import { buildLog, isPreviewOrigin, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -59,8 +60,13 @@ try {
     report.push(`- Build: **${build.build_outcome || "failed"}**`, "", "```", ...lines.slice(-30), "```");
     throw new Error(`the preview build ${build.build_outcome || "failed"}`);
   }
-  const url = previewUrlFrom(lines);
-  if (!url) throw new Error("the build log has no \"Preview URL:\" line (is the preview trigger's deploy command `npx wrangler preview`?)");
+  const found = previewUrlFrom(lines);
+  if (!found) throw new Error("the build log has no \"Preview URL:\" line (is the preview trigger's deploy command `npx wrangler preview`?)");
+  // The branch's build writes to the same log before wrangler does, so a printed line could name any host. The
+  // token, and the QA gate's requests with it, go only to one of this Worker's previews.
+  const subdomain = (await cf(`${A}/workers/subdomain`)).subdomain;
+  if (!isPreviewOrigin(found, { worker: id, subdomain })) throw new Error(`the build log's preview URL ${URL.canParse(found) ? new URL(found).host : JSON.stringify(found)} isn't one of ${id}'s previews on ${subdomain}.workers.dev; no token was minted or sent`);
+  const url = new URL(found).origin;
   report.push(`- Build: passed (commit \`${build.build_trigger_metadata?.commit_hash?.slice(0, 7)}\`)`, `- Preview: ${url} (behind Cloudflare Access)`);
   log("preview", url);
 
