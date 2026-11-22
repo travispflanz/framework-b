@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,7 +45,16 @@ function run(buildLog) {
   const dir = mkdtempSync(join(tmpdir(), "fb-preview-check-"));
   const site = join(dir, "site");
   mkdirSync(join(site, "scripts"), { recursive: true });
-  writeFileSync(join(site, "scripts/qa.mjs"), "// reads ACCESS_CLIENT_ID and ACCESS_CLIENT_SECRET\n");
+  // A stand-in QA gate (the check needs one that reads ACCESS_CLIENT_ID): it records the URL and whether it got the token.
+  writeFileSync(join(site, "package.json"), JSON.stringify({ private: true, scripts: { qa: "node scripts/qa.mjs" } }));
+  writeFileSync(
+    join(site, "scripts/qa.mjs"),
+    `import { writeFileSync } from "node:fs";
+// reads ACCESS_CLIENT_ID and ACCESS_CLIENT_SECRET
+writeFileSync(${JSON.stringify(join(dir, "qa.json"))}, JSON.stringify({ argv: process.argv.slice(2), token: Boolean(process.env.ACCESS_CLIENT_SECRET) }));
+console.log("QA gate passed (stand-in)");
+`,
+  );
   writeFileSync(join(dir, "mock.mjs"), MOCK);
   const log = join(dir, "requests.jsonl");
   writeFileSync(log, "");
@@ -58,22 +67,30 @@ function run(buildLog) {
       CF_BUILDS_TOKEN: "builds-token",
       MOCK_LOG: log,
       MOCK_BUILD_LOG: JSON.stringify(buildLog),
+      npm_config_update_notifier: "false",
+      npm_config_cache: join(dir, "npm-cache"),
     },
     encoding: "utf8",
     timeout: 60_000,
   });
-  const requests = readFileSync(log, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
-  return { status: r.status, report: readFileSync(report, "utf8"), requests };
+  try {
+    const requests = readFileSync(log, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+    const qa = existsSync(join(dir, "qa.json")) ? JSON.parse(readFileSync(join(dir, "qa.json"), "utf8")) : null;
+    return { status: r.status, report: readFileSync(report, "utf8"), requests, qa };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 const minted = (requests) => requests.some((q) => q.method === "POST" && q.url.endsWith("/access/service_tokens"));
 
 test("a build log whose first \"Preview URL:\" names another host gets no token minted or sent", () => {
-  const { status, report, requests } = run(["> npm run build", "Preview URL: https://collector.example.com", "Preview URL: https://feat-x-example.acct.workers.dev"]);
+  const { status, report, requests, qa } = run(["> npm run build", "Preview URL: https://collector.example.com", "Preview URL: https://feat-x-example.acct.workers.dev"]);
   assert.equal(status, 1);
   assert.match(report, /collector\.example\.com isn't one of example's previews on acct\.workers\.dev; no token was minted or sent/);
   assert.ok(!minted(requests), "no service token was minted");
   assert.ok(!requests.some((q) => !q.url.startsWith("https://api.cloudflare.com/")), "nothing but the Cloudflare API was called");
+  assert.equal(qa, null, "QA never ran");
 });
 
 test("an unparseable preview URL is refused the same way", () => {
@@ -84,7 +101,9 @@ test("an unparseable preview URL is refused the same way", () => {
 });
 
 test("the Worker's own preview gets the token, only on its origin, and the token is deleted", () => {
-  const { report, requests } = run(["> npx wrangler preview", "Preview URL: https://feat-x-example.acct.workers.dev/"]);
+  const { status, report, requests, qa } = run(["> npx wrangler preview", "Preview URL: https://feat-x-example.acct.workers.dev/"]);
+  assert.equal(status, 0, report);
+  assert.deepEqual(qa, { argv: ["--url", "https://feat-x-example.acct.workers.dev"], token: true }, "QA got the origin and the token");
   assert.match(report, /- Preview: https:\/\/feat-x-example\.acct\.workers\.dev \(behind Cloudflare Access\)/);
   assert.ok(minted(requests), "the token was minted");
   const carried = requests.filter((q) => q.token);
