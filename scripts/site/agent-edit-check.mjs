@@ -34,8 +34,8 @@ import { fileURLToPath } from "node:url";
 import { cf, env, log } from "./lib/api.mjs";
 import { attachAgentPolicy, deleteCheckToken, ensureAgentPolicy, mintCheckToken, previewsApp, sweepCheckTokens, waitForToken } from "./lib/access-agent.mjs";
 import { previewsAppName } from "./lib/adopt.mjs";
-import { cleanUp, d1, fallbackCleanup, isPreviewOrigin, previewContentDb, retry, runId, trashBySlug } from "./lib/agent-edit.mjs";
-import { buildLog, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
+import { cleanUp, d1, fallbackCleanup, previewContentDb, retry, runId, trashBySlug } from "./lib/agent-edit.mjs";
+import { buildLog, isPreviewOrigin, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
 
 const FRAMEWORK = resolve(join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const { stripJsonc } = await import(join(FRAMEWORK, "starter/scripts/lib/jsonc.mjs"));
@@ -172,7 +172,7 @@ try {
   const url = previewUrlFrom(await buildLog({ A, uuid: build.build_uuid }));
   if (!url) throw new Error("the build log has no \"Preview URL:\" line");
   const subdomain = (await cf(`${A}/workers/subdomain`)).subdomain;
-  if (!isPreviewOrigin(url, { worker: id, subdomain })) throw new Error(`the build log's preview URL ${new URL(url).host} isn't one of ${id}'s previews on ${subdomain}.workers.dev; no credential was sent`);
+  if (!isPreviewOrigin(url, { worker: id, subdomain })) throw new Error(`the build log's preview URL ${URL.canParse(url) ? new URL(url).host : JSON.stringify(url)} isn't one of ${id}'s previews on ${subdomain}.workers.dev; no credential was sent`);
   origin = new URL(url).origin;
   line(`Preview: ${origin} (behind Cloudflare Access), build of \`${build.build_trigger_metadata?.commit_hash?.slice(0, 7)}\``);
 

@@ -39,24 +39,6 @@ export function runId(label, now = Date.now()) {
   return `${base}-${now.toString(36)}`.slice(0, 48);
 }
 
-/**
- * True when `url` is one of this Worker's preview URLs on the account's workers.dev subdomain:
- * https://<branch>-<worker>.<subdomain>.workers.dev (docs/SPEC.md, "Checking a preview (P6)"). The check reads the URL
- * from the build log, which the branch's own build also writes to, so it never sends its credentials anywhere else.
- * A preview of another Worker in the same account whose name ends in "-<worker>" also matches: the same owner's.
- */
-export function isPreviewOrigin(url, { worker, subdomain }) {
-  let u;
-  try {
-    u = new URL(url);
-  } catch {
-    return false;
-  }
-  const suffix = `-${worker}.${subdomain}.workers.dev`.toLowerCase();
-  const host = u.hostname.toLowerCase();
-  return u.protocol === "https:" && !u.port && host.endsWith(suffix) && /^[a-z0-9][a-z0-9-]*$/.test(host.slice(0, -suffix.length));
-}
-
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Runs an idempotent step up to `attempts` times (clean-up: a lost DELETE is safe to send again). */
