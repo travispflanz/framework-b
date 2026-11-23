@@ -31,7 +31,7 @@ globalThis.fetch = async (input, init = {}) => {
   if (path === "/access/apps/app-1") return ok({ id: "app-1", name: "example previews", policies: [{ id: "pol-1" }] });
   if (path === "/access/policies") return ok([{ id: "pol-1", name: "framework-b agent", reusable: true }]);
   if (path === "/builds/workers/tag-1/builds") {
-    return ok([{ build_uuid: "b-1", status: "stopped", build_outcome: "success", created_on: "2026-11-23T07:00:00.000Z", build_trigger_metadata: { branch: "feat/x", commit_hash: "abc1234def" } }]);
+    return ok([{ build_uuid: "b-1", status: "stopped", build_outcome: "success", created_on: "2026-11-23T06:58:00.000Z", running_on: "2026-11-23T07:00:00.000Z", build_trigger_metadata: { branch: "feat/x", commit_hash: "abc1234def" } }]);
   }
   if (path === "/workers/workers/example/previews") {
     // The name filter is a partial match: every stand-in Preview whose name contains it, one page.
@@ -46,7 +46,7 @@ globalThis.fetch = async (input, init = {}) => {
 };
 `;
 
-// The branch's own Worker Preview, deployed after its build started (2026-11-23T07:00:00Z), and another branch's whose
+// The branch's own Worker Preview, deployed after its build began running (2026-11-23T07:00:00Z), and another branch's whose
 // name contains this one's.
 const OWN = { name: "feat/x", urls: ["https://feat-x-example.acct.workers.dev"], deployed_on: "2026-11-23T07:01:30.123456Z" };
 const LONGER = { name: "feat/x-2", urls: ["https://feat-x-2-example.acct.workers.dev"], deployed_on: "2026-11-23T07:05:00Z" };

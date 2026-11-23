@@ -8,14 +8,15 @@
 //                                          [--report <file.md>] [--state <file.json>]
 //   node scripts/site/agent-edit-check.mjs --site <site checkout> --site-id <id> --cleanup-run <run> [--report <file.md>]
 //
-// Environment: CLOUDFLARE_API_TOKEN (Access: Apps and Policies Edit, Service Tokens Edit; D1 Edit), CLOUDFLARE_ACCOUNT_ID,
+// Environment: CLOUDFLARE_API_TOKEN (Access: Apps and Policies Edit, Service Tokens Edit; D1 Edit; Workers Scripts Read,
+// which the deploy token's Workers Scripts Edit covers), CLOUDFLARE_ACCOUNT_ID,
 // CF_BUILDS_TOKEN. The site checkout needs only site.config.json and wrangler.jsonc (no build).
 //
 // 1. Refuses unless client editing is on and the previews bind CMS_DB to `<id>-cms-preview`, not production's database.
 // 2. Makes sure the previews Access application has the "framework-b agent" Service Auth policy (as the preview check).
 // 3. Waits for the branch's build and reads the preview URL from its log; refuses a URL that isn't one of this Worker's
-//    previews on the account's workers.dev subdomain, or isn't the branch's own Worker Preview deployed during or after
-//    this build. Mints a 30-minute service token and waits until Access takes it.
+//    previews on the account's workers.dev subdomain, or isn't the branch's own Worker Preview, last deployed after this
+//    build began running. Mints a 30-minute service token and waits until Access takes it.
 // 4. Writes a per-run Editor agent user and a 30-minute EmDash API token into the previews' content database, and
 //    trashes any check page an earlier run left published.
 // 5. Checks: the API token alone doesn't get past Access; the service token alone is no EmDash user (401, and no user

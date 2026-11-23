@@ -92,19 +92,20 @@ export function isPreviewOrigin(url, { worker, subdomain }) {
 export async function branchPreview({ A, worker, branch, perPage = 100, maxPages = 10 }) {
   for (let page = 1; page <= maxPages; page++) {
     const q = new URLSearchParams({ name: branch, per_page: String(perPage), page: String(page) });
-    const list = (await cf(`${A}/workers/workers/${encodeURIComponent(worker)}/previews?${q}`)) || [];
+    const list = await cf(`${A}/workers/workers/${encodeURIComponent(worker)}/previews?${q}`);
+    if (!Array.isArray(list)) return null;
     const hit = list.find((p) => p.name === branch);
     if (hit) return hit;
     if (list.length < perPage) return null;
   }
-  return null;
+  throw new Error(`more than ${perPage * maxPages} Worker Previews have names containing "${branch}"; stopped looking for the exact one`);
 }
 
 const originOf = (url) => (URL.canParse(url) ? new URL(url).origin : null);
 
 /**
- * Null when `url` (already through isPreviewOrigin) is the branch's own Preview URL and that Preview was deployed during
- * or after this build; otherwise the reason it isn't. isPreviewOrigin admits any preview of the Worker, so without this
+ * Null when `url` (already through isPreviewOrigin) is the branch's own Preview URL and that Preview was last deployed
+ * after this build began running; otherwise the reason it isn't. isPreviewOrigin admits any preview of the Worker, so without this
  * a branch's build could print another branch's preview URL and QA would pass on that branch's code.
  */
 export function branchPreviewMismatch(url, preview, { branch, build }) {
@@ -115,7 +116,9 @@ export function branchPreviewMismatch(url, preview, { branch, build }) {
     const host = originOf(url) ? new URL(url).host : JSON.stringify(url);
     return `${host} isn't the URL of ${named} (${origins.map((o) => new URL(o).host).join(", ") || "it lists none"})`;
   }
-  const startedAt = build?.created_on || build?.running_on || "";
+  // When the build began running, not when it was queued: an earlier build of the branch can still deploy while this
+  // one waits in the queue.
+  const startedAt = build?.running_on || build?.created_on || "";
   if (!(Date.parse(preview.deployed_on || "") >= Date.parse(startedAt))) {
     return `${named} was last deployed ${preview.deployed_on ? `at ${preview.deployed_on}` : "never"}, before this build started (${startedAt || "unknown"})`;
   }

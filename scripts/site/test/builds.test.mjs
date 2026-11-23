@@ -52,7 +52,7 @@ test("the branch's own Worker Preview, deployed during or after its build, passe
   assert.equal(branchPreviewMismatch("https://feat-x-example.acct.workers.dev/", OWN, opts), null, "a trailing slash is the same origin");
   assert.equal(branchPreviewMismatch("https://Feat-X-Example.acct.workers.dev", OWN, opts), null, "hosts compare without case");
   assert.equal(branchPreviewMismatch("https://feat-x-example.acct.workers.dev", { ...OWN, deployed_on: BUILD.created_on }, opts), null, "deployed the moment the build started");
-  assert.equal(branchPreviewMismatch("https://feat-x-example.acct.workers.dev", OWN, { branch: "feat/x", build: { running_on: "2026-11-23T07:00:05Z" } }), null, "running_on when created_on is missing");
+  assert.equal(branchPreviewMismatch("https://feat-x-example.acct.workers.dev", OWN, { branch: "feat/x", build: { running_on: "2026-11-23T07:00:05Z" } }), null, "running_on alone");
 });
 
 test("another preview, a stale one or none is refused, with the reason", () => {
@@ -63,6 +63,9 @@ test("another preview, a stale one or none is refused, with the reason", () => {
   assert.match(branchPreviewMismatch("https://feat-x-example.acct.workers.dev", { ...OWN, deployed_on: "2026-11-23T06:59:59Z" }, opts), /last deployed at 2026-11-23T06:59:59Z, before this build started \(2026-11-23T07:00:00\.000Z\)/);
   assert.match(branchPreviewMismatch("https://feat-x-example.acct.workers.dev", { ...OWN, deployed_on: null }, opts), /last deployed never/);
   assert.match(branchPreviewMismatch("https://feat-x-example.acct.workers.dev", OWN, { branch: "feat/x", build: {} }), /before this build started \(unknown\)/, "no build time: refused, not assumed");
+  // Deployed after the build was queued but before it ran: an earlier build of the branch, not this one.
+  const queued = { created_on: "2026-11-23T07:00:00Z", running_on: "2026-11-23T07:03:00Z" };
+  assert.match(branchPreviewMismatch("https://feat-x-example.acct.workers.dev", OWN, { branch: "feat/x", build: queued }), /before this build started \(2026-11-23T07:03:00Z\)/, "running_on wins over created_on");
 });
 
 test("branchPreview finds the exact name through the API's partial-match filter, across pages", async () => {
@@ -86,6 +89,7 @@ test("branchPreview finds the exact name through the API's partial-match filter,
     assert.equal(seen.length, 2, "it read the second page");
     assert.match(seen[0], /^\/client\/v4\/accounts\/acct-id\/workers\/workers\/example\/previews\?name=feat%2Fx&per_page=2&page=1$/);
     assert.equal(await branchPreview({ A: "/accounts/acct-id", worker: "example", branch: "feat/y", perPage: 2 }), null, "no such Preview");
+    await assert.rejects(branchPreview({ A: "/accounts/acct-id", worker: "example", branch: "feat/x", perPage: 1, maxPages: 2 }), /more than 2 Worker Previews have names containing "feat\/x"/, "running out of pages isn't \"no Preview\"");
   } finally {
     globalThis.fetch = realFetch;
     if (token === undefined) delete process.env.CLOUDFLARE_API_TOKEN;

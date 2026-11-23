@@ -5,7 +5,8 @@
 //   node scripts/site/preview-check.mjs --site <site checkout> --site-id <id> --branch <branch> [--commit <sha>]
 //                                       [--report <file.md>]
 //
-// Environment: CLOUDFLARE_API_TOKEN (Access: Apps and Policies Edit, Service Tokens Edit), CLOUDFLARE_ACCOUNT_ID,
+// Environment: CLOUDFLARE_API_TOKEN (Access: Apps and Policies Edit, Service Tokens Edit; Workers Scripts Read, which the
+// deploy token's Workers Scripts Edit covers), CLOUDFLARE_ACCOUNT_ID,
 // CF_BUILDS_TOKEN. The site checkout must be built (`npm run build`: QA's content checks read dist/) and have a
 // Playwright Chromium.
 //
@@ -13,7 +14,7 @@
 // 2. Waits for the branch's build of that commit; fails with the end of the build log if the build failed.
 // 3. Reads the preview URL from the build log, and refuses it unless it is one of this Worker's previews on the
 //    account's workers.dev subdomain (the branch's own build writes to that log too, and the token goes to the URL),
-//    and unless it is the URL of the branch's own Worker Preview, deployed during or after this build.
+//    and unless it is the URL of the branch's own Worker Preview, last deployed after this build began running.
 // 4. Mints a 30-minute service token, runs `npm run qa -- --url <preview>` with it, and deletes the token.
 // Exit code: 0 when the preview built and QA passed, 1 otherwise. The report says which.
 import { spawnSync } from "node:child_process";
