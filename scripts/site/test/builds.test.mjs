@@ -89,6 +89,10 @@ test("branchPreview finds the exact name through the API's partial-match filter,
     assert.equal(seen.length, 2, "it read the second page");
     assert.match(seen[0], /^\/client\/v4\/accounts\/acct-id\/workers\/workers\/example\/previews\?name=feat%2Fx&per_page=2&page=1$/);
     assert.equal(await branchPreview({ A: "/accounts/acct-id", worker: "example", branch: "feat/y", perPage: 2 }), null, "no such Preview");
+    const listing = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify({ success: true, result: null }), { status: 200 });
+    await assert.rejects(branchPreview({ A: "/accounts/acct-id", worker: "example", branch: "feat/x" }), /the Previews API returned no list for example/, "no list isn't \"no Preview\"");
+    globalThis.fetch = listing;
     await assert.rejects(branchPreview({ A: "/accounts/acct-id", worker: "example", branch: "feat/x", perPage: 1, maxPages: 2 }), /more than 2 Worker Previews have names containing "feat\/x"/, "running out of pages isn't \"no Preview\"");
   } finally {
     globalThis.fetch = realFetch;

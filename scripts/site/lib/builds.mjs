@@ -93,7 +93,7 @@ export async function branchPreview({ A, worker, branch, perPage = 100, maxPages
   for (let page = 1; page <= maxPages; page++) {
     const q = new URLSearchParams({ name: branch, per_page: String(perPage), page: String(page) });
     const list = await cf(`${A}/workers/workers/${encodeURIComponent(worker)}/previews?${q}`);
-    if (!Array.isArray(list)) return null;
+    if (!Array.isArray(list)) throw new Error(`the Previews API returned no list for ${worker} (got ${list === null ? "null" : typeof list})`);
     const hit = list.find((p) => p.name === branch);
     if (hit) return hit;
     if (list.length < perPage) return null;
