@@ -271,7 +271,8 @@ Push `build/initial` and open a pull request in `site-<id>`. Workers Builds depl
 Access. Then run the ops repo's **site preview check** with `site_id` and `branch`. It:
 
 1. adds the "framework-b agent" Service Auth policy to the site's previews application if it's missing;
-2. waits for the branch's build and reads the preview URL from the build log;
+2. waits for the branch's build, reads the preview URL from the build log, and checks it is the branch's own
+   Worker Preview, deployed by that build;
 3. mints a 30-minute Access service token, waits until Access accepts it (a few seconds), and runs the site's QA
    gate on the preview, sending the token only to the preview's own host;
 4. deletes the token and posts the result on the pull request, with screenshots in the run's artifacts.

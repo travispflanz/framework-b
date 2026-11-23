@@ -82,3 +82,42 @@ export function isPreviewOrigin(url, { worker, subdomain }) {
   const host = u.hostname.toLowerCase();
   return u.protocol === "https:" && !u.port && host.endsWith(suffix) && /^[a-z0-9][a-z0-9-]*$/.test(host.slice(0, -suffix.length));
 }
+
+/**
+ * The Worker Preview a branch's `npx wrangler preview` creates or updates. A Preview is named after the git branch, and
+ * the Previews API lists each one with its routable URLs (`urls`) and when it was last deployed (`deployed_on`); its
+ * `name` filter is a partial match, and the list is newest deployment first (docs/SPEC.md, "Checking a preview (P6)").
+ * Returns null when the Worker has no Preview of that exact name.
+ */
+export async function branchPreview({ A, worker, branch, perPage = 100, maxPages = 10 }) {
+  for (let page = 1; page <= maxPages; page++) {
+    const q = new URLSearchParams({ name: branch, per_page: String(perPage), page: String(page) });
+    const list = (await cf(`${A}/workers/workers/${encodeURIComponent(worker)}/previews?${q}`)) || [];
+    const hit = list.find((p) => p.name === branch);
+    if (hit) return hit;
+    if (list.length < perPage) return null;
+  }
+  return null;
+}
+
+const originOf = (url) => (URL.canParse(url) ? new URL(url).origin : null);
+
+/**
+ * Null when `url` (already through isPreviewOrigin) is the branch's own Preview URL and that Preview was deployed during
+ * or after this build; otherwise the reason it isn't. isPreviewOrigin admits any preview of the Worker, so without this
+ * a branch's build could print another branch's preview URL and QA would pass on that branch's code.
+ */
+export function branchPreviewMismatch(url, preview, { branch, build }) {
+  const named = `the \`${branch}\` Worker Preview`;
+  if (!preview) return `the Worker has no Preview named \`${branch}\``;
+  const origins = (preview.urls || []).map(originOf).filter(Boolean);
+  if (!origins.includes(originOf(url))) {
+    const host = originOf(url) ? new URL(url).host : JSON.stringify(url);
+    return `${host} isn't the URL of ${named} (${origins.map((o) => new URL(o).host).join(", ") || "it lists none"})`;
+  }
+  const startedAt = build?.created_on || build?.running_on || "";
+  if (!(Date.parse(preview.deployed_on || "") >= Date.parse(startedAt))) {
+    return `${named} was last deployed ${preview.deployed_on ? `at ${preview.deployed_on}` : "never"}, before this build started (${startedAt || "unknown"})`;
+  }
+  return null;
+}

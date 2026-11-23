@@ -12,7 +12,8 @@
 // 1. Makes sure the site's previews Access application ("<id> previews", or adopt.json previewsApp) admits the "framework-b agent" Service Auth policy.
 // 2. Waits for the branch's build of that commit; fails with the end of the build log if the build failed.
 // 3. Reads the preview URL from the build log, and refuses it unless it is one of this Worker's previews on the
-//    account's workers.dev subdomain: the branch's own build writes to that log too, and the token goes to the URL.
+//    account's workers.dev subdomain (the branch's own build writes to that log too, and the token goes to the URL),
+//    and unless it is the URL of the branch's own Worker Preview, deployed during or after this build.
 // 4. Mints a 30-minute service token, runs `npm run qa -- --url <preview>` with it, and deletes the token.
 // Exit code: 0 when the preview built and QA passed, 1 otherwise. The report says which.
 import { spawnSync } from "node:child_process";
@@ -21,7 +22,7 @@ import { join, resolve } from "node:path";
 import { cf, env, log } from "./lib/api.mjs";
 import { attachAgentPolicy, deleteCheckToken, ensureAgentPolicy, mintCheckToken, previewsApp, sweepCheckTokens } from "./lib/access-agent.mjs";
 import { previewsAppName } from "./lib/adopt.mjs";
-import { buildLog, isPreviewOrigin, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
+import { branchPreview, branchPreviewMismatch, buildLog, isPreviewOrigin, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -66,8 +67,17 @@ try {
   // token, and the QA gate's requests with it, go only to one of this Worker's previews.
   const subdomain = (await cf(`${A}/workers/subdomain`)).subdomain;
   if (!isPreviewOrigin(found, { worker: id, subdomain })) throw new Error(`the build log's preview URL ${URL.canParse(found) ? new URL(found).host : JSON.stringify(found)} isn't one of ${id}'s previews on ${subdomain}.workers.dev; no token was minted or sent`);
+  // Any preview of this Worker passes that guard; QA must check this branch's. The Previews API names the branch's
+  // Preview and its URL, and says when it was last deployed.
+  const preview = await branchPreview({ A, worker: id, branch });
+  const wrong = branchPreviewMismatch(found, preview, { branch, build });
+  if (wrong) throw new Error(`the build log's preview URL isn't this branch's: ${wrong}; no token was minted or sent`);
   const url = new URL(found).origin;
-  report.push(`- Build: passed (commit \`${build.build_trigger_metadata?.commit_hash?.slice(0, 7)}\`)`, `- Preview: ${url} (behind Cloudflare Access)`);
+  report.push(
+    `- Build: passed (commit \`${build.build_trigger_metadata?.commit_hash?.slice(0, 7)}\`)`,
+    `- Preview: ${url} (behind Cloudflare Access)`,
+    `- Worker Preview \`${preview.name}\`, last deployed ${preview.deployed_on}`,
+  );
   log("preview", url);
 
   const swept = await sweepCheckTokens(A);

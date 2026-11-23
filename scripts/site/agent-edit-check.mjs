@@ -14,7 +14,8 @@
 // 1. Refuses unless client editing is on and the previews bind CMS_DB to `<id>-cms-preview`, not production's database.
 // 2. Makes sure the previews Access application has the "framework-b agent" Service Auth policy (as the preview check).
 // 3. Waits for the branch's build and reads the preview URL from its log; refuses a URL that isn't one of this Worker's
-//    previews on the account's workers.dev subdomain. Mints a 30-minute service token and waits until Access takes it.
+//    previews on the account's workers.dev subdomain, or isn't the branch's own Worker Preview deployed during or after
+//    this build. Mints a 30-minute service token and waits until Access takes it.
 // 4. Writes a per-run Editor agent user and a 30-minute EmDash API token into the previews' content database, and
 //    trashes any check page an earlier run left published.
 // 5. Checks: the API token alone doesn't get past Access; the service token alone is no EmDash user (401, and no user
@@ -35,7 +36,7 @@ import { cf, env, log } from "./lib/api.mjs";
 import { attachAgentPolicy, deleteCheckToken, ensureAgentPolicy, mintCheckToken, previewsApp, sweepCheckTokens, waitForToken } from "./lib/access-agent.mjs";
 import { previewsAppName } from "./lib/adopt.mjs";
 import { cleanUp, d1, fallbackCleanup, previewContentDb, retry, runId, trashBySlug } from "./lib/agent-edit.mjs";
-import { buildLog, isPreviewOrigin, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
+import { branchPreview, branchPreviewMismatch, buildLog, isPreviewOrigin, previewUrlFrom, waitForBuild } from "./lib/builds.mjs";
 
 const FRAMEWORK = resolve(join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const { stripJsonc } = await import(join(FRAMEWORK, "starter/scripts/lib/jsonc.mjs"));
@@ -173,6 +174,8 @@ try {
   if (!url) throw new Error("the build log has no \"Preview URL:\" line");
   const subdomain = (await cf(`${A}/workers/subdomain`)).subdomain;
   if (!isPreviewOrigin(url, { worker: id, subdomain })) throw new Error(`the build log's preview URL ${URL.canParse(url) ? new URL(url).host : JSON.stringify(url)} isn't one of ${id}'s previews on ${subdomain}.workers.dev; no credential was sent`);
+  const wrong = branchPreviewMismatch(url, await branchPreview({ A, worker: id, branch }), { branch, build });
+  if (wrong) throw new Error(`the build log's preview URL isn't this branch's: ${wrong}; no credential was sent`);
   origin = new URL(url).origin;
   line(`Preview: ${origin} (behind Cloudflare Access), build of \`${build.build_trigger_metadata?.commit_hash?.slice(0, 7)}\``);
 
