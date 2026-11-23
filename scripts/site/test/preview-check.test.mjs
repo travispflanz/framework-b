@@ -1,6 +1,6 @@
 // The preview check (scripts/site/preview-check.mjs) run end to end against a stand-in for the Cloudflare API: it mints
-// its service token only after the build log's preview URL proved to be one of the Worker's previews, and sends the
-// token nowhere else.
+// its service token only after the build log's preview URL proved to be one of the Worker's previews and the branch's
+// own Worker Preview, deployed by this build, and sends the token nowhere else.
 //   node --test scripts/site/test/preview-check.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -31,7 +31,12 @@ globalThis.fetch = async (input, init = {}) => {
   if (path === "/access/apps/app-1") return ok({ id: "app-1", name: "example previews", policies: [{ id: "pol-1" }] });
   if (path === "/access/policies") return ok([{ id: "pol-1", name: "framework-b agent", reusable: true }]);
   if (path === "/builds/workers/tag-1/builds") {
-    return ok([{ build_uuid: "b-1", status: "stopped", build_outcome: "success", build_trigger_metadata: { branch: "feat/x", commit_hash: "abc1234def" } }]);
+    return ok([{ build_uuid: "b-1", status: "stopped", build_outcome: "success", created_on: "2026-11-23T06:58:00.000Z", running_on: "2026-11-23T07:00:00.000Z", build_trigger_metadata: { branch: "feat/x", commit_hash: "abc1234def" } }]);
+  }
+  if (path === "/workers/workers/example/previews") {
+    // The name filter is a partial match: every stand-in Preview whose name contains it, one page.
+    const name = new URL(url).searchParams.get("name") || "";
+    return ok(JSON.parse(process.env.MOCK_PREVIEWS).filter((p) => p.name.includes(name)));
   }
   if (path === "/builds/builds/b-1/logs") return ok({ lines: JSON.parse(process.env.MOCK_BUILD_LOG).map((l, i) => [i, l]), truncated: false });
   if (path === "/access/service_tokens" && method === "GET") return ok([]);
@@ -41,7 +46,12 @@ globalThis.fetch = async (input, init = {}) => {
 };
 `;
 
-function run(buildLog) {
+// The branch's own Worker Preview, deployed after its build began running (2026-11-23T07:00:00Z), and another branch's whose
+// name contains this one's.
+const OWN = { name: "feat/x", urls: ["https://feat-x-example.acct.workers.dev"], deployed_on: "2026-11-23T07:01:30.123456Z" };
+const LONGER = { name: "feat/x-2", urls: ["https://feat-x-2-example.acct.workers.dev"], deployed_on: "2026-11-23T07:05:00Z" };
+
+function run(buildLog, previews = [LONGER, OWN]) {
   const dir = mkdtempSync(join(tmpdir(), "fb-preview-check-"));
   const site = join(dir, "site");
   mkdirSync(join(site, "scripts"), { recursive: true });
@@ -67,6 +77,7 @@ console.log("QA gate passed (stand-in)");
       CF_BUILDS_TOKEN: "builds-token",
       MOCK_LOG: log,
       MOCK_BUILD_LOG: JSON.stringify(buildLog),
+      MOCK_PREVIEWS: JSON.stringify(previews),
       npm_config_update_notifier: "false",
       npm_config_cache: join(dir, "npm-cache"),
     },
@@ -105,10 +116,37 @@ test("the Worker's own preview gets the token, only on its origin, and the token
   assert.equal(status, 0, report);
   assert.deepEqual(qa, { argv: ["--url", "https://feat-x-example.acct.workers.dev"], token: true }, "QA got the origin and the token");
   assert.match(report, /- Preview: https:\/\/feat-x-example\.acct\.workers\.dev \(behind Cloudflare Access\)/);
+  assert.match(report, /- Worker Preview `feat\/x`, last deployed 2026-11-23T07:01:30\.123456Z/, "the exact name, not the longer one the filter also matched");
   assert.ok(minted(requests), "the token was minted");
   const carried = requests.filter((q) => q.token);
   assert.ok(carried.length > 0, "the preview was probed with the token");
   for (const q of carried) assert.equal(new URL(q.url).origin, "https://feat-x-example.acct.workers.dev", q.url);
   assert.ok(carried.every((q) => !q.url.includes("workers.dev//")), "the URL is the origin: the log's trailing slash doesn't double");
   assert.ok(requests.some((q) => q.method === "DELETE" && q.url.endsWith("/access/service_tokens/tok-1")), "the token was deleted");
+});
+
+test("another branch's preview of the same Worker is refused before a token is minted", () => {
+  // It passes the host guard (a preview of this Worker), but it isn't this branch's: QA would pass on other code.
+  const { status, report, requests, qa } = run(["> npx wrangler preview", "Preview URL: https://feat-x-2-example.acct.workers.dev"]);
+  assert.equal(status, 1);
+  assert.match(report, /isn't this branch's: feat-x-2-example\.acct\.workers\.dev isn't the URL of the `feat\/x` Worker Preview \(feat-x-example\.acct\.workers\.dev\); no token was minted or sent/);
+  assert.ok(!minted(requests), "no service token was minted");
+  assert.ok(!requests.some((q) => !q.url.startsWith("https://api.cloudflare.com/")), "nothing but the Cloudflare API was called");
+  assert.equal(qa, null, "QA never ran");
+});
+
+test("a branch Preview last deployed before this build started is refused", () => {
+  const stale = { ...OWN, deployed_on: "2026-11-22T18:00:00Z" };
+  const { status, report, requests, qa } = run(["Preview URL: https://feat-x-example.acct.workers.dev"], [stale]);
+  assert.equal(status, 1);
+  assert.match(report, /the `feat\/x` Worker Preview was last deployed at 2026-11-22T18:00:00Z, before this build started \(2026-11-23T07:00:00\.000Z\); no token was minted or sent/);
+  assert.ok(!minted(requests));
+  assert.equal(qa, null);
+});
+
+test("a Worker with no Preview of the branch's name is refused", () => {
+  const { status, report, requests } = run(["Preview URL: https://feat-x-example.acct.workers.dev"], [LONGER]);
+  assert.equal(status, 1);
+  assert.match(report, /the Worker has no Preview named `feat\/x`; no token was minted or sent/);
+  assert.ok(!minted(requests));
 });

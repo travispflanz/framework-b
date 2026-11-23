@@ -14,7 +14,7 @@ Used by the builder agent for everything except Workers Builds. Scope it to the 
 
 | Permission | Used for | Status |
 |---|---|---|
-| Workers Scripts: Edit | Deploy Workers, enable `workers.dev` and preview URLs | Verified |
+| Workers Scripts: Edit | Deploy Workers, enable `workers.dev` and preview URLs; the preview check and the agent edit check read the branch's Worker Preview with it (List Previews accepts Workers Scripts Read or Write, Cloudflare API schema, checked 2026-11-23) | Verified; the Previews read *untested* with this token until the next preview check |
 | D1: Edit | Create databases, run migrations, read leads; **site agent edit check** writes and deletes its per-run agent user and API token in a site's previews content database | Verified |
 | Workers R2 Storage: Edit | Upload and backup buckets, CORS | Verified |
 | Turnstile Sites: Edit | Create the widget and add hostnames | Verified |
