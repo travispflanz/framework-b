@@ -114,7 +114,7 @@ The consent-box checks were added on 2026-11-24 (roadmap 3g). On a local Worker,
 - The unticked lead was saved with no wording and subscribed no one. Teardown exported 2 leads and 1 subscriber.
 - On the client-editing site, the lead was auto-subscribed.
 
-Both runs ended red only at the artifact upload (the ops repo's artifact storage was full). A required box and re-subscribing an address that unsubscribed are tested in workerd only.
+The same runs were the first time the static site passed the upload and rate limit checks: 15,728,640 bytes with matching size and SHA-256, and a 429 after four to six posts. Both runs ended red only at the artifact upload (the ops repo's artifact storage was full). A required box and re-subscribing an address that unsubscribed are tested in workerd only.
 
 R2 objects are written and deleted with Wrangler. The Builds calls follow the [Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/) (checked 2026-10-22). They need a user-scoped token (`CF_BUILDS_TOKEN`).
 
