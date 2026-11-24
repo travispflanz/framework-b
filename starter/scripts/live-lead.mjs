@@ -139,12 +139,14 @@ try {
       // With no file to upload, the page moves to the thank-you page as soon as the answer comes, which discards its
       // body in the browser; the answer is read on its way through instead.
       let sent = null;
-      const answered = new Promise((resolve) => second.route("**/api/submit/**", async (route) => {
+      let done;
+      const answered = new Promise((resolve) => (done = resolve));
+      await second.route("**/api/submit/**", async (route) => {
         const response = await route.fetch();
         sent = await response.json().catch(() => ({}));
         await route.fulfill({ response });
-        resolve();
-      }));
+        done();
+      });
       await form2.locator('button[type="submit"]').click();
       await Promise.race([answered, new Promise((r) => setTimeout(r, 30000))]);
       check("the server accepted the lead with the box unticked", sent?.ok === true, sent ? JSON.stringify(sent).slice(0, 200) : "no response");

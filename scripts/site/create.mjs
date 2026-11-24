@@ -227,6 +227,7 @@ if (isSelftestSite(id, turnstileMode)) {
   selftestUploads(config);
   done("uploads", `self-test site: files up to ${SELFTEST_UPLOAD_MAX_BYTES / 1024 / 1024} MB`);
   const mode = selftestConsent(config, { editing });
+  if (kickoff) kickoff.brief.consent = mode; // so the site's brief.json and DECISIONS.md say the mode it runs
   done("consent", `self-test site: ${mode === "checkbox" ? "the consent box (only a ticked box subscribes)" : "the opt-in line under the button"}`);
 }
 writeFileSync(join(dir, "site.config.json"), JSON.stringify(config, null, 2) + "\n");

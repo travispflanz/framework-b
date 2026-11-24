@@ -47,14 +47,14 @@ const boxLead = {
   consent: { box: true, required: false, label: LABEL }, unticked: { id: "lead-2", email: quiet.email },
 };
 
-function run(lead, rows) {
+function run(lead, rows, extraEnv = {}) {
   const dir = mkdtempSync(join(tmpdir(), "fb-verify-lead-"));
   writeFileSync(join(dir, "mock.mjs"), MOCK);
   writeFileSync(join(dir, "lead.json"), JSON.stringify(lead));
   const r = spawnSync(process.execPath, ["--import", join(dir, "mock.mjs"), SCRIPT], {
     env: {
       PATH: process.env.PATH, SITE_ID: SITE, LEAD_FILE: join(dir, "lead.json"),
-      CLOUDFLARE_API_TOKEN: "api-token", CLOUDFLARE_ACCOUNT_ID: "acct-id", MOCK_ROWS: JSON.stringify(rows),
+      CLOUDFLARE_API_TOKEN: "api-token", CLOUDFLARE_ACCOUNT_ID: "acct-id", MOCK_ROWS: JSON.stringify(rows), ...extraEnv,
     },
     encoding: "utf8",
   });
@@ -86,6 +86,28 @@ test("consent box: wording that isn't the box's label fails, and a missing untic
   assert.match(r.out, /FAIL  visitor subscribed by ticking the box, with its wording/);
   assert.match(r.out, /FAIL  lead sent with the box unticked saved, with no consent wording/);
   assert.match(r.out, /FAIL  an unticked box subscribed no one/);
+});
+
+test("a required box: the ticked lead is checked, and no unticked lead is expected", () => {
+  const r = run({ ...boxLead, consent: { box: true, required: true, label: LABEL }, unticked: null },
+    { leads: [ticked], subscribers: [{ site: SITE, email: ticked.email, status: "subscribed", consent_text: LABEL }] });
+  assert.equal(r.status, 0, r.out);
+  assert.match(r.out, /PASS  visitor subscribed by ticking the box, with its wording/);
+  assert.doesNotMatch(r.out, /unticked/);
+});
+
+test("the static self-test leg (EDITING off) fails when its page showed no consent box; the editing leg doesn't need one", () => {
+  const { consent, unticked, ...auto } = boxLead;
+  const rows = { leads: [{ ...ticked, consent_text: LINE }], subscribers: [{ site: SITE, email: ticked.email, status: "subscribed", consent_text: LINE }] };
+  const st = run(auto, rows, { EDITING: "off" });
+  assert.equal(st.status, 1, st.out);
+  assert.match(st.out, /FAIL  the static self-test site showed the consent box/);
+  const ed = run(auto, rows, { EDITING: "on" });
+  assert.equal(ed.status, 0, ed.out);
+  assert.doesNotMatch(ed.out, /showed the consent box/);
+  const box = run(boxLead, { leads: [ticked, quiet], subscribers: [{ site: SITE, email: ticked.email, status: "subscribed", consent_text: LABEL }] }, { EDITING: "off" });
+  assert.equal(box.status, 0, box.out);
+  assert.match(box.out, /PASS  the static self-test site showed the consent box/);
 });
 
 test("no consent box (the line under the button): the visitor is auto-subscribed, as before", () => {

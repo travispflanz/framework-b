@@ -14,7 +14,7 @@ import { appendFileSync, existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cf, env } from "./lib/api.mjs";
-import { probeRateLimit, sameWording } from "./lib/selftest.mjs";
+import { isSelftestSite, probeRateLimit, sameWording, selftestRunsBox } from "./lib/selftest.mjs";
 
 const A = `/accounts/${env("CLOUDFLARE_ACCOUNT_ID")}`;
 const id = env("SITE_ID");
@@ -35,6 +35,11 @@ check("lead row saved for this site", !!row && row.email === lead.email);
 const attr = JSON.parse(row?.attribution_json || "{}");
 check("attribution captured", attr.utm_source === "live-selftest" && !!attr.landing, JSON.stringify(attr));
 const [sub] = await query("SELECT status, consent_text FROM subscribers WHERE site = ? AND email = ?", [id, lead.email]);
+// The self-test's static leg (EDITING off) must have shown the box: otherwise the run would pass on the line under the
+// button and prove nothing about the box.
+if (isSelftestSite(id, "test") && ["on", "off"].includes(process.env.EDITING) && selftestRunsBox({ editing: process.env.EDITING === "on" })) {
+  check("the static self-test site showed the consent box", !!lead.consent?.box);
+}
 if (lead.consent?.box) {
   // Checkbox mode: the wording on record is the box's label, as the visitor read it.
   check("lead row keeps the consent box's wording", sameWording(row?.consent_text, lead.consent.label), JSON.stringify(row?.consent_text ?? null));

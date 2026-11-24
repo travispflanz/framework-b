@@ -24,8 +24,9 @@ export function selftestUploads(config) {
 // box (optIn.mode "checkbox"), and the client-editing leg keeps the mode it was created with (the starter's "auto", the
 // line under the button). The live lead ticks the box; when the box is optional, a second lead leaves it unticked
 // and must not subscribe (starter/scripts/live-lead.mjs, verify-lead.mjs). Returns the mode the site now runs.
+export const selftestRunsBox = ({ editing }) => !editing;
 export function selftestConsent(config, { editing }) {
-  if (!editing) config.optIn = { ...(config.optIn || {}), mode: "checkbox" };
+  if (selftestRunsBox({ editing })) config.optIn = { ...(config.optIn || {}), mode: "checkbox" };
   return config.optIn?.mode || "auto";
 }
 
