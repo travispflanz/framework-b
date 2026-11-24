@@ -32,7 +32,7 @@ import { connectBuilds } from "./lib/builds.mjs";
 import { AGENT_POLICY, attachAgentPolicy, ensureAgentPolicy } from "./lib/access-agent.mjs";
 import { createInputs, decisionRows, kickoffSource, normalizeBrief, pointFormSections, siteForms } from "./lib/brief.mjs";
 import { addMonitors, uptimeEnabled } from "./lib/uptime.mjs";
-import { SELFTEST_UPLOAD_MAX_BYTES, isSelftestSite, selftestUploads } from "./lib/selftest.mjs";
+import { SELFTEST_UPLOAD_MAX_BYTES, isSelftestSite, selftestConsent, selftestUploads } from "./lib/selftest.mjs";
 
 const FRAMEWORK = resolve(process.env.FRAMEWORK_DIR || join(dirname(fileURLToPath(import.meta.url)), "../.."));
 const ACCOUNT = env("CLOUDFLARE_ACCOUNT_ID");
@@ -221,10 +221,13 @@ if (!mailer) warn("No mailer configured: leads are saved in D1 and visible in /a
 config.crm = { sheet: crm.includes("sheet") && !!mailer, webhook: crm.includes("webhook") };
 if (crm.includes("sheet") && !mailer) warn("CRM sheet asked for, but no Apps Script mailer is configured: the Sheet copy stays off");
 if (config.crm.sheet || config.crm.webhook) done("crm", `each lead is copied to ${[config.crm.sheet && "the owner's Google Sheet", config.crm.webhook && "the webhook (set CRM_WEBHOOK_URL)"].filter(Boolean).join(" and ")}`);
-// A self-test site (selftest-*, Turnstile test keys) takes bigger files, so the self-test can send one over the default cap.
+// A self-test site (selftest-*, Turnstile test keys) takes bigger files, so the self-test can send one over the default cap,
+// and its static leg runs the consent box, so each run proves both consent modes live.
 if (isSelftestSite(id, turnstileMode)) {
   selftestUploads(config);
   done("uploads", `self-test site: files up to ${SELFTEST_UPLOAD_MAX_BYTES / 1024 / 1024} MB`);
+  const mode = selftestConsent(config, { editing });
+  done("consent", `self-test site: ${mode === "checkbox" ? "the consent box (only a ticked box subscribes)" : "the opt-in line under the button"}`);
 }
 writeFileSync(join(dir, "site.config.json"), JSON.stringify(config, null, 2) + "\n");
 

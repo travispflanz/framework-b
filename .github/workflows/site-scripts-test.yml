@@ -2,10 +2,10 @@
 name: site scripts tests
 on:
   pull_request:
-    paths: ["scripts/site/**", "starter/scripts/lib/emdash-agent.mjs", "starter/scripts/lib/emdash-agent-edit.mjs", "starter/editing/packages.json", ".github/workflows/site-scripts-test.yml"]
+    paths: ["scripts/site/**", "starter/src/sections/text.js", "starter/scripts/lib/emdash-agent.mjs", "starter/scripts/lib/emdash-agent-edit.mjs", "starter/editing/packages.json", ".github/workflows/site-scripts-test.yml"]
   push:
     branches-ignore: [main]
-    paths: ["scripts/site/**", "starter/scripts/lib/emdash-agent.mjs", "starter/scripts/lib/emdash-agent-edit.mjs", "starter/editing/packages.json", ".github/workflows/site-scripts-test.yml"]
+    paths: ["scripts/site/**", "starter/src/sections/text.js", "starter/scripts/lib/emdash-agent.mjs", "starter/scripts/lib/emdash-agent-edit.mjs", "starter/editing/packages.json", ".github/workflows/site-scripts-test.yml"]
 permissions:
   contents: read
 jobs:

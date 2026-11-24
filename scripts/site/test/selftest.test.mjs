@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
-import { SELFTEST_UPLOAD_MAX_BYTES, isSelftestSite, probeRateLimit, selftestUploads } from "../lib/selftest.mjs";
+import { SELFTEST_UPLOAD_MAX_BYTES, isSelftestSite, probeRateLimit, sameWording, selftestConsent, selftestUploads } from "../lib/selftest.mjs";
 
 const starterConfig = () => JSON.parse(readFileSync(new URL("../../../starter/site.config.json", import.meta.url), "utf8"));
 
@@ -15,6 +15,28 @@ test("only a selftest-* site on Turnstile test keys is a self-test site", () => 
   assert.equal(isSelftestSite("selftest-123-st", "real"), false);
   assert.equal(isSelftestSite("example-co", "test"), false);
   assert.equal(isSelftestSite("my-selftest-site", "test"), false);
+});
+
+test("the static leg runs the consent box; the client-editing leg keeps the mode it was created with", () => {
+  const stat = starterConfig();
+  assert.equal(selftestConsent(stat, { editing: false }), "checkbox");
+  assert.equal(stat.optIn.mode, "checkbox");
+  const ed = starterConfig();
+  const before = JSON.stringify(ed.optIn);
+  assert.equal(selftestConsent(ed, { editing: true }), ed.optIn?.mode || "auto");
+  assert.equal(JSON.stringify(ed.optIn), before);
+  const kept = { optIn: { mode: "auto", label: "Keep me posted." } };
+  selftestConsent(kept, { editing: false });
+  assert.deepEqual(kept.optIn, { mode: "checkbox", label: "Keep me posted." });
+});
+
+test("stored consent wording matches the label's text: markup taken out, spaces collapsed, empty never matches", () => {
+  assert.equal(sameWording("Email me occasional news. Unsubscribe anytime.", "Email me occasional news. Unsubscribe anytime."), true);
+  assert.equal(sameWording("Email me **occasional** news. See [our privacy page](/privacy).", "Email me occasional news.  See our privacy page."), true);
+  assert.equal(sameWording("Send me the ==newsletter==, *monthly*.", "Send me the newsletter, monthly."), true);
+  assert.equal(sameWording("", ""), false);
+  assert.equal(sameWording(null, "Email me occasional news."), false);
+  assert.equal(sameWording("You'll get occasional emails from us.", "Email me occasional news."), false);
 });
 
 test("a self-test site's file fields take 20 MB, and the hint says so; forms without a file stay without one", () => {

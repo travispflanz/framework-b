@@ -173,7 +173,7 @@ A site has two modes:
 - **Backups:** every database in the account, every Monday, kept 90 days.
 - **Uptime monitors:** two per site.
 - **Weekly self-test:** builds a throwaway site, tests it live (QA, a lead with a 15 MB file checked byte for byte,
-  the rate limit) and removes it.
+  both consent modes, the rate limit) and removes it.
 - **Snapshot and park:** takes any site off its domain and puts it back exactly.
 - **Adopt:** moves a site that wasn't built with Framework B onto it, keeping its Worker and copying its leads.
 - **Teardown:** exports a site's data, then removes it.
