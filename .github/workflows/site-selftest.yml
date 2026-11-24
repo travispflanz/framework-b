@@ -2,6 +2,8 @@
 # (selftest-<run id>, Turnstile test keys), runs the QA gate on its live URL, sends one lead with a
 # 15 MB file and checks it in D1 and R2 (size and SHA-256), probes the per-IP rate limit (in the lead check's step,
 # scripts/site/verify-lead.mjs), checks a preview branch through Access, then always tears the site down.
+# The static site runs the consent box (scripts/site/lib/selftest.mjs): its lead ticks the box, and a second lead,
+# with no file, leaves it unticked and must not subscribe.
 # Runs twice in parallel: as a static site created from a kickoff brief, and with client editing (EmDash) on
 # created from plain inputs. Called only from the owner's
 # private ops repo, which holds the secrets.

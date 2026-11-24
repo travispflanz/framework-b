@@ -1,7 +1,9 @@
 // The live self-test's own pieces (.github/workflows/site-selftest.yml), kept in scripts so that a self-test run with
 // `framework_ref` set to a branch tests them before they merge:
 // - a self-test site takes bigger files than the default, so the live lead can send one over 10 MB (create.mjs);
+// - the static leg runs the consent box, so each run proves both consent modes live (create.mjs, verify-lead.mjs);
 // - the probe that checks the per-IP rate limit on the live site (verify-lead.mjs).
+import { plain } from "../../../starter/src/sections/text.js";
 
 // A self-test site: its id starts with selftest- (the ids `site selftest` makes, which teardown removes without a
 // confirmation) and it runs the Turnstile test keys. Its forms take files up to 20 MB, so the self-test can send one
@@ -17,6 +19,23 @@ export function selftestUploads(config) {
   }
   return config;
 }
+
+// The two consent modes (docs/SPEC.md section 5), one per leg: the static leg (client editing off) runs the consent
+// box (optIn.mode "checkbox"), and the client-editing leg keeps the mode it was created with (the starter's "auto", the
+// line under the button). The live lead ticks the box; when the box is optional, a second lead leaves it unticked
+// and must not subscribe (starter/scripts/live-lead.mjs, verify-lead.mjs). Returns the mode the site now runs.
+export const selftestRunsBox = ({ editing }) => !editing;
+export function selftestConsent(config, { editing }) {
+  if (selftestRunsBox({ editing })) config.optIn = { ...(config.optIn || {}), mode: "checkbox" };
+  return config.optIn?.mode || "auto";
+}
+
+// True when the wording a lead or subscriber row stored (the raw config text, which may carry **bold**, *italic*,
+// ==accent== and [links](/path)) reads the same as the text the page showed (the label's text content).
+export const sameWording = (stored, shown) => {
+  const norm = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
+  return norm(shown) !== "" && norm(plain(stored)) === norm(shown);
+};
 
 // Posts to a live form endpoint, one after another, until the per-IP rate limit answers. Core checks the limiter
 // before it reads the body or Turnstile (packages/core/src/forms.js), and these posts carry no Turnstile token, so
