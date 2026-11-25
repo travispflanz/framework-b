@@ -4,7 +4,8 @@
 //
 //   node scripts/style-guide.mjs [--out design/style-guide]
 //
-// 1. Checks STYLE-GUIDE.md has every section (scripts/lib/style-guide.mjs, REQUIRED) and lists any still unwritten.
+// 1. Checks STYLE-GUIDE.md has every section (scripts/lib/style-guide.mjs, REQUIRED) and lists any still unwritten;
+//    stops on a written section that still holds the template's placeholder line.
 // 2. Adds the guide page (scripts/style-guide/guide.astro) to the site and builds into a scratch folder; the site's
 //    own files are restored at the end, on Ctrl-C, and on the next run if the process was killed
 //    (.style-guide-restore.json), the same way scripts/design-tiles.mjs does it.
@@ -23,7 +24,7 @@ import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
 import sharp from "sharp";
 import { launchBrowser } from "./lib/local-site.mjs";
-import { missingSections, unwritten } from "./lib/style-guide.mjs";
+import { PLACEHOLDER, leftoverPlaceholders, missingSections, unwritten } from "./lib/style-guide.mjs";
 import { hash, readInputs } from "./lib/style-guide-stamp.mjs";
 
 const args = process.argv.slice(2);
@@ -36,6 +37,8 @@ const missing = missingSections(readFileSync("STYLE-GUIDE.md", "utf8"));
 if (missing.length) throw new Error(`STYLE-GUIDE.md is missing sections: ${missing.join(", ")}`);
 const todo = unwritten(readFileSync("STYLE-GUIDE.md", "utf8"));
 if (todo.length) console.log(`  note  STYLE-GUIDE.md still has unwritten sections: ${todo.join(", ")}`);
+const leftover = leftoverPlaceholders(readFileSync("STYLE-GUIDE.md", "utf8"));
+if (leftover.length) throw new Error(`STYLE-GUIDE.md: delete the line "${PLACEHOLDER}" from the sections you wrote: ${leftover.join(", ")}`);
 
 // The editing overlay (scripts/editing.mjs on copies editing/ over the site), swapped for its static versions while
 // the guide builds. An editing build has no HTML file for the pages it renders on request, so their first screens

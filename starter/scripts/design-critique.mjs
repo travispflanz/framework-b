@@ -11,7 +11,9 @@
 //       reads the filled rubric. Every dimension at 4 or more with at most one tell ends the loop. Otherwise
 //       apply the listed fixes (at most three), without committing, then:
 //   node scripts/design-critique.mjs compare
-//       rebuilds, runs the QA gate (a failing gate reverts the fixes and ends the loop), screenshots again, and
+//       remakes what the fixes made stale (tokens.css after a DESIGN.md fix, the style guide after a change to its
+//       inputs; these join the fixes), rebuilds, runs the QA gate (a failing gate reverts the fixes and ends the
+//       loop), screenshots again, and
 //       writes ballots: every changed page and width, before and after, both ways round, shuffled. A ballot shows
 //       what the fix changed: the first screen when the change is all within it (the view the judge was calibrated
 //       on), else the part of the page that changed, found by comparing the full-page screenshots row by row: a
@@ -34,6 +36,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { join, relative } from "node:path";
 import sharp from "sharp";
 import { launchBrowser, startLocalSite } from "./lib/local-site.mjs";
+import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
 
 const DIR = "design/critique";
 const STATE = join(DIR, "state.json");
@@ -165,6 +168,15 @@ export async function cropStack(file, crops) {
 }
 
 // The pages a round's fixes add or take away, from the before and after screenshot names ("<page>-<width>-first.png").
+// The commands compare runs before the build, from the files the fixes changed and the style guide's stale inputs
+// (scripts/lib/style-guide-stamp.mjs): DESIGN.md's tokens, then the style guide when it has a stamp that is now old.
+export function regenerateSteps(changed, staleGuideInputs) {
+  const steps = [];
+  if (changed.includes("DESIGN.md")) steps.push(["node", ["scripts/design-tokens.mjs"]]);
+  if (staleGuideInputs.length) steps.push(["node", ["scripts/style-guide.mjs"]]);
+  return steps;
+}
+
 export function pageChanges(beforeShots, afterShots) {
   const pagesIn = (list) => new Set(list.filter((f) => f.endsWith("-first.png")).map((f) => f.replace(/-\d+-first\.png$/, "")));
   const [was, now] = [pagesIn(beforeShots), pagesIn(afterShots)];
@@ -292,14 +304,22 @@ if (cmd === "start") {
   console.log(state.stopped ? `Done: ${state.stopped}.` : `Apply these fixes (don't commit), then run: node scripts/design-critique.mjs compare\n${parsed.fixes.map((f, i) => `${i + 1}. ${f}`).join("\n")}`);
 } else if (cmd === "compare") {
   if (round?.phase !== "fix") throw new Error("No fixes to compare; run score first.");
-  const files = changedFiles();
-  if (!files.length) throw new Error("Nothing changed since score; apply the fixes first.");
-  round.files = files.map((f) => f.path);
+  const fixed = changedFiles();
+  if (!fixed.length) throw new Error("Nothing changed since score; apply the fixes first.");
+  round.files = fixed.map((f) => f.path);
   try {
+    // What a fix to DESIGN.md, STYLE-GUIDE.md or the logo makes stale (tokens, the style guide) is made again first,
+    // or the QA gate fails on it and reverts the fix; the regenerated files are kept or reverted with the fixes.
+    const stamp = existsSync(STAMP) ? JSON.parse(readFileSync(STAMP, "utf8")) : null;
+    for (const [c, a] of regenerateSteps(fixed.map((f) => f.path), stamp ? staleInputs(stamp, readInputs()) : [])) {
+      execFileSync(c, a, { stdio: ["ignore", "ignore", "inherit"] });
+    }
+    round.files = changedFiles().map((f) => f.path);
     execFileSync("npm", ["run", "build"], { stdio: ["ignore", "ignore", "inherit"] });
     execFileSync("npm", ["run", "qa"], { stdio: ["ignore", "ignore", "inherit"] });
   } catch {
-    revert(files);
+    // The tree was clean at score, so everything changed now is a fix or was made from one.
+    revert(changedFiles());
     Object.assign(round, { phase: "done", accepted: false });
     state.stopped = `round ${round.n}: a hard gate failed after the fixes, so they were reverted (rebuild before deploying)`;
     writeState(state);

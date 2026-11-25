@@ -108,6 +108,10 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      owner's words; if it is nostalgic, nostalgic for whom and for what.
   Each draft takes a position on all four; the drafts differ from each other, not from the field. The content check
   fails a research file missing a lens and notes one unwritten or without a dated source.
+- Before the drafts (autopilot) or the route mocks: the home page's hero and its first section, the forms with the
+  pages they need (`/contact`, and any form's own thank-you page), and the pictures they use, made with
+  step 4's tools. The tiles build the whole site and show that content, so it has to exist and build first; step 4
+  then finishes the rest.
 - Every draft sets the skin and the skeleton. Besides colours, type, radii and spacing it has the Framework B blocks
   `composition` (alignment, density, separation, card style, image shape, motion, phone budget, title case, the
   hero layouts for the home page and the family for every other page, and the closing section) and `imagery` (style,
@@ -136,7 +140,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      brand's own world, the test sheet, the owner's pick and the kit. Details under "Logo" below.
   6. Style guide, before the other pages: write `STYLE-GUIDE.md` from DESIGN.md, PRODUCT.md, the owner's decisions
      and the built home page (every heading in the starter's template; plain words and the owner's own sentences),
-     then `node scripts/style-guide.mjs`. It renders the guide with the site's real colours and contrast, type scale,
+     then `node scripts/style-guide.mjs` (delete the template's "To be written" line in each section you write: the
+     script stops on one left above your text). It renders the guide with the site's real colours and contrast, type scale,
      components, hero layouts and page flow, the first screen of every page, and the social and print sizes with
      their sources, into `design/style-guide/style-guide.pdf`. Send it to the owner. Every inner page, post, email and
      print piece is made from it, and it is rendered again whenever DESIGN.md or STYLE-GUIDE.md changes (the QA gate
@@ -162,8 +167,18 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 - Autopilot: write three deliberately different drafts in `design/drafts/` (different style, palette, type pair and composition; install their fonts), then:
   - `node scripts/design-tiles.mjs design/drafts/*.md` renders each on the site's real content, with the home page's hero in the layout each draft gives the home page (drafts that fail the design checks are rejected);
   - `node scripts/design-judge.mjs prepare`, look at each `design/judge/ballot-NN.png` and answer LEFT or RIGHT in `ballot.json` without looking up which draft is which (ballots marked `first` show the first screens, `rest` the tiles below them: the form, type and next section), then `node scripts/design-judge.mjs tally`: the first screen decides, and the rest of the tile can only stop a win;
-  - copy the pick (or, on a tie, the draft closer to the brief) to `DESIGN.md` and record the result in its Overview.
-  With an owner intake, the owner picks from `design/tiles/index.html` instead.
+  - copy the pick (or, on a tie, the draft closer to the brief) to `DESIGN.md` and record the result in its Overview;
+  - `npm uninstall` the fonts only the losing drafts used, so they don't ship in `package.json`;
+  - build and run the QA gate once (step 5's scratch copy): the tiles show no long prose, and the gate's line-length
+    rule measures `spacing.prose` with the real body face, on the privacy page if nowhere else (a test build's
+    40rem with an 18 px body face gave about 89 characters a line, 2026-11-17).
+  With an owner intake, the owner picks from `design/tiles/index.html` instead. Commit `design/tiles/` and the
+  judge's `design/judge/ballot.json` and its tally as the record of the pick; the ballot screenshots stay out of git (the
+  starter's `.gitignore`), since `prepare` makes them again from the tiles.
+- On autopilot the field lens still names two or three of the field's best sites, each looked at on the day: there
+  is no reference-capture tool yet (SPEC section 12, "Supporting tools"), so screenshot them at 1280 and 390 px with
+  the site's own Playwright, date each one, and name any site that refused a headless browser. Draw on them; never
+  copy them.
 - With or without an owner, the logo and then the style guide (steps 5 and 6 of the route method above) come once
   the home page is built and before the other pages.
 - With an owner intake, before the drafts: this-or-that (P2.5). Write 4–6 pairs in `design/pairs.json` (each changes
@@ -172,7 +187,9 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   `node scripts/design-pairs.mjs pick <id> a|b`. If the owner doesn't answer, `defaults` records the recommended sides
   as inferred. The drafts then follow the picks in `design/intake.json`.
 - `node scripts/design-tokens.mjs`. It fails on lint errors, a missing token, an unknown composition or imagery value,
-  or a contrast pair below WCAG AA, and writes `tokens.css` and `design.json`.
+  or a contrast pair below WCAG AA, and writes `tokens.css` and `design.json`. It doesn't print the two lint warnings
+  every Framework B DESIGN.md gives (no `primary` colour; colours "never referenced by any component", since the site
+  uses them through `tokens.css`); `--all-warnings` shows them.
 - Logo (unless the owner supplied one they are keeping; then put it in `public/logo.svg` and set `site.logo`). The
   name set in a font alone is often what everyone in the field already does (it was for the first adopted site), so
   a logo needs a shape or an idea that only this business has (SPEC section 12, "Logo").
@@ -216,7 +233,9 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   "..." --for "<slot: why it fits>"`. It takes only records that say "No known restrictions on publication", downloads
   the master scan, crops the mat and edge markings (look at `design/image-candidates/<name>-crop.png`; `--crop` sets
   the cut by hand) and writes the credit. Open-licensed photos: `search` and `add` without `--source`. Both apply the
-  design's treatment so the set matches. `--for` records where each photo goes and why, so the choice can be reviewed.
+  design's treatment so the set matches: the one `DESIGN.md` names when the photo is added, so a photo added before
+  the design was locked (the starter's treatment is `none`) gets `node scripts/images.mjs treat <file>` afterwards if
+  the locked design sets one. `--for` records where each photo goes and why, so the choice can be reviewed.
   A photo taken off the pages goes to the library, never the bin: `node scripts/images.mjs shelve <file>` (and
   `unshelve`, `library` for a contact sheet). Credits go on the Website assets page (`/credits`), never beside the image. Generated images never show the business's own people, premises, products or work; photorealistic
   ones show no faces, none carries a label on the page, and all of them are listed on `/credits`. Every image gets an entry in
@@ -251,8 +270,11 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 
 ## 5. Local gates
 
-Run them in a scratch copy of the site (without `dist/`, `.wrangler/` and `qa-output/`): first
-`node scripts/fill-test-placeholders.mjs --turnstile-test`, then `npm run build && npm run test:e2e && npm run qa`.
+Run them in a scratch copy of the site that is a git checkout, since the critique rounds read and reset its git tree:
+`git clone -b build/initial <site repo> <scratch>`, then `cp -al <site>/node_modules <scratch>/` (or `npm ci`). In
+the copy, first `node scripts/fill-test-placeholders.mjs --turnstile-test`, then
+`npm run build && npm run test:e2e && npm run qa`. Run `fill-test-placeholders` again after every pull from the site's
+branch, which brings the real Turnstile key back.
 The site's real Turnstile widget only allows the account's workers.dev hostname, so on localhost it fails with
 error 110200 and every form page logs a console error (seen 2026-10-27); the copy uses Turnstile's test keys instead.
 With editing on, the same command also fills the missing resource IDs. Never commit test keys.
@@ -262,8 +284,11 @@ When the gates pass, run the critique rounds in the same copy (at most three; SP
 (five 1–5 scores, the tells, at most three located fixes), `score`, apply the fixes without committing, `compare`
 (rebuild, QA gate, ballots: each shows what the fixes changed, the first screen or a window on the part of the page
 that changed), answer each ballot LEFT or RIGHT without looking up which side is which, then `decide`.
-A fix is kept only if it wins both ways round on every changed page; otherwise it is reverted. Copy the kept files
-(listed in `design/critique/state.json`) and `design/critique/` back to the site's branch.
+A fix is kept only if it wins both ways round on every changed page; otherwise it is reverted. A fix may change
+`DESIGN.md` or `STYLE-GUIDE.md`: `compare` makes the tokens and the style guide again before the QA gate, and they are
+kept or reverted with the fix (unit-tested; *untested* in a real round). Copy the kept files (listed in
+`design/critique/state.json`) and `design/critique/` back to the site's branch; its screenshots stay out of git (the
+starter's `.gitignore`), while its rubrics, answered ballots and state are the record.
 
 ## 6. Preview (P6)
 

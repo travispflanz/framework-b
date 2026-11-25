@@ -30,6 +30,12 @@ export function unwritten(md) {
   return parseGuide(md).sections.filter((s) => REQUIRED.includes(s.heading) && (!s.body || s.body === PLACEHOLDER)).map((s) => s.heading);
 }
 
+// Sections written below the placeholder without deleting it: the template's comment comes after the placeholder, so
+// text written after the comment left it in, and the guide printed it (roadmap step 5, 2026-11-25).
+export function leftoverPlaceholders(md) {
+  return parseGuide(md).sections.filter((s) => s.body !== PLACEHOLDER && s.body.includes(PLACEHOLDER)).map((s) => s.heading);
+}
+
 // A small, safe subset of Markdown for the guide's prose: paragraphs, "- " lists (with one level of "  - " sub-items),
 // "### " subheadings and the inline
 // formatting the site's text fields use (**bold**, *italic*, [label](link)), plus `code`. `inline` is the site's own

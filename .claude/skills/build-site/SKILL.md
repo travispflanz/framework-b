@@ -19,16 +19,17 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 3. **Design.** In the site repo on branch `build/initial`: `PRODUCT.md` (facts with sources, inferred promises
    flagged), then `design/research.md` through four lenses, never the industry alone: the business, its field,
    current design (dated trend sources from the last 12 months) and the site's own look. Every design step after it
-   (drafts, routes, logo, style guide, images) draws on it. On autopilot, write three different drafts, render them with `node scripts/design-tiles.mjs`, judge them
-   with `node scripts/design-judge.mjs prepare` → answer each ballot LEFT/RIGHT → `tally`, and lock the pick as
-   `DESIGN.md`. With an owner intake, first offer routes: three or four whole page skeletons mocked on the real
+   (drafts, routes, logo, style guide, images) draws on it. Build the home page's hero and first section, the forms
+   and their pictures first: the tiles render them. On autopilot, write three different drafts, render them with `node scripts/design-tiles.mjs`, judge them
+   with `node scripts/design-judge.mjs prepare` → answer each ballot LEFT/RIGHT → `tally`, lock the pick as
+   `DESIGN.md`, uninstall the losers' fonts and run the QA gate once. With an owner intake, first offer routes: three or four whole page skeletons mocked on the real
    content from measured reference sites; the owner picks one or a mix, with any conditions; build it on the site
    (new layouts in the site's own `src/sections/`) and measure the built pages (docs/BUILD.md step 3). Then
    this-or-that pairs where a detail is still open (`node scripts/design-pairs.mjs render`, then `pick` per
    answer, `defaults` if silent). Then `node scripts/design-tokens.mjs`. Credit every image in `design/credits.json`.
 4. **Content.** `site.config.json` forms and navigation, `src/content/*.json` from the section library, then
    `node scripts/check-content.mjs` (and `node scripts/editing.mjs seed` with editing on).
-5. **Local gates.** In a scratch copy with Turnstile test keys (`node scripts/fill-test-placeholders.mjs --turnstile-test`):
+5. **Local gates.** In a scratch git clone of the branch with Turnstile test keys (`node scripts/fill-test-placeholders.mjs --turnstile-test`, again after every pull):
    `npm run build && npm run test:e2e && npm run qa`. Then the critique rounds in the same copy
    (`node scripts/design-critique.mjs start` → fill the rubric → `score` → fix → `compare` → answer ballots → `decide`;
    at most three rounds), and copy the kept fixes back.

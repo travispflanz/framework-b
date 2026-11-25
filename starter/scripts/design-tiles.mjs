@@ -6,7 +6,8 @@
 //
 // For each draft, in this site (built into a scratch folder; the site's own files are restored afterwards):
 //   1. the draft becomes DESIGN.md and scripts/design-tokens.mjs runs: the same lint, token contract and WCAG AA
-//      contrast checks as the real thing. A draft that fails is reported and gets no tile.
+//      contrast checks as the real thing. A draft that fails, or whose front matter isn't valid YAML, is reported and
+//      gets no tile.
 //   2. the tile page (scripts/design-tile/tile.astro) is added and the site is built into a scratch folder;
 //   3. the tile is screenshotted at 1280 and 390 px, full page;
 //   4. its hero is checked: it must be the home page's, in the layout the draft gives the home page
@@ -84,7 +85,16 @@ try {
   const homeHero = JSON.parse(readFileSync(join(SITE, "src/content/home.json"), "utf8")).sections?.find((x) => x._type === "fb_hero");
   for (const draft of drafts) {
     const name = basename(draft, extname(draft)).replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
-    const front = parse(readFileSync(draft, "utf8").match(/^---\n([\s\S]*?)\n---/)?.[1] || "") || {};
+    // A draft whose front matter isn't valid YAML (an unquoted "description: Draft A: ...") is reported like any
+    // other failing draft, not left to stop the run before the other tiles (roadmap step 5, 2026-11-25).
+    let front;
+    try {
+      front = parse(readFileSync(draft, "utf8").match(/^---\n([\s\S]*?)\n---/)?.[1] || "") || {};
+    } catch (e) {
+      results.push({ name, ok: false, why: `its front matter is not valid YAML (quote a value that has a colon in it): ${String(e.message).split("\n")[0]}`, front: {} });
+      console.log(`✗ ${name}: ${results.at(-1).why}`);
+      continue;
+    }
     cpSync(draft, join(SITE, "DESIGN.md"));
     try {
       run("node", ["scripts/design-tokens.mjs"]);
