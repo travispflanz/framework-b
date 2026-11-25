@@ -464,12 +464,17 @@ EmDash 1.3.1 is an Astro-based CMS ([docs](https://docs.emdashcms.com/deployment
     tables against the installed EmDash's own `@emdash-cms/auth` (the version the pinned `emdash` depends on), so an
     EmDash update that changes the format fails CI. The lib refuses a scope the agent's role may not hold (EmDash
     clamps scopes to the role only when it issues a token itself) and never makes an Admin.
-  - Still untested: everything Access does (the service token's headers, and whether `Authorization` reaches the
-    Worker unchanged), the cache purge when a page is published through the API (the local Worker serves no cache),
+  - Proven live on 2026-11-25 by stage B: the service token's headers pass Access and `Authorization` reaches the
+    Worker unchanged. Still untested: the cache purge when a page is published through the API (the local Worker serves no cache),
     and any MCP client sending the Access headers. Stage B, the agent edit check below, tests the first two (the purge
     only when the page was served from Cloudflare's cache before the publish; its report says whether it was).
-  - **Stage B, the agent edit check** (built 2026-11-21; *untested* live until its first run, which waits for the
-    owner's go-ahead): the ops workflow **site agent edit check** (inputs: site id, branch) calls the reusable
+  - **Stage B, the agent edit check** (built 2026-11-21; **proven live 2026-11-25**, ops run 45668786514 on a branch
+    preview of the first adopted site: Access refused the API token without the service token (302 to the Access
+    login), EmDash took no identity from the service token alone (401), and with both the agent listed, made
+    (201, a draft; the page 404), published (the page showed A after 337 ms), drafted (the page kept A), republished
+    (B after 217 ms), read through MCP (`content_get`, B) and trashed (the page 404) a page of its own; the agent
+    user, its API token and the service token were deleted. The cache purge on publish wasn't exercised, because the
+    page wasn't served from Cloudflare's cache before the second publish, so it stays *untested*): the ops workflow **site agent edit check** (inputs: site id, branch) calls the reusable
     `site-agent-edit-check.yml`, which runs `scripts/site/agent-edit-check.mjs` on the branch's deployed preview:
     1. It refuses unless editing is on and the previews bind `CMS_DB` to `<id>-cms-preview`, a database that isn't
        production's (`scripts/site/lib/agent-edit.mjs`, unit-tested), and writes only there.
