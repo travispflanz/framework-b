@@ -1,5 +1,6 @@
 # Checks that the docs match the repo (scripts/docs-check.mjs): every path, script and ops workflow a doc names
-# exists, and every ops caller in ops/ops-repo matches the reusable workflow it calls. No secrets, no network.
+# exists, and every ops caller in ops/ops-repo matches the reusable workflow it calls; its own tests cover the --ops
+# comparison with an ops repo. No secrets, no network.
 name: docs check
 on:
   pull_request:
@@ -17,3 +18,4 @@ jobs:
         with:
           node-version: 24
       - run: node scripts/docs-check.mjs
+      - run: node --test scripts/docs-check.test.mjs

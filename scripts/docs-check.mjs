@@ -11,7 +11,9 @@
 //   2. Every `node <script>` and `npm run <script>` named in a doc exists.
 //   3. Every ops workflow named in a doc (`site create`, **site update**, ...) is a caller in ops/ops-repo.
 //   4. Every caller in ops/ops-repo (and --ops) uses a reusable workflow that exists, passes only inputs it declares
-//      and every input it requires; every reusable site workflow has a caller in the template.
+//      and every input it requires; every reusable site workflow has a caller in the template. With --ops, the ops
+//      repo has a caller for every template caller, with each of its dispatch inputs, calling the same reusable
+//      workflows and passing each input the template passes (the ops repo may add its own; it may not drop one).
 //   5. The core version in packages/core/README.md is CORE_VERSION.
 // docs/research/ is a dated record of past research and is not checked.
 import { execFileSync } from "node:child_process";
@@ -37,6 +39,8 @@ const mdFiles = execFileSync("git", ["ls-files", "*.md"], { cwd: ROOT, encoding:
 
 // --- workflows -------------------------------------------------------------------------------------------------
 // The workflows are plain block YAML, so a small indentation reader is enough (no dependency to install in CI).
+// Callers keep to that form: `on:` and `inputs:` as blocks, one unquoted key per line (an input's own settings may
+// be a flow map), and `with:` after `uses:`. A caller written otherwise reads as having no inputs.
 const indent = (l) => l.match(/^ */)[0].length;
 function block(lines, start) {
   const out = [];
@@ -73,6 +77,18 @@ function reusableInputs(file) {
   }
   return { all, required };
 }
+// The inputs a caller asks for when it is run by hand (`on: workflow_dispatch: inputs:`).
+function dispatchInputs(lines) {
+  const wd = lines.findIndex((l) => /^\s+workflow_dispatch:/.test(l));
+  if (wd < 0) return [];
+  const base = indent(lines[wd]);
+  for (let i = wd + 1; i < lines.length; i++) {
+    if (lines[i].trim() === "" || lines[i].trim().startsWith("#")) continue;
+    if (indent(lines[i]) <= base) return [];
+    if (/^\s+inputs:/.test(lines[i])) return childKeys(block(lines, i));
+  }
+  return [];
+}
 function callers(dir) {
   const wf = join(dir, ".github/workflows");
   if (!existsSync(wf)) return [];
@@ -80,6 +96,7 @@ function callers(dir) {
     const text = readFileSync(join(wf, f), "utf8");
     const lines = text.split("\n");
     const name = text.match(/^name:\s*(.+)$/m)?.[1].trim();
+    const inputs = dispatchInputs(lines);
     const calls = [];
     lines.forEach((l, i) => {
       const m = l.match(/uses:\s*[\w.-]+\/framework-b\/\.github\/workflows\/([\w.-]+\.yml)@/);
@@ -89,7 +106,7 @@ function callers(dir) {
       const withKeys = withAt > 0 && indent(lines[withAt]) === indent(l) ? childKeys(block(lines, withAt)) : [];
       calls.push({ workflow: m[1], with: withKeys });
     });
-    return { file: f, name, calls };
+    return { file: f, name, inputs, calls };
   });
 }
 const reusableDir = join(ROOT, ".github/workflows");
@@ -110,7 +127,17 @@ function checkCallers(dir, label) {
 const template = checkCallers(join(ROOT, "ops/ops-repo"), "ops/ops-repo");
 if (OPS) {
   const ops = checkCallers(OPS, "ops");
-  for (const t of template) if (!ops.some((o) => o.name === t.name)) fail("ops", `has no "${t.name}" workflow (the template has ${t.file})`);
+  for (const t of template) {
+    const o = ops.find((x) => x.name === t.name);
+    if (!o) { fail("ops", `has no "${t.name}" workflow (the template has ${t.file})`); continue; }
+    const where = `ops/${o.file}`;
+    for (const k of t.inputs) if (!o.inputs.includes(k)) fail(where, `has no "${k}" input (the template's ${t.file} has it)`);
+    for (const tc of t.calls) {
+      const oc = o.calls.find((c) => c.workflow === tc.workflow);
+      if (!oc) { fail(where, `doesn't call ${tc.workflow} (the template's ${t.file} does)`); continue; }
+      for (const k of tc.with) if (!oc.with.includes(k)) fail(where, `doesn't pass "${k}" to ${tc.workflow} (the template's ${t.file} does)`);
+    }
+  }
 }
 const workflowNames = new Set(template.map((t) => t.name));
 for (const f of readdirSync(reusableDir)) {

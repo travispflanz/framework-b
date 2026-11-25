@@ -435,4 +435,6 @@ CI checks every pull request:
   back to files;
 - the site scripts tests and the ops tests;
 - a docs check (`node scripts/docs-check.mjs`), which fails if a doc names a file, script or workflow that doesn't
-  exist.
+  exist. Run from a clone with `--ops <path to the ops repo>`, it also fails if the ops repo lacks a caller in
+  `ops/ops-repo/`, drops one of that caller's inputs or calls another reusable workflow (an ops repo may add inputs
+  of its own).
