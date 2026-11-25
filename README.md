@@ -128,7 +128,8 @@ A site has two modes:
   groups of checkboxes (optionally under small headings), a single checkbox and hidden
   fields; multi-step forms; an optional file upload (10 MB by default).
 - Spam protection: Cloudflare Turnstile, a hidden honeypot field, an origin check and size limits. A per-IP rate
-  limit is also deployed (whether it limits on the Free plan is *untested*; the weekly self-test now probes it).
+  limit (5 posts a minute, approximate) also limits on the Free plan: the weekly live self-test probes it on every
+  run, and it has refused a burst after four to six posts since 2026-11-17.
 - Every lead is stored in Cloudflare D1, with where the visitor came from (UTM tags, referrer, landing page).
 - `/admin` behind a Cloudflare Access email login: a lead list, lead details, file downloads, and CSV exports of
   leads and subscribers.
