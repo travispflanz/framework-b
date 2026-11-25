@@ -4,7 +4,7 @@ Roadmap step 3d: "An agent editing content through EmDash's API with an Access s
 and the plan. Nothing here has been run against a live site or account yet. Stage A of the plan (section 7) ran in
 CI on 2026-11-20, against the real EmDash 1.3.1 on a local Worker: what it proved is marked "proven in CI" below, and
 section 10 lists the results and what this document changed after it. Everything else is read in source or docs and
-is **untested** until stage B runs on a preview.
+was **untested** until stage B ran on a preview; section 12 records that run (2026-11-25).
 
 - EmDash version: 1.3.1 (`emdash` and `@emdash-cms/cloudflare`, pinned in `starter/editing/packages.json`).
 - EmDash source was read in the published npm packages at 1.3.1, on unpkg (each file below was compared byte for byte
@@ -518,8 +518,7 @@ stage A, each marked where it is:
 ## 11. Stage B as built (2026-11-21)
 
 Built as `scripts/site/agent-edit-check.mjs`, the reusable `.github/workflows/site-agent-edit-check.yml` and the ops
-workflow **site agent edit check**. Untested live: its first run waits for the owner's go-ahead (section 7, "What the
-owner must approve"). What changed from section 7:
+workflow **site agent edit check**. First live run 2026-11-25 (section 12). What changed from section 7:
 
 - **No EmDash setup** (step 5 dropped). EmDash 1.3.1 applies the seed's collections on its first request, without
   content (`emdash-runtime.ts`, the auto-seed gate: `applySeed(db, seed, { onConflict: "skip" })`; `includeContent`
@@ -556,3 +555,19 @@ owner must approve"). What changed from section 7:
 - The agent's page has the agent as its author (`author_id` has no foreign key on content tables, `schema/registry.ts`),
   so deleting the agent user leaves the trashed page in place. Create makes no byline unless asked.
 
+## 12. Stage B's first live run (2026-11-25)
+
+Ops run 45668786514, on a branch preview of the first adopted site (editing on, previews bound to
+`<id>-cms-preview`), with the owner's go-ahead. Every step passed:
+
+- Access accepted the check's service token after 7 s; `/` answered 200.
+- Access refused the API token without the service token (302 to the Access login); EmDash took no identity from the
+  service token alone (401); with both, Access passed `Authorization` through and EmDash listed pages (200).
+- Create 201 (a draft; the page answered 404), publish 200 (the page showed A after 337 ms), `GET` and `PUT` 200 (kept
+  as a draft; the page still showed A), publish 200 (B after 217 ms), MCP `content_get` 200 (B), `DELETE` 200 (the page
+  answered 404 after 289 ms). Each write took 2.9 to 4.8 s.
+- No check page of the run was left published (checked in D1); the agent user, its API token and the service token
+  were deleted.
+- Not exercised: the cache purge on publish. The page carried no cache status before the second publish, so nothing
+  was cached to purge. It stays *untested* until a run sees a `HIT` first.
+- Stage C (production) still waits for the owner's approval of a Service Auth policy on the editor application.
