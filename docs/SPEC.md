@@ -116,6 +116,8 @@ The consent-box checks were added on 2026-11-24 (roadmap 3g). On a local Worker,
 
 The same runs were the first time the static site passed the upload and rate limit checks: 15,728,640 bytes with matching size and SHA-256, and a 429 after four to six posts. Both runs ended red only at the artifact upload (the ops repo's artifact storage was full). A required box and re-subscribing an address that unsubscribed are tested in workerd only.
 
+The first scheduled run with every one of these checks (ops run 45465049573, cron 07:23 UTC on 2026-11-24, which GitHub started at 18:57 UTC) passed them all on both sites: the consent box, both leads and their subscriptions on the static site, the 15 MB file (size and SHA-256), a 429 after five posts, QA (193 and 192 checks), the preview through Access and teardown. It too ended red only at the artifact upload.
+
 R2 objects are written and deleted with Wrangler. The Builds calls follow the [Builds API reference](https://developers.cloudflare.com/workers/ci-cd/builds/api-reference/) (checked 2026-10-22). They need a user-scoped token (`CF_BUILDS_TOKEN`).
 
 ### Updating a site to a newer framework

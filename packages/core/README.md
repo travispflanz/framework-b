@@ -63,5 +63,5 @@ All other paths are static assets. Static responses never run the Worker, so ind
 The tests do **not** cover the following; each is covered live instead, as noted:
 - a real deploy, real Turnstile keys, the Apps Script redirect and Sheet, Resend, `send_email` and an upload of a real file: the weekly live self-test (ops repo `site selftest`) and the launch tests on 2026-10-27 (docs/SPEC.md sections 2 and 10);
 - drips with real sleeps: tested in workerd with the sleeps switched off, and live once with a 20-minute first wait;
-- the rate limit binding: it deploys on the Workers Free plan (every site has one), but whether it limits there is **untested**;
-- uploads larger than a few megabytes: **untested**.
+- the rate limit binding: it deploys on the Workers Free plan (every site has one) and limits there, approximately; the weekly live self-test probes it on every run (a 429 after four to six posts since 2026-11-17, docs/SPEC.md section 2);
+- a 15 MB upload through a live form: the weekly live self-test, stored intact (size and SHA-256) since 2026-11-17; core's workerd test streams 15 MB to R2. Uploads larger than 15 MB are **untested** live.
