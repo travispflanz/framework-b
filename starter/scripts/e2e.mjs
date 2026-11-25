@@ -23,9 +23,12 @@ function findCmsDatabase(state) {
 }
 
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
-const { check, failed } = checker();
-const formId = Object.keys(site.forms)[0];
-const form = site.forms[formId];
+const { check: checkAll, failed } = checker();
+const check = checkAll;
+// Every form is sent, each with its own address, so a second form's consent (a plain message form that subscribes
+// nobody beside a waitlist) is tested too; a test build once tested only the first (roadmap step 5, 2026-11-25).
+// The first form's checks keep their names; the others' end in "(form <id>)".
+const formIds = Object.keys(site.forms);
 
 let local, browser;
 try {
@@ -39,87 +42,98 @@ try {
   check("/admin is closed without Access", (await fetch(`${base}/admin`)).status === 403);
 
   browser = await launchBrowser();
-  const page = await browser.newPage();
-  const consoleErrors = [];
-  page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(consoleErrorText(m)));
-
-  // Find a page that renders this form: the first content page with a form section for it, else the home page or
-  // the built-in /contact page.
   const pages = readdirSync("src/content").filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""));
-  const holder = pages.find((slug) => (JSON.parse(readFileSync(`src/content/${slug}.json`, "utf8")).sections || []).some((s) => s._type === "fb_form" && s.form === formId));
-  const paths = [...new Set([holder === undefined ? null : holder === "home" ? "/" : `/${holder}`, "/", "/contact"].filter(Boolean))];
-  for (const p of paths) {
-    await page.goto(`${base}${p}?utm_source=e2e&utm_medium=test`);
-    if (await page.locator(`form[data-fb-form="${formId}"]`).count()) break;
-  }
-  const formEl = page.locator(`form[data-fb-form="${formId}"]`).first();
+  for (const [n, formId] of formIds.entries()) {
+    const form = site.forms[formId];
+    const check = (name, ok, detail) => checkAll(n ? `${name} (form ${formId})` : name, ok, detail);
+    const email = n ? `e2e+${formId}@example.com` : "e2e@example.com";
+    const page = await browser.newPage();
+    const consoleErrors = [];
+    page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(consoleErrorText(m)));
 
-  const submit = formEl.locator('button[type="submit"]');
-  const steps = [...new Set(form.fields.map((f) => f.step || 1))].sort((a, b) => a - b);
-
-  // Inline error before anything is sent: try to move on with the first step empty.
-  await (steps.length > 1 ? formEl.locator("[data-fb-next]:visible").click() : submit.click());
-  const firstRequired = form.fields.find((f) => f.required && (f.step || 1) === steps[0]);
-  check("inline error shows for a missing required field",
-    ((await formEl.locator(`[data-fb-error="${firstRequired.name}"]`).textContent()) || "").trim().length > 0);
-
-  // Fill every visible field with a plausible value, step by step.
-  const values = { email: "e2e@example.com", name: "E2E Tester", tel: "+1 555 0100", url: "https://example.org", text: "E2E", textarea: "Testing the whole path." };
-  for (const [i, step] of steps.entries()) {
-    for (const f of form.fields.filter((x) => (x.step || 1) === step && x.type !== "hidden")) {
-      const input = formEl.locator(`[name="${f.name}"]`);
-      if (f.type === "checkbox") { if (f.required) await input.check(); }
-      else if (f.type === "radio") await input.first().check();
-      else if (f.type === "checkboxes") { await input.nth(0).check(); if (f.options.length > 1) await input.nth(1).check(); }
-      else if (f.type === "select") await input.selectOption({ index: 1 });
-      else await input.fill(values[f.name] || values[f.type] || "E2E");
+    // Find a page that renders this form: the first content page with a form section for it, else the home page or
+    // the built-in /contact page.
+    const holder = pages.find((slug) => (JSON.parse(readFileSync(`src/content/${slug}.json`, "utf8")).sections || []).some((s) => s._type === "fb_form" && s.form === formId));
+    const paths = [...new Set([holder === undefined ? null : holder === "home" ? "/" : `/${holder}`, "/", "/contact"].filter(Boolean))];
+    let found = false;
+    for (const p of paths) {
+      await page.goto(`${base}${p}?utm_source=e2e&utm_medium=test`);
+      if (await page.locator(`form[data-fb-form="${formId}"]`).count()) { found = true; break; }
     }
-    if (i < steps.length - 1) await formEl.locator("[data-fb-next]:visible").click();
-  }
+    // A form no page shows can't be sent, and visitors can't reach it either.
+    check("the form is on a page", found, found ? "" : `not on ${paths.join(", ")} or any page in src/content`);
+    if (!found) { await page.close(); continue; }
+    const formEl = page.locator(`form[data-fb-form="${formId}"]`).first();
 
-  let filePath;
-  if (form.file) {
-    const dir = mkdtempSync(join(tmpdir(), "e2e-"));
-    filePath = join(dir, "brief.pdf");
-    writeFileSync(filePath, "%PDF-1.4\n% e2e test file\n");
-    await formEl.locator("[data-fb-file]").setInputFiles(filePath);
-  }
+    const submit = formEl.locator('button[type="submit"]');
+    const steps = [...new Set(form.fields.map((f) => f.step || 1))].sort((a, b) => a - b);
 
-  // Checkbox opt-in: tick the consent box, so the lead also subscribes (a required box blocks the send otherwise).
-  if (site.optIn?.mode === "checkbox" && form.consent !== "none") await formEl.locator('[name="consent"]').check();
+    // Inline error before anything is sent: try to move on with the first step empty.
+    await (steps.length > 1 ? formEl.locator("[data-fb-next]:visible").click() : submit.click());
+    const firstRequired = form.fields.find((f) => f.required && (f.step || 1) === steps[0]);
+    check("inline error shows for a missing required field",
+      ((await formEl.locator(`[data-fb-error="${firstRequired.name}"]`).textContent()) || "").trim().length > 0);
 
-  await page.waitForFunction(() => document.querySelector('[name="cf-turnstile-response"]')?.value, null, { timeout: 30000 });
-  const [submitResponse] = await Promise.all([
-    page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === `/api/submit/${formId}`, { timeout: 30000 }),
-    submit.click(),
-  ]);
-  // The status is read rather than the body: the page moves on to the thank-you page straight away.
-  const status = submitResponse.status();
-  const why = status === 200 ? "" : await submitResponse.text().catch(() => "");
-  check("the server accepted the submission", status === 200, `${status} ${why.slice(0, 200)}`.trim());
-  await page.waitForURL((u) => u.pathname === form.thanks, { timeout: 30000 });
-  check("submit redirects to the thank-you page", !page.url().includes("file-failed"), page.url());
-  check("no console errors in the browser", consoleErrors.length === 0, consoleErrors.join(" | "));
+    // Fill every visible field with a plausible value, step by step.
+    const values = { email, name: "E2E Tester", tel: "+1 555 0100", url: "https://example.org", text: "E2E", textarea: "Testing the whole path." };
+    for (const [i, step] of steps.entries()) {
+      for (const f of form.fields.filter((x) => (x.step || 1) === step && x.type !== "hidden")) {
+        const input = formEl.locator(`[name="${f.name}"]`);
+        if (f.type === "checkbox") { if (f.required) await input.check(); }
+        else if (f.type === "radio") await input.first().check();
+        else if (f.type === "checkboxes") { await input.nth(0).check(); if (f.options.length > 1) await input.nth(1).check(); }
+        else if (f.type === "select") await input.selectOption({ index: 1 });
+        else await input.fill(values[f.name] || values[f.type] || "E2E");
+      }
+      if (i < steps.length - 1) await formEl.locator("[data-fb-next]:visible").click();
+    }
 
-  const [lead] = sql("SELECT * FROM leads ORDER BY created_at DESC LIMIT 1");
-  check("lead saved in D1", lead?.email === "e2e@example.com" && lead?.form === formId);
-  const groups = form.fields.filter((f) => f.type === "checkboxes");
-  if (groups.length) {
-    const fields = JSON.parse(lead?.fields_json || "{}");
-    check("ticked checkboxes stored as a list", groups.every((f) => Array.isArray(fields[f.name]) && fields[f.name].length === Math.min(2, f.options.length)), JSON.stringify(groups.map((f) => fields[f.name])));
-  }
-  const attr = JSON.parse(lead?.attribution_json || "{}");
-  check("attribution captured", attr.utm_source === "e2e" && !!attr.landing, JSON.stringify(attr));
-  const [sub] = sql("SELECT status FROM subscribers WHERE email = 'e2e@example.com'");
-  if (form.consent === "none") check("a plain message form subscribes nobody", !sub);
-  else check(site.optIn?.mode === "checkbox" ? "visitor who ticked the box subscribed" : "visitor auto-subscribed", sub?.status === "subscribed");
-  // Locally the mailers have no secrets, so a send fails and is recorded; Cloudflare's email binding is simulated by
-  // wrangler dev and succeeds.
-  if (site.email.notify === "cloudflare") check("owner notification sent through the email binding", lead?.notified === 1, lead?.notify_error);
-  else if (site.email.notify !== "none") check("mail failure recorded, not lost", lead?.notified === 0 && !!lead?.notify_error, lead?.notify_error);
-  if (filePath) {
-    check("file stored", lead?.upload_status === "stored" && lead?.upload_key === `${site.site.id}/${lead.id}/brief.pdf`, `${lead?.upload_status} ${lead?.upload_key}`);
-    check("file bytes in R2 match", local.r2get(lead.upload_key).includes("% e2e test file"));
+    let filePath;
+    if (form.file) {
+      const dir = mkdtempSync(join(tmpdir(), "e2e-"));
+      filePath = join(dir, "brief.pdf");
+      writeFileSync(filePath, "%PDF-1.4\n% e2e test file\n");
+      await formEl.locator("[data-fb-file]").setInputFiles(filePath);
+    }
+
+    // Checkbox opt-in: tick the consent box, so the lead also subscribes (a required box blocks the send otherwise).
+    if (site.optIn?.mode === "checkbox" && form.consent !== "none") await formEl.locator('[name="consent"]').check();
+
+    await page.waitForFunction(() => document.querySelector('[name="cf-turnstile-response"]')?.value, null, { timeout: 30000 });
+    const [submitResponse] = await Promise.all([
+      page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === `/api/submit/${formId}`, { timeout: 30000 }),
+      submit.click(),
+    ]);
+    // The status is read rather than the body: the page moves on to the thank-you page straight away.
+    const status = submitResponse.status();
+    const why = status === 200 ? "" : await submitResponse.text().catch(() => "");
+    check("the server accepted the submission", status === 200, `${status} ${why.slice(0, 200)}`.trim());
+    // A form without its own thanks page goes to /thanks (core's config default).
+    await page.waitForURL((u) => u.pathname === (form.thanks || "/thanks"), { timeout: 30000 });
+    check("submit redirects to the thank-you page", !page.url().includes("file-failed"), page.url());
+    check("no console errors in the browser", consoleErrors.length === 0, consoleErrors.join(" | "));
+
+    const [lead] = sql(`SELECT * FROM leads WHERE email = '${email}' ORDER BY created_at DESC LIMIT 1`);
+    check("lead saved in D1", lead?.email === email && lead?.form === formId);
+    const groups = form.fields.filter((f) => f.type === "checkboxes");
+    if (groups.length) {
+      const fields = JSON.parse(lead?.fields_json || "{}");
+      check("ticked checkboxes stored as a list", groups.every((f) => Array.isArray(fields[f.name]) && fields[f.name].length === Math.min(2, f.options.length)), JSON.stringify(groups.map((f) => fields[f.name])));
+    }
+    const attr = JSON.parse(lead?.attribution_json || "{}");
+    check("attribution captured", attr.utm_source === "e2e" && !!attr.landing, JSON.stringify(attr));
+    const [sub] = sql(`SELECT status FROM subscribers WHERE email = '${email}'`);
+    if (form.consent === "none") check("a plain message form subscribes nobody", !sub);
+    else check(site.optIn?.mode === "checkbox" ? "visitor who ticked the box subscribed" : "visitor auto-subscribed", sub?.status === "subscribed");
+    // Locally the mailers have no secrets, so a send fails and is recorded; Cloudflare's email binding is simulated by
+    // wrangler dev and succeeds.
+    if (site.email.notify === "cloudflare") check("owner notification sent through the email binding", lead?.notified === 1, lead?.notify_error);
+    else if (site.email.notify !== "none") check("mail failure recorded, not lost", lead?.notified === 0 && !!lead?.notify_error, lead?.notify_error);
+    if (filePath) {
+      check("file stored", lead?.upload_status === "stored" && lead?.upload_key === `${site.site.id}/${lead.id}/brief.pdf`, `${lead?.upload_status} ${lead?.upload_key}`);
+      check("file bytes in R2 match", local.r2get(lead.upload_key).includes("% e2e test file"));
+    }
+    await page.close();
   }
 
   // Client editing on: EmDash serves its admin and every page. A page EmDash doesn't have yet shows from its file; the

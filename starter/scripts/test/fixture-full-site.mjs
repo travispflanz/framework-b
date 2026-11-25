@@ -35,15 +35,17 @@ writeFileSync("src/content/about.json", JSON.stringify({
       { image: img("fixture-b.jpg", "Abstract colour gradient"), caption: "Second" },
       { image: img("fixture-c.jpg", "Abstract colour gradient") },
     ] },
+    // The waitlist below is on a page, so the e2e test sends it too (it sends every form).
+    { _type: "fb_form", _key: "list", anchor_id: "list", headline: "Hear when we open", subheadline: "One email when there's news.", form: "waitlist" },
   ],
 }, null, 2) + "\n");
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
 site.nav.splice(Math.max(0, site.nav.length - 1), 0, { label: "About", href: "/about" });
-// A waitlist beside the contact form (after it, so the e2e test still sends the contact form): the generated privacy
-// page then has a line per form, and /thanks speaks to both (src/lib/form-copy.js).
+// A waitlist beside the contact form (after it, so the contact form is still the first): the generated privacy page
+// then has a line per form, and /thanks speaks to both (src/lib/form-copy.js). /about shows it.
 site.forms.waitlist = {
   kind: "waitlist", title: "Join the waitlist", submitLabel: "Join the waitlist",
   fields: [{ name: "name", type: "text", label: "Your name (optional)", autocomplete: "name" }, { name: "email", type: "email", label: "Email", required: true, autocomplete: "email" }],
 };
 writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
-console.log("Full-site fixture: /about with hero image, text and image, gallery; 3 credited images; a waitlist form");
+console.log("Full-site fixture: /about with hero image, text and image, gallery and a waitlist form; 3 credited images");

@@ -22,9 +22,9 @@ This site was built with Framework B. `site.config.json` holds every brand value
 ## Commands
 - Build: `npm run build`.
 - Local run: `npm run db:migrate:local`, then `npm run dev`. Put test values in `.dev.vars` (copy `.dev.vars.example`).
-- Unit tests: `node --test scripts/test/*.test.mjs`. The three that check the starter's own templates (its forms in `site.config.json`, `design/research.md`, `STYLE-GUIDE.md`) skip themselves in a site, where those files are the owner's (`scripts/test/in-site.mjs`); the rest use only their own fixtures and framework files.
-- End-to-end test: `npm run build && npm run test:e2e`. It uses a local Worker, a real browser and Turnstile test keys, and sends no email.
-- QA gate: `npm run build && npm run qa` (local), `npm run qa -- --url <preview-url>` (P6), `npm run qa -- --url https://<domain> --launch` (P8). It fails on any check; screenshots and the report land in `qa-output/`.
+- Unit tests: `node --test scripts/test/*.test.mjs`. The four that check the starter's own templates (its forms in `site.config.json`, `design/research.md`, `STYLE-GUIDE.md`, `PRODUCT.md`) skip themselves in a site, where those files are the owner's (`scripts/test/in-site.mjs`); the rest use only their own fixtures and framework files.
+- End-to-end test: `npm run build && npm run test:e2e`. It uses a local Worker, a real browser and Turnstile test keys, and sends no email. It sends every form from the page that shows it, each with its own address, and checks each one's lead and consent (a form with `consent` "none" subscribes nobody); a form no page shows fails.
+- QA gate: `npm run build && npm run qa` (local), `npm run qa -- --url <preview-url>` (P6), `npm run qa -- --url https://<domain> --launch` (P8). It fails on any check; screenshots and the report land in `qa-output/`. A page load that times out or hits a network error, and a Lighthouse run spoiled by a failed fetch, get one retry each, printed as `retry` and listed in `qa-output/report.json`.
 - Migrations: `npm run db:migrate:remote` (never `d1 execute` with schema SQL).
 - Client editing (EmDash): `node scripts/editing.mjs on` switches it on; `node scripts/editing.mjs off --remote` switches it off and brings the published pages and their images back into files (see "Client editing" below). Local tests of an editing build first need `node scripts/fill-test-placeholders.mjs` if the site has no real resources yet.
 
@@ -76,7 +76,7 @@ This site was built with Framework B. `site.config.json` holds every brand value
   - a section with less than a tenth of its weight on one side of the middle of the window and nothing a quarter of the way across that half, at 1280 px; a picture cropped by a third or more of its width or height without a focal point on that axis, at 360 and 1280 px; a header logo shorter than the tallest button beside it or in the phone bar;
   - text over an image or gradient below 4.5:1 (3:1 for large text) against the lightest part of the picture behind it (the darkest, for dark text), at 360 and 1280 px;
   - content that doesn't match the schema;
-  - reviews, ratings, customer counts or percentages without a source in `PRODUCT.md` (truth gate);
+  - reviews, ratings, customer counts or percentages without a source in `PRODUCT.md` (truth gate: a phrase listed under "## Approved claims" passes; keep the template's headings);
   - generic AI words (copy lint; the owner's own phrases listed under "## Owner's wording" in `PRODUCT.md` are skipped);
   - Impeccable findings in the source or on any rendered page, including any font, colour, radius or font size outside `DESIGN.md`. For a deliberate exception, run `npx impeccable ignores add-value <rule> <value> --reason "..."`; it is recorded in `.impeccable/config.json` for review.
 

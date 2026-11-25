@@ -26,7 +26,8 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
    (new layouts in the site's own `src/sections/`) and measure the built pages (docs/BUILD.md step 3). Then
    this-or-that pairs where a detail is still open (`node scripts/design-pairs.mjs render`, then `pick` per
    answer, `defaults` if silent). Then `node scripts/design-tokens.mjs`. Credit every image in `design/credits.json`.
-4. **Content.** `site.config.json` forms and navigation, `src/content/*.json` from the section library, then
+4. **Content.** `site.config.json` forms (each one on a page; the e2e test sends every form) and navigation,
+   `src/content/*.json` from the section library, then
    `node scripts/check-content.mjs` (and `node scripts/editing.mjs seed` with editing on).
 5. **Local gates.** In a scratch copy with Turnstile test keys (`node scripts/fill-test-placeholders.mjs --turnstile-test`):
    `npm run build && npm run test:e2e && npm run qa`. Then the critique rounds in the same copy
