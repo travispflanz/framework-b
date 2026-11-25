@@ -39,6 +39,8 @@ const mdFiles = execFileSync("git", ["ls-files", "*.md"], { cwd: ROOT, encoding:
 
 // --- workflows -------------------------------------------------------------------------------------------------
 // The workflows are plain block YAML, so a small indentation reader is enough (no dependency to install in CI).
+// Callers keep to that form: `on:` and `inputs:` as blocks, one unquoted key per line (an input's own settings may
+// be a flow map), and `with:` after `uses:`. A caller written otherwise reads as having no inputs.
 const indent = (l) => l.match(/^ */)[0].length;
 function block(lines, start) {
   const out = [];
