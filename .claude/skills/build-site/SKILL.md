@@ -9,13 +9,15 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 
 ## Checklist
 
-1. **Brief.** Write `brief.json` from the prompt (format in `scripts/site/lib/brief.mjs`). Research the business
-   first; list every answer you chose in `inferred`. On autopilot with no owner answers (you picked the idea), set
-   `"answeredBy": "agent"` so `DECISIONS.md` records your choices as yours. Give each form its `kind` (`message` or
-   `waitlist`) and `consent` (`none` for a plain message form). Run `node scripts/site/brief.mjs check brief.json`
-   until it passes.
-2. **Create.** Dispatch the ops repo's `site create` with the brief JSON in `brief`. Read the run summary for the URL
-   and repo.
+1. **Brief.** Write `brief.json` from the prompt (every field: docs/BUILD.md step 1; format in
+   `scripts/site/lib/brief.mjs`). Research the business first, into a notes file beside the brief (the site repo
+   doesn't exist yet); list every answer you chose in `inferred` by its exact path. On autopilot with no owner
+   answers (you picked the idea), set `"answeredBy": "agent"` so `DECISIONS.md` records your choices as yours. Give
+   each form its `kind` (`message` or `waitlist`) and `consent` (`none` for a plain message form), and set
+   `design.imagery` when the owner has no photos. A name left to you follows BUILD.md's naming steps; the id is
+   permanent. Run `node scripts/site/brief.mjs check brief.json` until it passes.
+2. **Create.** Dispatch the ops repo's `site create` once with the brief JSON in `brief` (pin `framework_ref` if
+   `main` may move). Read the run summary for the URL and repo.
 3. **Design.** In the site repo on branch `build/initial`: `PRODUCT.md` (facts with sources, inferred promises
    flagged), then `design/research.md` through four lenses, never the industry alone: the business, its field,
    current design (dated trend sources from the last 12 months) and the site's own look. Every design step after it
