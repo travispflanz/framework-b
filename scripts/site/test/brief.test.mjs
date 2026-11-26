@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { FORM_CONSENT, FORM_KINDS, IMAGERY_STYLES, TREATMENTS, createInputs, decisionRows, kickoffSource, normalizeBrief, pointFormSections, siteForms, slug } from "../lib/brief.mjs";
+import { FORM_CONSENT, FORM_KINDS, IMAGERY_STYLES, OFFER_MAX, TREATMENTS, createInputs, decisionRows, kickoffSource, normalizeBrief, pointFormSections, siteForms, slug } from "../lib/brief.mjs";
 
 test("a minimal brief gets every default, marked as default", () => {
   const { brief, sources, errors } = normalizeBrief({ business: { name: "Example Co" }, owner: { email: "Owner@Example.com" } });
@@ -115,7 +115,7 @@ test("answeredBy agent: the agent's own choices are recorded as the agent's, not
 });
 
 test("forms: per-form kind and consent, checked, defaulted and shown in the decision rows", () => {
-  const base = { business: { name: "Example Co", offer: "x" }, owner: { email: "o@example.com" } };
+  const base = { business: { name: "Example Co", offer: "x" }, owner: { email: "o@example.com" }, design: { imagery: { style: "documentary-stock" } } };
   const { brief, sources, errors, warnings } = normalizeBrief({ ...base, forms: [{ id: "waitlist", purpose: "early access" }, { id: "contact", purpose: "questions", consent: "none", title: "Ask us" }], inferred: ["forms.1.consent"] });
   assert.deepEqual(errors, []);
   assert.deepEqual(warnings, []);
@@ -229,4 +229,40 @@ test("decision rows: a form's kind and consent decide its source, the list of fo
   assert.ok(decisionRows(auto.brief, auto.sources, date).some((r) => r.startsWith(`| ${date} | Form contact:`) && r.endsWith("| Agent's choice | agent |")));
   const owner = normalizeBrief({ ...base, forms: [{ id: "contact", consent: "none" }] });
   assert.ok(decisionRows(owner.brief, owner.sources, date).some((r) => r.startsWith(`| ${date} | Form contact:`) && r.endsWith("| Kickoff | owner |")));
+});
+
+test("inferred: a path that names no field is an error, one left out of the brief a warning", () => {
+  const base = { business: { name: "Example Co", offer: "Seeds by post." }, owner: { email: "o@example.com" }, design: { words: ["plain"], imagery: { style: "line-art" } } };
+  const typo = normalizeBrief({ ...base, inferred: ["design.word"] });
+  assert.ok(typo.errors.some((e) => e.startsWith('inferred: "design.word" is not a field')), typo.errors.join("; "));
+  // Without the check, the real field would read as the owner's answer.
+  assert.equal(typo.sources["design.words"], "stated");
+  const parent = normalizeBrief({ ...base, inferred: ["design.imagery"] });
+  assert.ok(parent.errors.some((e) => e.includes("design.imagery.style")), parent.errors.join("; "));
+  const absent = normalizeBrief({ ...base, inferred: ["shape"] });
+  assert.deepEqual(absent.errors, []);
+  assert.ok(absent.warnings.some((w) => w.startsWith('inferred: "shape" is listed but not in the brief')));
+  const ok = normalizeBrief({ ...base, shape: "landing", forms: [{ id: "waitlist", purpose: "news" }], inferred: ["shape", "design.words", "forms.0.purpose", "forms.0.kind", "business.offer"] });
+  assert.deepEqual(ok.errors, []);
+  assert.ok(!ok.warnings.some((w) => w.startsWith("inferred:") && !w.includes("forms.0.kind")));
+  assert.equal(ok.sources["design.words"], "inferred");
+  assert.ok(normalizeBrief({ ...base, forms: [{ id: "contact" }], inferred: ["forms.3.kind"] }).errors.some((e) => e.includes("forms.3.kind")));
+});
+
+test("an empty list or object is absent unless the agent chose it; the imagery default and a long offer warn", () => {
+  const base = { business: { name: "Example Co", offer: "Seeds by post.", serviceArea: [] }, owner: { email: "o@example.com" } };
+  const { sources, warnings } = normalizeBrief({ ...base, design: { references: [], avoid: ["stock smiles"] }, facts: {}, claims: [] });
+  assert.equal(sources["design.references"], "default");
+  assert.equal(sources["business.serviceArea"], "default");
+  assert.equal(sources.facts, "default");
+  assert.equal(sources.claims, "default");
+  assert.equal(sources["design.avoid"], "stated");
+  assert.equal(normalizeBrief({ ...base, design: { references: [] }, inferred: ["design.references"] }).sources["design.references"], "inferred");
+  // An empty list of forms is still refused, not quietly replaced by the default.
+  assert.ok(normalizeBrief({ ...base, forms: [] }).errors.some((e) => e.startsWith("forms")));
+  assert.ok(warnings.some((w) => w.startsWith('design.imagery.style is not set, so it is "owner-photo"')));
+  assert.ok(!normalizeBrief({ ...base, design: { imagery: { style: "owner-photo" } } }).warnings.some((w) => w.startsWith("design.imagery.style")));
+  const long = normalizeBrief({ ...base, business: { name: "Example Co", offer: "x".repeat(OFFER_MAX + 1) } });
+  assert.ok(long.warnings.some((w) => w.startsWith(`business.offer is ${OFFER_MAX + 1} characters`)));
+  assert.ok(!normalizeBrief({ ...base, business: { name: "Example Co", offer: "x".repeat(OFFER_MAX) } }).warnings.some((w) => w.startsWith("business.offer")));
 });

@@ -20,7 +20,7 @@ The v1.1.0 milestone: a second site, in another field, is built from one prompt 
 | 3g | Also untested: checkbox consent mode on a live site (tested in workerd) | Agent | Done 2026-11-24 (#102): the weekly self-test's static site runs an optional consent box. Its ticked lead kept the box's label and subscribed, and an unticked lead kept no wording and subscribed no one (ops runs 45342788007 and 45344117664). A required box stays workerd-only |
 | 4a | Teardown removes a subdomain launch site's own Resend sending domain (`mail.<domain>`), and any left over from earlier teardowns. Today it deletes the site's sending key and keeps the Resend domain for every launch site; Resend Free's domain limit is in `docs/SPEC.md` section 10. The owner approved removing the leftover one (2026-11-12) | Agent | Code done 2026-11-17 (#88, untested live); the leftover's removal waits on the ops caller's `mail_domain` input |
 | 4b | README status line covers what `main` adds since v1.0.0 | Agent | Done 2026-11-12 (#86) |
-| 5 | Fold what steps 2 and 3 find into the docs and the checks | Agent | After 2 and 3 |
+| 5 | Fold what steps 2 and 3 find into the docs and the checks | Agent | In review (2026-11-25): the 38 steering findings and one from the test site's production QA triaged in `docs/research/one-prompt-test-2026-11.md` (9 fixed before, 13 fixed and 16 documented in #106, #107 and #108, 1 won't fix). |
 | 6 | Tag v1.1.0: it marks the design layer, site adopt and client editing for a site that already exists | Owner (the owner tags releases) | After 1 to 5; 3f may still be open |
 | 7 | After v1.1.0: the owner's bigger goals for Framework B | Owner | To be set by the owner |
 

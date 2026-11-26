@@ -21,6 +21,21 @@
 //             consent box that may or must be ticked; in auto mode the line under the button subscribes either way).
 //             Default: "required" for a waitlist in checkbox mode, else "optional". The site-wide `consent` is the mode
 //
+// Every field (docs/BUILD.md step 1 has the full example): business.{name, id, offer, audience, location, serviceArea,
+// phone, postalAddress}, owner.email, answeredBy, mode, audienceRegion, consent, shape, forms, autoReply, indexing,
+// editing, newsletter, crm, design.{autopilot, imagery.{style, secondary, treatment}, words, references, avoid},
+// facts, claims, inferred.
+//   business.id     the site id: the repo site-<id>, the Worker, its workers.dev host, the Turnstile widget and the
+//                   Access applications are named after it, and there is no rename path (default: the name's slug)
+//   business.offer  one sentence: the hero's line, the site's tagline and every page's default meta description
+//   business.location  the business's public city, if it has one; empty for an online business. serviceArea is
+//                   where it serves or ships. Only the DECISIONS.md "Where" row reads them
+//   facts           what the owner stated about the business, under plain keys of your own; research results go in
+//                   PRODUCT.md with their sources, never here
+//   inferred        the exact path of every answer the agent chose ("shape", "design.words", "forms.1.consent"); a path
+//                   that names no field is an error, so a typo can't leave the agent's choice reported as stated
+// Leave out what nobody said: an empty list or object counts as absent (default), unless its path is in `inferred`.
+//
 // Minimal input:  { "business": { "name": "Example Co" }, "owner": { "email": "owner@example.com" } }
 
 // CRM mirror (core src/crm.js): copy each lead to the owner's Google Sheet, a webhook, or both.
@@ -45,6 +60,11 @@ export const slug = (name) =>
 
 const get = (o, path) => path.split(".").reduce((v, k) => (v == null ? undefined : v[k]), o);
 const isBool = (v) => typeof v === "boolean";
+const isEmpty = (v) => (Array.isArray(v) ? v.length === 0 : v !== null && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype && Object.keys(v).length === 0);
+// The offer is also every page's default meta description (starter src/layouts/Base.astro). Google cuts snippets "as
+// needed, typically to fit the device width" (developers.google.com/search/docs/appearance/snippet, checked
+// 2026-11-25); 160 characters is this framework's limit for one plain sentence, not Google's.
+export const OFFER_MAX = 160;
 
 // Returns { brief, sources, errors, warnings }. `brief` is complete: every answer has a value.
 export function normalizeBrief(input) {
@@ -62,7 +82,9 @@ export function normalizeBrief(input) {
       return typeof fallback === "function" ? fallback() : fallback;
     }
     if (check && !check(v)) errors.push(`${path}: ${JSON.stringify(v)} is not valid`);
-    sources[path] = inferred.has(path) ? "inferred" : present;
+    // An empty list or object says nothing ("references": [] is not the owner naming no references), unless the agent
+    // listed it as its own choice.
+    sources[path] = inferred.has(path) ? "inferred" : isEmpty(v) ? "default" : present;
     return v;
   };
 
@@ -139,6 +161,21 @@ export function normalizeBrief(input) {
   if (brief.design.imagery.style === "photoreal-generated") warnings.push("design.imagery.style photoreal-generated: generated photos never show the business's own people, premises, products or work; they are listed on /credits; owner photos are better wherever the owner has them");
   if (brief.crm.includes("webhook")) warnings.push(`crm "${brief.crm}": the webhook needs its URL as the Worker secret CRM_WEBHOOK_URL (and optionally CRM_WEBHOOK_SECRET) before leads are sent to it`);
   if (!brief.business.offer) warnings.push("business.offer is empty: the hero needs a one-line offer; infer one and list it in `inferred`");
+  else if (String(brief.business.offer).length > OFFER_MAX) warnings.push(`business.offer is ${String(brief.business.offer).length} characters: it is also the site's tagline and every page's default meta description, which search results cut to fit; keep it to one sentence of at most ${OFFER_MAX}`);
+  // The imagery default is the owner's own photos: right for a business that has them, wrong for an idea that has none.
+  if (sources["design.imagery.style"] === "default") warnings.push('design.imagery.style is not set, so it is "owner-photo" (the owner\'s own photos); if the owner has none yet, choose a style (documentary-stock, line-art, ...) and list "design.imagery.style" in `inferred`');
+  // Every path in `inferred` must name a field: one that names none ("design.word") would leave the real field
+  // reported as the owner's answer, and DECISIONS.md would credit the owner with the agent's choice.
+  const known = new Set(Object.keys(sources));
+  brief.forms.forEach((_, i) => ["id", "purpose", "title", "submitLabel"].forEach((k) => known.add(`forms.${i}.${k}`)));
+  for (const path of inferred) {
+    if (!known.has(path)) {
+      const under = [...known].filter((k) => k.startsWith(`${path}.`));
+      errors.push(`inferred: "${path}" is not a field of the brief${under.length ? `; list the fields themselves (${under.join(", ")})` : ""}`);
+    } else if (get(input, path) === undefined || get(input, path) === null || get(input, path) === "") {
+      warnings.push(`inferred: "${path}" is listed but not in the brief, so it takes the framework default; write the value you chose, or take it off the list`);
+    }
+  }
   for (const c of brief.claims) if (!c?.text || !c?.source) errors.push(`claims: every claim needs text and an owner source (${JSON.stringify(c)})`);
   return { brief, sources, errors, warnings };
 }
