@@ -21,3 +21,20 @@ test("each section runs to the next heading, and comments never count", () => {
   assert.deepEqual(ownerWording(md), ["seamless", "Unlock your garden"]);
   assert.equal(approvedClaims("# Product\n"), "");
 });
+
+test("a heading straight after another still ends the section", () => {
+  // The first version dropped the newline before such a heading, so the next section ran on into this one.
+  assert.ok(!approvedClaims(`## Approved claims\n## Evidence on hand\n- 4.9 stars from 120 reviews\n`).includes("120 reviews"));
+  assert.deepEqual(ownerWording(`## Owner's wording\n## Approved claims\n- "seamless"\n`), []);
+});
+
+test("a section keeps its own subheadings, and its heading may be deeper or carry a date", () => {
+  const md = `## Approved claims (2026-11-01)\n\n### From the owner\n\n- "120 reviews"\n\n## Owner's wording:\n\n- "seamless"\n`;
+  assert.ok(approvedClaims(md).includes("120 reviews"));
+  assert.ok(!approvedClaims(md).includes("seamless"));
+  assert.deepEqual(ownerWording(md), ["seamless"]);
+  assert.ok(approvedClaims(`# Product\n\n### Approved claims\n\n- "4.9 stars"\n\n### Later\n\n- "not this"\n`).includes("4.9 stars"));
+  assert.ok(!approvedClaims(`# Product\n\n### Approved claims\n\n- "4.9 stars"\n\n### Later\n\n- "not this"\n`).includes("not this"));
+  // A heading that only starts with the name is another section.
+  assert.equal(approvedClaims(`## Approved claimsless\n\n- "4.9 stars"\n`), "");
+});

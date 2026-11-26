@@ -37,6 +37,8 @@ writeFileSync("src/content/about.json", JSON.stringify({
     ] },
     // The waitlist below is on a page, so the e2e test sends it too (it sends every form).
     { _type: "fb_form", _key: "list", anchor_id: "list", headline: "Hear when we open", subheadline: "One email when there's news.", form: "waitlist" },
+    // A plain message form (consent "none"): the e2e test checks it subscribes nobody.
+    { _type: "fb_form", _key: "ask", anchor_id: "ask", headline: "Ask a question", subheadline: "We answer every message ourselves.", form: "question" },
   ],
 }, null, 2) + "\n");
 const site = JSON.parse(readFileSync("site.config.json", "utf8"));
@@ -47,5 +49,10 @@ site.forms.waitlist = {
   kind: "waitlist", title: "Join the waitlist", submitLabel: "Join the waitlist",
   fields: [{ name: "name", type: "text", label: "Your name (optional)", autocomplete: "name" }, { name: "email", type: "email", label: "Email", required: true, autocomplete: "email" }],
 };
+// A plain message form that adds no one to a list (consent "none"), so the e2e test proves it subscribes nobody.
+site.forms.question = {
+  kind: "message", consent: "none", title: "Ask a question", submitLabel: "Send",
+  fields: [{ name: "email", type: "email", label: "Email", required: true, autocomplete: "email" }, { name: "message", type: "textarea", label: "Your question" }],
+};
 writeFileSync("site.config.json", JSON.stringify(site, null, 2) + "\n");
-console.log("Full-site fixture: /about with hero image, text and image, gallery and a waitlist form; 3 credited images");
+console.log("Full-site fixture: /about with hero image, text and image, gallery, a waitlist and a plain message form; 3 credited images");
