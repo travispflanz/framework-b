@@ -122,3 +122,10 @@ test("design research: every lens is found and starts unwritten; a written lens 
   assert.deepEqual(undatedLenses(md.replaceAll(PLACEHOLDER, "Written without a source.")), ["The field", "Current design", "The site's own look"]);
   assert.deepEqual(missingLenses(md.replace("## Current design", "## Trends")), ["Current design"]);
 });
+
+test("concept metadata decodes every XML entity, so a sheet never shows &apos;", () => {
+  const { meta } = parseConcept(`<svg xmlns="http://www.w3.org/2000/svg" data-type="wordmark" data-idea="The club&apos;s seed packet &amp; its card" data-from="Owner&#39;s words &#x2014; &quot;monthly&quot;"></svg>`);
+  assert.equal(meta.idea, "The club's seed packet & its card");
+  assert.equal(meta.from, 'Owner\'s words — "monthly"');
+  assert.equal(parseConcept(`<svg data-idea="&amp;apos; stays as typed"></svg>`).meta.idea, "&apos; stays as typed");
+});

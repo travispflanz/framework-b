@@ -14,3 +14,8 @@ design/brand/build/
 design/spot/*/preview.jpg
 .qa.wrangler.jsonc
 .e2e.wrangler.jsonc
+# Design records keep their decisions (design/tiles/, ballot.json, result.json, round-N.md, state.json); the judge's
+# and the critique's screenshots are working files, made again from the tiles or the pages (about 20 MB on a test
+# build, 2026-11-17).
+design/judge/*.png
+design/critique/round-*/**/*.png
