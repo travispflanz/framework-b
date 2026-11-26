@@ -35,6 +35,8 @@ import { multiLineFields, ovalField } from "./lib/fields.mjs";
 import { unwritten } from "./lib/style-guide.mjs";
 import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
 import { FILE as RESEARCH, unwrittenLenses } from "./lib/design-research.mjs";
+import { approvedClaims, ownerWording } from "./lib/product.mjs";
+import { gotoWithRetry, transientAudits } from "./lib/qa-retry.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name) => {
@@ -54,6 +56,9 @@ const designDoc = existsSync("DESIGN.md") ? readFileSync("DESIGN.md", "utf8").to
 const composition = existsSync("src/styles/design.json") ? JSON.parse(readFileSync("src/styles/design.json", "utf8")).composition : { phoneBudget: 6, motion: "none" };
 const { check, results, failed } = checker();
 mkdirSync(OUT, { recursive: true });
+// One retry after a network failure (scripts/lib/qa-retry.mjs); each is printed and kept in report.json.
+const retries = [];
+const retried = (what) => { retries.push(what); console.log(`  retry ${what}`); };
 
 function htmlFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
@@ -139,16 +144,16 @@ const contentText = existsSync("src/content")
   ? readdirSync("src/content").filter((f) => f.endsWith(".json")).map((f) => JSON.stringify(JSON.parse(readFileSync(join("src/content", f), "utf8")))).join(" ")
   : "";
 const copy = `${files.map((f) => textOf(readFileSync(f, "utf8"))).join(" ")} ${contentText}`;
-const approved = (existsSync("PRODUCT.md") ? readFileSync("PRODUCT.md", "utf8").split(/##\s+Approved claims/i)[1] || "" : "").toLowerCase();
+const product = existsSync("PRODUCT.md") ? readFileSync("PRODUCT.md", "utf8") : "";
+const approved = approvedClaims(product);
 const PROOF = [/\b\d[\d,]*\+?\s*(happy\s+)?(customers|clients|homes|households|reviews|five-star)\b/i, /\b(5|five)[- ]star\b/i, /★/, /\brated\s+\d/i, /\btrusted by\b/i, /\btestimonials?\b/i, /\b\d{2,3}(\.\d+)?%\s/];
 const proofHits = PROOF.map((re) => copy.match(re)?.[0]).filter((m) => m && !approved.includes(m.toLowerCase()));
 check("truth gate: no reviews, ratings, customer counts or percentages without an owner source", proofHits.length === 0, proofHits.join(" | "));
 const TELLS = ["delve", "tapestry", "testament", "pivotal", "underscore", "landscape", "foster", "crucial", "empower", "unlock", "transform", "seamless", "elevate", "game-changer", "revolutionize", "cutting-edge", "in today's"];
 // The owner's own words (an adopted site's existing copy) may use one of these: list each phrase, verbatim, under
 // "## Owner's wording" in PRODUCT.md and the lint skips it.
-const product = existsSync("PRODUCT.md") ? readFileSync("PRODUCT.md", "utf8") : "";
-const ownerWording = (product.split(/##\s+Owner's wording/i)[1] || "").split(/\n##\s/)[0].split("\n").map((l) => l.match(/^\s*-\s+"?(.+?)"?\s*$/)?.[1]).filter(Boolean);
-const lintCopy = ownerWording.reduce((text, phrase) => text.split(phrase).join(" "), copy);
+const ownerPhrases = ownerWording(product);
+const lintCopy = ownerPhrases.reduce((text, phrase) => text.split(phrase).join(" "), copy);
 const tellHits = TELLS.filter((w) => new RegExp(`\\b${w}`, "i").test(lintCopy));
 check("copy lint: none of the generic AI words", tellHits.length === 0, tellHits.join(", "));
 
@@ -249,7 +254,7 @@ try {
       const errors = [];
       page.on("console", (m) => ownConsoleError(m) && errors.push(consoleErrorText(m)));
       page.on("pageerror", (e) => errors.push(e.message));
-      const res = await page.goto(base + path, { waitUntil: "load" });
+      const res = await gotoWithRetry(page, base + path, { waitUntil: "load" }, retried);
       await page.waitForTimeout(1500); // let Turnstile and late layout settle (Turnstile keeps a connection open, so no networkidle)
       const tag = `${path} @${width}`;
       check(`page ${tag}: loads`, res?.ok(), String(res?.status()));
@@ -391,7 +396,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", isMobile: true, hasTouch: true });
     await auth.playwright(context);
     const page = await context.newPage();
-    await page.goto(base + "/", { waitUntil: "load" });
+    await gotoWithRetry(page, base + "/", { waitUntil: "load" }, retried);
     await page.waitForTimeout(800);
     const m = await page.evaluate(() => ({
       height: document.documentElement.scrollHeight,
@@ -451,7 +456,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: "reduce" });
     await auth.playwright(context);
     const page = await context.newPage();
-    await page.goto(base + "/", { waitUntil: "load" });
+    await gotoWithRetry(page, base + "/", { waitUntil: "load" }, retried);
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 2));
     await page.waitForTimeout(300);
     const running = await page.evaluate(() => document.getAnimations().filter((a) => !String(a.animationName || "").startsWith("turnstile")).length);
@@ -464,7 +469,7 @@ try {
     const moving = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await auth.playwright(moving);
     const mp = await moving.newPage();
-    await mp.goto(base + "/", { waitUntil: "load" });
+    await gotoWithRetry(mp, base + "/", { waitUntil: "load" }, retried);
     const mm = await mp.evaluate(() => {
       const scroll = document.getAnimations().filter((a) => a.timeline && a.timeline.constructor.name !== "DocumentTimeline");
       const fades = scroll.filter((a) => (a.effect?.target?.textContent || "").trim() && a.effect.getKeyframes().some((k) => k.opacity !== undefined && Number(k.opacity) < 1));
@@ -508,6 +513,12 @@ try {
       skipAudits: site.site.indexing && onCanonicalHost && !pageNoindex ? [] : ["is-crawlable"],
     }, undefined, lhPage)).lhr;
     let lhr = await runLighthouse();
+    // A run spoiled by the network (the page didn't load, a fetch failed) runs once more (scripts/lib/qa-retry.mjs).
+    const flaky = transientAudits(lhr);
+    if (flaky.length) {
+      retried(`lighthouse ${path}: ${flaky.join("; ")}; running it once more`);
+      lhr = await runLighthouse();
+    }
     // One Lighthouse run's performance score swings widely on a shared machine (0.73 and 0.99 for the same page,
     // minutes apart, 2026-10-27). Lighthouse's own guidance is to judge on the median of several runs: "the median
     // Lighthouse score of 5 runs is twice as stable as 1 run" (github.com/GoogleChrome/lighthouse/blob/main/docs/
@@ -542,7 +553,7 @@ try {
         const page = await pptr.newPage();
         await auth.puppeteer(page);
         await page.setViewport({ width, height });
-        await page.goto(`${base}${path}#${marker}`, { waitUntil: "load" });
+        await gotoWithRetry(page, `${base}${path}#${marker}`, { waitUntil: "load" }, retried);
         await new Promise((r) => setTimeout(r, 1500));
         const r = await impeccable(["--cdp", String(chrome.port), "--target", marker]);
         writeFileSync(join(OUT, `impeccable-${(path.slice(1) || "home").replace(/\//g, "_")}-${width}.json`), JSON.stringify(r.findings, null, 2));
@@ -566,6 +577,6 @@ try {
   local?.stop();
 }
 
-writeFileSync(join(OUT, "report.json"), JSON.stringify({ when: new Date().toISOString(), launch: LAUNCH, results }, null, 2));
+writeFileSync(join(OUT, "report.json"), JSON.stringify({ when: new Date().toISOString(), launch: LAUNCH, results, retries }, null, 2));
 console.log(failed() ? `\nQA gate FAILED: ${failed()} check(s)` : `\nQA gate passed (${results.length} checks)`);
 process.exit(failed() ? 1 : 0);

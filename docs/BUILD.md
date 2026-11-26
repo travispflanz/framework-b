@@ -137,7 +137,9 @@ never edit an old row.
 Clone `site-<id>` and work on a branch, `build/initial`.
 
 - `PRODUCT.md`: who it's for, the offer, the facts from research with sources, the inferred business promises
-  marked for the owner to confirm, and "Approved claims" (only from `claims`).
+  marked for the owner to confirm, "Evidence on hand" and "Approved claims" (only from `claims`) and "Owner's
+  wording". The starter's template has every heading; keep them, since the QA gate reads "Approved claims" and
+  "Owner's wording" (each up to the next heading of its level or higher; comments don't count).
 - `DESIGN.md` in Google's format: autopilot follows SPEC section 12 by hand (direction from the brief's words and
   research, a deliberate choice off the ban list). If `design.autopilot` is false, run the intake with the owner.
 - Four lenses first, never the industry alone (SPEC section 12, "Four lenses"). Write `design/research.md` before any
@@ -293,7 +295,10 @@ Clone `site-<id>` and work on a branch, `build/initial`.
 
 - `site.config.json`: forms (fields from the brief's purpose; keep each form's `kind` and `consent` as briefed),
   navigation (one `cta` item), indexing as briefed. A site without a `contact` form shows its first form on `/contact`
-  and in the home page's form section until the content replaces them.
+  and in the home page's form section until the content replaces them. Each form's `thanks` is where it sends the
+  visitor (default `/thanks`, which says "We'll reply soon" for a message form and "You're on the list" for a
+  waitlist); a page of your own there is a content page like any other (a hero first, the route's closing section,
+  `"noindex": true`). Put every form on a page: the end-to-end test sends each one and fails a form no page shows.
 - `src/content/home.json` (and one file per page for `full` or `hybrid`, each with a `title` and `description`, added to
   `nav`): sections from the library, following the page's argument. Copy uses the owner's facts; nothing invented.
 - Sections: pick each section's `variant` (layout) for what it has to say, and its `phone` behaviour where the default
@@ -360,7 +365,10 @@ inferred and needs a yes, and any brief warnings. Merging the pull request is th
 ## 8. Production (P8, idea mode)
 
 - About a minute after the merge: `npm run qa -- --url https://<id>.<subdomain>.workers.dev` from the site
-  (`--launch` is for launch mode).
+  (`--launch` is for launch mode). The gate loads a page once more after a timeout or a network error, and runs
+  Lighthouse once more when the page didn't load or an audit's fetch failed (robots.txt, in the case seen); each
+  retry is printed as `retry` and kept in `qa-output/report.json`. A fault that happens twice still fails. The retry
+  rules are unit-tested; a retry inside a real QA run is *untested*.
 - Ask the owner to send one real lead from their phone. Turnstile is real on production, so the agent can't.
   Confirm the row in `/admin` or D1.
 

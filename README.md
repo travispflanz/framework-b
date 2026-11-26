@@ -366,7 +366,8 @@ formatting and links):
 - `type` is one of `text`, `email`, `tel`, `url`, `textarea`, `select`, `radio`, `checkboxes` (these three need
   `options`: strings, or `{ value, label, group }`; `group` puts checkboxes under small headings), `checkbox` or
   `hidden`. A `checkboxes` answer is stored as a list.
-- Every form needs a required `email` field.
+- Every form needs a required `email` field, and every form must be on a page: the e2e test sends each one from the
+  page that shows it and fails a form no page shows.
 - Give fields a `step` number to split the form into steps.
 - `file` is `{ "label", "hint", "maxBytes", "types" }`. The default is 10 MB, and PDF, images, text, Word and Excel
   files are allowed. `types` lists MIME types and may also list extensions (`".fdx"`) for files browsers report

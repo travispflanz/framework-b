@@ -72,13 +72,13 @@ batch: #108 (brief and create), #106 (design tools and critique), #107 (generate
 | S3-10 | gap | Fields shared the buttons' radius, so pill buttons made the message box an oval | Fixed already: `rounded.field`, and a QA check for an oval field | #95 |
 | S3-11 | minor | The style guide template's placeholder stayed in when text was written after the comment | Fixed now: `style-guide.mjs` stops on a written section still holding it | #106 |
 | S4-01 | gap | The waitlist was thanked with "We'll reply soon" | Fixed already: `/thanks` speaks to waitlists; BUILD step 4 says how a form gets its own thanks page | #94, #107 |
-| S4-02 | gap | The e2e test sent only the first form, so the plain message form's consent went untested | Fixed now: every form is sent with its own address; a form on no page fails; the CI fixture's waitlist is on a page | #107 |
+| S4-02 | gap | The e2e test sent only the first form, so the plain message form's consent went untested | Fixed now: every form is sent with its own address; a form on no page fails; the CI fixture's waitlist is on a page, beside a plain message form (consent "none") that CI proves subscribes nobody | #107 |
 | S5-01 | gap | The scratch copy must be a git checkout for the critique | Documented: `git clone` the branch, link `node_modules`, `fill-test-placeholders` after every pull | #106 |
 | S5-02 | bug | Critique ballots never showed changes below the first screen, so every fix was reverted | Fixed already: each ballot shows what changed | #95 |
 | S5-03 | gap | A DESIGN.md fix in a critique round failed the QA gate on stale tokens and an old style guide | Fixed now: `compare` makes them again first; they are kept or reverted with the fix (a real round with such a fix is *untested*) | #106 |
 | S5-04 | minor | The line-length rule found a design-wide problem on one page, late | Documented: run the QA gate once right after the lock. An estimate in `design-tokens.mjs` would need the body face's metrics and would still be a guess; the gate measures the real page | #106 |
 | S5-05 | minor | About 26 MB of screenshots on the site's branch | Fixed now with S3-08 (the screenshots are working files) | #106 |
-| S6-01 | minor | Production QA failed twice on the contact page, then passed unchanged: a page load timed out waiting for "load", then Lighthouse's robots-txt audit failed while robots.txt answered 200 in under a second | Fixed now: one retry for a page load that times out or hits a network error, and for a Lighthouse run whose page didn't load or whose audit failed on a fetch; each retry printed and kept in the report | #107 |
+| S6-01 | minor | Production QA failed twice on the contact page, then passed unchanged: a page load timed out waiting for "load", then Lighthouse's robots-txt audit failed while robots.txt answered 200 in under a second | Fixed now: one retry for a page load that times out or hits a network error, and for a Lighthouse run whose page didn't load or whose audit failed on a fetch; each retry printed and kept in the report (unit-tested; a retry in a real run is *untested*) | #107 |
 
 ## What a site needs
 
