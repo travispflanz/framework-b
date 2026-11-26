@@ -9,19 +9,22 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 
 ## Checklist
 
-1. **Brief.** Write `brief.json` from the prompt (format in `scripts/site/lib/brief.mjs`). Research the business
-   first; list every answer you chose in `inferred`. On autopilot with no owner answers (you picked the idea), set
-   `"answeredBy": "agent"` so `DECISIONS.md` records your choices as yours. Give each form its `kind` (`message` or
-   `waitlist`) and `consent` (`none` for a plain message form). Run `node scripts/site/brief.mjs check brief.json`
-   until it passes.
-2. **Create.** Dispatch the ops repo's `site create` with the brief JSON in `brief`. Read the run summary for the URL
-   and repo.
+1. **Brief.** Write `brief.json` from the prompt (every field: docs/BUILD.md step 1; format in
+   `scripts/site/lib/brief.mjs`). Research the business first, into a notes file beside the brief (the site repo
+   doesn't exist yet); list every answer you chose in `inferred` by its exact path. On autopilot with no owner
+   answers (you picked the idea), set `"answeredBy": "agent"` so `DECISIONS.md` records your choices as yours. Give
+   each form its `kind` (`message` or `waitlist`) and `consent` (`none` for a plain message form), and set
+   `design.imagery` when the owner has no photos. A name left to you follows BUILD.md's naming steps; the id is
+   permanent. Run `node scripts/site/brief.mjs check brief.json` until it passes.
+2. **Create.** Dispatch the ops repo's `site create` once with the brief JSON in `brief` (pin `framework_ref` if
+   `main` may move). Read the run summary for the URL and repo.
 3. **Design.** In the site repo on branch `build/initial`: `PRODUCT.md` (facts with sources, inferred promises
    flagged), then `design/research.md` through four lenses, never the industry alone: the business, its field,
    current design (dated trend sources from the last 12 months) and the site's own look. Every design step after it
-   (drafts, routes, logo, style guide, images) draws on it. On autopilot, write three different drafts, render them with `node scripts/design-tiles.mjs`, judge them
-   with `node scripts/design-judge.mjs prepare` → answer each ballot LEFT/RIGHT → `tally`, and lock the pick as
-   `DESIGN.md`. With an owner intake, first offer routes: three or four whole page skeletons mocked on the real
+   (drafts, routes, logo, style guide, images) draws on it. Build the home page's hero and first section, the forms
+   and their pictures first: the tiles render them. On autopilot, write three different drafts, render them with `node scripts/design-tiles.mjs`, judge them
+   with `node scripts/design-judge.mjs prepare` → answer each ballot LEFT/RIGHT → `tally`, lock the pick as
+   `DESIGN.md`, uninstall the losers' fonts and run the QA gate once. With an owner intake, first offer routes: three or four whole page skeletons mocked on the real
    content from measured reference sites; the owner picks one or a mix, with any conditions; build it on the site
    (new layouts in the site's own `src/sections/`) and measure the built pages (docs/BUILD.md step 3). Then
    this-or-that pairs where a detail is still open (`node scripts/design-pairs.mjs render`, then `pick` per
@@ -29,7 +32,7 @@ Follow `docs/BUILD.md` step by step; it has the commands, inputs and gates. This
 4. **Content.** `site.config.json` forms (each one on a page; the e2e test sends every form) and navigation,
    `src/content/*.json` from the section library, then
    `node scripts/check-content.mjs` (and `node scripts/editing.mjs seed` with editing on).
-5. **Local gates.** In a scratch copy with Turnstile test keys (`node scripts/fill-test-placeholders.mjs --turnstile-test`):
+5. **Local gates.** In a scratch git clone of the branch with Turnstile test keys (`node scripts/fill-test-placeholders.mjs --turnstile-test`, again after every pull):
    `npm run build && npm run test:e2e && npm run qa`. Then the critique rounds in the same copy
    (`node scripts/design-critique.mjs start` → fill the rubric → `score` → fix → `compare` → answer ballots → `decide`;
    at most three rounds), and copy the kept fixes back.

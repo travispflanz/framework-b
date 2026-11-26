@@ -22,7 +22,8 @@
 //         frame), where a focal point only moves the crop. The uncropped photo is kept in design/image-candidates/;
 //         --also crops another version of it (its colour original) the same way. A photo with spot colour is
 //         cropped after `node scripts/spot-colour.mjs undo`, then outlined again.
-//       → applies the DESIGN.md imagery treatment to an owner photo (once; the credit records it)
+//       (treat) → applies the DESIGN.md imagery treatment to an owner photo, or to a photo added before the design
+//         set its treatment (once; the credit records it)
 //   node scripts/images.mjs shelve <file> | unshelve <file> | library
 //       → the image library, design/library/: photos taken off the pages but kept, credit and all, to use again.
 //         `library` lists it and draws design/library/sheet.png.

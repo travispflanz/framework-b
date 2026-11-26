@@ -4,8 +4,10 @@
 //
 //   node scripts/design-tokens.mjs           lint DESIGN.md, then write src/styles/tokens.css
 //   node scripts/design-tokens.mjs --check   lint, then fail if tokens.css is out of date (used by the QA gate)
+//   add --all-warnings to either to print the known lint noise too
 //
-// DESIGN.md is linted with @google/design.md (errors fail; warnings are printed). On top of the format, Framework B
+// DESIGN.md is linted with @google/design.md (errors fail; warnings are printed, except the two every Framework B
+// DESIGN.md triggers: scripts/lib/design-lint.mjs). On top of the format, Framework B
 // requires a small token contract, so the section library works with any design:
 //   colors:     bg, surface, ink, ink-muted, line, field, accent, accent-ink, highlight, highlight-ink, error, focus
 //               (hex; see CONTRAST below). accent is for actions and links; highlight is a decorative fill.
@@ -49,6 +51,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parse } from "yaml";
 import { fieldRadius } from "./lib/fields.mjs";
+import { shownFindings } from "./lib/design-lint.mjs";
 
 const CHECK = process.argv.includes("--check");
 const OUT = "src/styles/tokens.css";
@@ -77,7 +80,11 @@ try {
   report = JSON.parse(e.stdout || "{}");
 }
 const findings = report.findings || [];
-for (const f of findings.filter((f) => f.severity !== "info")) console.log(`${f.severity.toUpperCase()}  ${f.path || ""} ${f.message}`);
+// Known noise (scripts/lib/design-lint.mjs) is counted, not printed; --all-warnings prints it too.
+const shown = shownFindings(findings, { all: process.argv.includes("--all-warnings") });
+for (const f of shown) console.log(`${f.severity.toUpperCase()}  ${f.path || ""} ${f.message}`);
+const hidden = findings.filter((f) => f.severity !== "info").length - shown.length;
+if (hidden) console.log(`(${hidden} known lint warning(s) not shown: Framework B names its main colour accent and uses its colours through tokens.css; --all-warnings shows them)`);
 if (!report.summary) throw new Error("design.md lint gave no report");
 if (report.summary.errors) throw new Error(`DESIGN.md has ${report.summary.errors} lint error(s)`);
 

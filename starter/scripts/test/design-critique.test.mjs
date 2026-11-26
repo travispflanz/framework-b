@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
-import { ballotView, changedRegion, cropStack, decideBallots, DIMENSIONS, GAP, makeBallots, pageChanges, parseRubric, rubricPasses, rubricTemplate } from "../design-critique.mjs";
+import { ballotView, changedRegion, cropStack, decideBallots, DIMENSIONS, GAP, makeBallots, pageChanges, parseRubric, regenerateSteps, rubricPasses, rubricTemplate } from "../design-critique.mjs";
 
 const filled = (scores, tells = [], fixes = []) =>
   rubricTemplate(1, ["home-1280-first.png"])
@@ -176,4 +176,13 @@ test("ballots carry their view and windows, both ways round", () => {
   const two = ballots.filter((b) => b.shot === "contact-1280");
   assert.deepEqual(two.map((b) => b.left).sort(), ["after", "before"]);
   assert.ok(two.every((b) => b.view === "change" && b.crops.after[0].top === 2000));
+});
+
+test("compare remakes the tokens after a DESIGN.md fix and the style guide when its inputs changed", () => {
+  // A DESIGN.md fix once failed the QA gate on stale tokens and an old style guide, so the fix was reverted unjudged.
+  assert.deepEqual(regenerateSteps(["DESIGN.md"], ["DESIGN.md"]), [["node", ["scripts/design-tokens.mjs"]], ["node", ["scripts/style-guide.mjs"]]]);
+  assert.deepEqual(regenerateSteps(["STYLE-GUIDE.md"], ["STYLE-GUIDE.md"]), [["node", ["scripts/style-guide.mjs"]]]);
+  assert.deepEqual(regenerateSteps(["src/content/home.json"], []), []);
+  // No stamp yet (the guide was never rendered): only the tokens.
+  assert.deepEqual(regenerateSteps(["DESIGN.md", "src/content/home.json"], []), [["node", ["scripts/design-tokens.mjs"]]]);
 });

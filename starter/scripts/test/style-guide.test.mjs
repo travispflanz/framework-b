@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { inline } from "../../src/sections/text.js";
-import { missingSections, parseGuide, PLACEHOLDER, renderProse, REQUIRED, SPECS, unwritten } from "../lib/style-guide.mjs";
+import { leftoverPlaceholders, missingSections, parseGuide, PLACEHOLDER, renderProse, REQUIRED, SPECS, unwritten } from "../lib/style-guide.mjs";
 import { hash, staleInputs } from "../lib/style-guide-stamp.mjs";
 import { STARTER_ONLY } from "./in-site.mjs";
 
@@ -31,6 +31,14 @@ test("a written section counts; a missing one is named; comments are left out", 
   assert.equal(g.sections[0].body, "For people who make films.");
   assert.deepEqual(unwritten(md), ["Logo"]);
   assert.ok(missingSections(md).includes("Colour"));
+});
+
+test("a section written below the template's placeholder, without deleting it, is named", () => {
+  // Written after the comment, as the comment invites: the placeholder line above it stays.
+  const md = `# Guide\n\n## Brand\n\n${PLACEHOLDER}\n\n<!-- what to write -->\nFor people who grow food on a balcony.\n\n## Logo\n\n${PLACEHOLDER}\n\n<!-- what to write -->\n`;
+  assert.deepEqual(leftoverPlaceholders(md), ["Brand"]);
+  assert.deepEqual(unwritten(md), ["Logo"]);
+  assert.deepEqual(leftoverPlaceholders(md.replace(`${PLACEHOLDER}\n\n<!-- what to write -->\nFor`, "<!-- what to write -->\nFor")), []);
 });
 
 test("prose keeps to paragraphs, lists, subheadings and the site's inline formatting, and escapes the rest", () => {
