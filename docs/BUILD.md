@@ -27,10 +27,14 @@ section 3's kickoff questions.
 ```json
 {
   "version": 1,
-  "business": { "name": "Example Co", "offer": "One line on what they sell.", "audience": "Who it's for",
-                "location": "City, ST", "serviceArea": ["Neighbourhood"], "phone": "" },
+  "answeredBy": "owner",
+  "business": { "name": "Example Co", "id": "example-co", "offer": "One plain sentence on what they sell.",
+                "audience": "Who it's for", "location": "City, ST", "serviceArea": ["Neighbourhood"], "phone": "",
+                "postalAddress": "" },
   "owner": { "email": "owner@example.com" },
   "mode": "idea",
+  "audienceRegion": "us",
+  "consent": "auto",
   "shape": "landing",
   "forms": [{ "id": "contact", "purpose": "quote request" },
             { "id": "waitlist", "kind": "waitlist" }],
@@ -38,16 +42,50 @@ section 3's kickoff questions.
   "indexing": false,
   "editing": false,
   "newsletter": false,
-  "design": { "autopilot": true, "words": ["friendly", "trustworthy"], "references": [], "avoid": [] },
-  "facts": {},
+  "crm": "none",
+  "design": { "autopilot": true, "imagery": { "style": "documentary-stock", "secondary": "", "treatment": "none" },
+              "words": ["friendly", "trustworthy"], "references": [], "avoid": [] },
+  "facts": { "delivery": "ships in the US only" },
   "claims": [],
-  "inferred": ["shape", "business.audience"]
+  "inferred": ["shape", "business.audience", "design.imagery.style"]
 }
 ```
 
+Every field the format takes is in the example; the header of `scripts/site/lib/brief.mjs` says what each one does
+and its default.
+
 - Only `business.name` and `owner.email` are required. Ask for those if the prompt lacks them; never guess an inbox.
-- Anything the owner didn't say but the agent chose goes in `inferred`; anything left out takes the framework
-  default. `DECISIONS.md` records each answer's source.
+- Anything the owner didn't say but the agent chose goes in `inferred`, by its exact path (`design.words`,
+  `forms.1.consent`); a path that names no field is an error. Leave out what nobody said: it takes the framework
+  default (an empty list counts as left out). `DECISIONS.md` records each answer's source.
+- `business.offer` is one plain sentence: it is the hero's line, the site's tagline and every page's default meta
+  description, so the check warns above 160 characters (Google cuts snippets "as needed, typically to fit the
+  device width": developers.google.com/search/docs/appearance/snippet, checked 2026-11-25).
+- `business.location` is the business's public city, if it has one; leave it empty for an online or mail-order
+  business (an owner's home city goes on a public page only with their yes). `serviceArea` is where it serves or
+  ships. Only the `DECISIONS.md` "Where" row reads them; the postal address for launch is `postalAddress`.
+- `facts` holds what the owner stated about the business, under plain keys of your choosing. Research results go in
+  `PRODUCT.md` with their sources (step 3), never in `facts` or `claims`.
+- `design.imagery` is the starting answer for the kind of pictures (the default, `owner-photo`, is the owner's own
+  photos, and the check warns when it is left out): an idea with no owner photos yet needs another style. Step 3's
+  four lenses may change it in `DESIGN.md`, with a row in the site's `DECISIONS.md`; `brief.json` stays as the
+  kickoff's record and is not edited.
+- On autopilot with no owner words, references or dislikes, choose two to four `design.words` from research and list
+  `design.words` in `inferred`; leave `references` out (step 3's field lens names the field's best sites) and put the
+  field's clichés found in research in `avoid`, also inferred.
+- Site shape: `landing` for an idea or a waitlist, `full` for a local service business, `hybrid` with ads or printed
+  QR codes on top of a need for search (the rule and its sources: `docs/research/design-layer.md`, "Site shape follows
+  the traffic source").
+- Name, when the owner leaves it to you: three to five candidates; search each in the field and on the web for a
+  business already using it; check whether its `.com` resolves (a DNS lookup or a registrar's search, never a
+  purchase); pick one and record the runners-up with reasons in the site's `DECISIONS.md` after step 2. The id (the
+  name's slug unless `business.id` is set) is permanent: it names the repo `site-<id>`, the Worker, its
+  `workers.dev` host, the Turnstile widget and the Access applications, and there is no rename path (a new name is a
+  new site). So when an owner is reachable, send them two or three names before step 2. The owner searches the
+  USPTO trademark database before launch (step 3, "Logo").
+- A waitlist on an idea site: the thank-you page confirms the sign-up. A confirmation email needs `autoReply: true`,
+  which in idea mode sends through the owner's Gmail (100 recipients a day, shared by every idea site: SPEC section
+  6), so leave it off unless the owner wants it, and say so in the first report.
 - On autopilot with no owner answers (the owner let the agent pick the idea, and the agent wrote the brief itself),
   set `"answeredBy": "agent"`: every answer in the brief is then recorded as the agent's choice ("Agent's choice",
   `agent`), not the owner's. The default, `"owner"`, records them as the owner's ("Kickoff", `owner`).
@@ -67,7 +105,9 @@ section 3's kickoff questions.
   thanks pages describe each form as it is, saying "the list" so the words fit a newsletter too (SPEC section 5).
 - Research before inferring: the business's market, local rules that change the copy, competitors' prices.
   Research results are facts for `PRODUCT.md`, never `claims`. `claims` holds only proof the owner supplied
-  (reviews, counts, awards), each with its source.
+  (reviews, counts, awards), each with its source. The site repo doesn't exist until step 2, so write the research
+  to a notes file beside `brief.json` as you go (a session cut off mid-research loses everything not on disk), and
+  carry it into `PRODUCT.md` and `design/research.md` at step 3.
 - `node scripts/site/brief.mjs check brief.json`. Fix every error. A warning (EU or Canadian audience, newsletter
   on an idea, CRM, a consent that does nothing in its mode) is shown to the owner with the build's first report. The
   check also prints who answered, each form's kind and consent, and the `DECISIONS.md` rows `create` will write.
@@ -76,7 +116,11 @@ section 3's kickoff questions.
 
 Run the ops repo's **site create** with the brief's JSON in the `brief` field (the other fields stay empty), or
 from a session: `gh api repos/<owner>/framework-b-ops/actions/workflows/site-create.yml/dispatches -f ref=main
--f "inputs[brief]=$(jq -c . brief.json)"`.
+-f "inputs[brief]=$(jq -c . brief.json)"`. Dispatch it once and wait for the run: with a brief the `site_id` input is
+empty, so a second dispatch isn't queued behind the first (the workflow's concurrency group falls back to the run's
+own id). `framework_ref` (default `main`) picks the framework commit whose scripts and starter make the site; pin it
+to the commit you checked the brief against if `main` may move. The reusable workflow file itself always comes from
+the ops caller's `@main`.
 
 It creates every resource, the private repo `site-<id>` with `brief.json`, the brief's forms in `site.config.json`
 and the kickoff rows in `DECISIONS.md`,
@@ -85,6 +129,8 @@ uptime monitors (SPEC section 2). The run summary has the URL and the repo. Writ
 `site.config.json`, pointing the home page's form section at the first form when there is no `contact` form, and the
 `agent` rows of an `"answeredBy": "agent"` brief are unit-tested but *untested* live (the weekly self-test's brief
 leaves `forms` and `answeredBy` at their defaults, which give the starter's contact form and `owner` rows as before).
+To correct a kickoff row in the site's `DECISIONS.md`, add a row under it ("Correction to the ... row above: ...");
+never edit an old row.
 
 ## 3. Design (P2)
 

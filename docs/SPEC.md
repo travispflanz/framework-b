@@ -202,7 +202,7 @@ Asked once, in one message. Every question has a default, so an unanswered one n
 |---|---|---|
 | 1 | Business basics: name, one-line offer, audience, owner inbox; postal address for launch mode | Required: name, inbox |
 | 2 | Mode: idea, or launch on an existing domain or a new one. `create` always makes an idea site; `site promote` launches it | Idea |
-| 3 | Site shape: landing page, full site, or hybrid | From the design intake |
+| 3 | Site shape: landing page, full site, or hybrid | Landing for an idea or a waitlist, full for a local service business, hybrid with ads or printed QR codes (`docs/research/design-layer.md`); the brief's default is landing |
 | 4 | Forms: each one's kind (`message` or `waitlist`), purpose and consent (`none`, `optional`, `required`: brief `forms`); the consent mode `auto` (every form opts in) or `checkbox` (brief `consent`) | One contact message form with a file field; `checkbox` for an EU, UK or Canadian audience; a waitlist's box `required` in checkbox mode |
 | 5 | Lead auto-reply on or off; launch sender | Idea: off. Launch: Resend |
 | 6 | Index now? | Idea: no (`create` input `indexing: on` makes the workers.dev address indexable; previews stay noindex). Launch: yes |

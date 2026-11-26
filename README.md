@@ -312,8 +312,8 @@ inferred by the agent, or a framework default.
 | `answeredBy` | `owner` (your prompt gave the answers) or `agent` (autopilot: the agent's own choices, recorded as `agent` in `DECISIONS.md`) | `owner` |
 | `business.name` | text | required |
 | `owner.email` | your inbox | required |
-| `business.offer`, `audience`, `location`, `serviceArea`, `phone`, `postalAddress` | text | empty (the agent infers the offer) |
-| `business.id` | site id, 3–42 lowercase letters, digits or dashes | made from the name |
+| `business.offer`, `audience`, `location`, `serviceArea`, `phone`, `postalAddress` | text (the offer is one sentence: it is also every page's default meta description; `location` stays empty for an online business) | empty (the agent infers the offer) |
+| `business.id` | site id, 3–42 lowercase letters, digits or dashes; permanent (it names the repo, the Worker and its address; there is no rename) | made from the name |
 | `mode` | `idea` | `idea` (launch comes later through **site promote**) |
 | `audienceRegion` | `us`, `eu`, `uk`, `ca`, … | `us` |
 | `consent` | `auto` (every form subscribes) or `checkbox` (a consent box) | `checkbox` for EU, UK and Canada; otherwise `auto` |
@@ -326,8 +326,8 @@ inferred by the agent, or a framework default.
 | `crm` | `none`, `sheet`, `webhook`, `sheet+webhook` | `none` |
 | `design` | `autopilot`, `words`, `references`, `avoid` | autopilot |
 | `design.imagery` | `style` (`owner-photo`, `documentary-stock`, `photoreal-generated`, `line-art`, `flat-illustration`, `watercolor`, `3d`, `isometric`, `collage`, `cartoon`, `abstract`, `icon-led`), `secondary`, `treatment` (`none`, `duotone`, `tint`, `warm`, `cool`, `mono`) | `owner-photo`, no treatment |
-| `facts`, `claims` | research facts; owner-supplied proof with its source | empty |
-| `inferred` | the fields the agent decided | |
+| `facts`, `claims` | what you stated about the business (research goes in `PRODUCT.md`); owner-supplied proof with its source | empty |
+| `inferred` | the exact paths of the fields the agent decided (`design.words`, `forms.1.consent`); a path that names no field is an error | |
 
 ### Site settings (`site.config.json` in each site)
 
