@@ -11,19 +11,22 @@ const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const level = (line) => line.match(/^ {0,3}(#{1,6})(?:[ \t]|$)/)?.[1].length || 0;
 
 // Each line's heading level, 0 for a line that isn't a heading (any line inside a fenced code block). A fence closes
-// on a line of the same character at least as long as the one that opened it, with nothing after it; an unclosed fence
-// runs to the end.
+// on a line of the same character at least as long as the one that opened it, with nothing after it. A fence that
+// never closes runs to the end in CommonMark, but here its opening line is plain text and the lines after it are read
+// as usual: a stray ``` in "Approved claims" would otherwise carry the section to the end of the file and approve
+// everything after it, so the gate fails closed.
+const opens = (line) => { const f = line.match(FENCE); return f && !(f[1][0] === "`" && line.slice(f[0].length).includes("`")) ? f : null; };
+const closes = (line, fence) => { const f = line.match(FENCE); return !!f && f[1][0] === fence[0] && f[1].length >= fence.length && !line.slice(f[0].length).trim(); };
 export function headingLevels(lines) {
-  let fence = null;
-  return lines.map((line) => {
-    const f = line.match(FENCE);
-    if (fence) {
-      if (f && f[1][0] === fence[0] && f[1].length >= fence.length && !line.slice(f[0].length).trim()) fence = null;
-      return 0;
-    }
-    if (f && !(f[1][0] === "`" && line.slice(f[0].length).includes("`"))) { fence = f[1]; return 0; }
-    return level(line);
-  });
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const f = opens(lines[i]);
+    const end = f ? lines.findIndex((l, j) => j > i && closes(l, f[1])) : -1;
+    if (end < 0) { out.push(f ? 0 : level(lines[i])); continue; }
+    for (; i <= end; i++) out.push(0);
+    i = end;
+  }
+  return out;
 }
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

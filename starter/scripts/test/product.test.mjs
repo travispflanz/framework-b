@@ -50,8 +50,12 @@ test("an indented heading still ends a section, and a # line in a fenced code bl
   assert.ok(!approvedClaims(fenced).includes("trusted by"));
   assert.ok(approvedClaims(`## Approved claims\n~~~~\n# a\n~~~\n# still code\n~~~~\n- 120 reviews\n`).includes("120 reviews"));
   assert.equal(approvedClaims(`# Product\n\`\`\`md\n## Approved claims\n- 120 reviews\n\`\`\`\n`), "");
-  // An unclosed fence runs to the end; an empty heading ("##") still ends a section.
-  assert.ok(approvedClaims(`## Approved claims\n\`\`\`\n# a\n- 120 reviews\n`).includes("120 reviews"));
+  // A fence that never closes is plain text, so the headings after it still end the section (the gate fails closed);
+  // an empty heading ("##") still ends a section.
+  const stray = `## Approved claims\n- "Family run"\n\`\`\`\n\n## Evidence on hand\n- 4.9 stars from 120 reviews (to confirm)\n\n## Owner's wording\n- "seamless"\n`;
+  assert.ok(approvedClaims(stray).includes("family run"));
+  assert.ok(!approvedClaims(stray).includes("4.9 stars"));
+  assert.deepEqual(ownerWording(stray), ["seamless"]);
   assert.ok(!approvedClaims(`## Approved claims\n- "4.9 stars"\n##\n- 120 reviews\n`).includes("120 reviews"));
   // Backticks after a backtick fence make it inline code, not a fence.
   assert.ok(!approvedClaims("## Approved claims\n``` not `a fence\n## Next\n- 120 reviews\n").includes("120 reviews"));

@@ -11,7 +11,8 @@ function localEmdashKey() {
 }
 
 // `submits`: how many form posts the caller sends from one address within the limiter's period. wrangler dev
-// enforces SUBMIT_LIMITER locally (4.152.0, 2026-11-27: the sixth post in a minute got 429 rate_limited), so the e2e
+// enforces SUBMIT_LIMITER locally (probed with 4.152.0 on 2026-11-27: the sixth post in a minute got 429 rate_limited;
+// no Cloudflare docs page was found that says whether local development enforces it), so the e2e
 // test, which sends every form once, raises the local limit to its number of forms when that is more than the site's
 // own; the deployed limit is unchanged, and the weekly selftest probes it live.
 export async function startLocalSite({ port = 8799, name = "local", submits = 0 } = {}) {

@@ -178,14 +178,16 @@ export function regenerateSteps(changed, staleGuideInputs) {
 }
 
 // Why compare stopped, naming the step that failed. style-guide.mjs refuses a written section that still holds the
-// template's placeholder line, and that once ended a round as "a hard gate failed", with nothing naming the line
-// (follow-up from the 2026-11-26 reviews). `guide` is STYLE-GUIDE.md as the fixes left it.
+// template's placeholder line (and the QA gate fails one), and that once ended a round as "a hard gate failed", with
+// nothing naming the line (follow-up from the 2026-11-26 reviews). `start` refuses a guide that holds the line and the
+// tree is clean at score, so a line found here came from the fixes, and reverting them took it out again. `guide` is
+// STYLE-GUIDE.md as the fixes left it.
 export const GUIDE_STEP = "node scripts/style-guide.mjs";
 export function gateFailure(n, step, guide) {
-  const leftover = step === GUIDE_STEP && guide ? leftoverPlaceholders(guide) : [];
-  if (leftover.length) return `round ${n}: the style guide couldn't be rendered after the fixes: STYLE-GUIDE.md still holds the line "${PLACEHOLDER}" in ${leftover.join(", ")}. The fixes were reverted; delete that line, render the guide (${GUIDE_STEP}) and commit, then delete ${DIR}/ to start a new loop`;
-  if (step === "npm run qa") return `round ${n}: a hard gate (npm run qa) failed after the fixes, so they were reverted (rebuild before deploying)`;
-  return `round ${n}: ${step || "a step"} failed after the fixes, so they were reverted (rebuild before deploying)`;
+  const what = step === GUIDE_STEP ? "the style guide couldn't be rendered" : step === "npm run qa" ? "a hard gate (npm run qa) failed" : `${step || "a step"} failed`;
+  const leftover = [GUIDE_STEP, "npm run qa"].includes(step) && guide ? leftoverPlaceholders(guide) : [];
+  if (leftover.length) return `round ${n}: ${what} after the fixes: they left the line "${PLACEHOLDER}" in ${leftover.join(", ")} in STYLE-GUIDE.md, so they were reverted (rebuild before deploying)`;
+  return `round ${n}: ${what} after the fixes, so they were reverted (rebuild before deploying)`;
 }
 
 // The pages a round's fixes add or take away, from the before and after screenshot names ("<page>-<width>-first.png").
@@ -322,13 +324,14 @@ if (cmd === "start") {
   const fixed = changedFiles();
   if (!fixed.length) throw new Error("Nothing changed since score; apply the fixes first.");
   round.files = fixed.map((f) => f.path);
-  let step = "";
+  let step = `reading ${STAMP}`;
   try {
     // What a fix to DESIGN.md, STYLE-GUIDE.md or the logo makes stale (tokens, the style guide) is made again first,
     // or the QA gate fails on it and reverts the fix; the regenerated files are kept or reverted with the fixes.
     const stamp = existsSync(STAMP) ? JSON.parse(readFileSync(STAMP, "utf8")) : null;
     const run = (c, a) => { step = [c, ...a].join(" "); execFileSync(c, a, { stdio: ["ignore", "ignore", "inherit"] }); };
     for (const [c, a] of regenerateSteps(fixed.map((f) => f.path), stamp ? staleInputs(stamp, readInputs()) : [])) run(c, a);
+    step = "listing the changed files (git status)";
     round.files = changedFiles().map((f) => f.path);
     run("npm", ["run", "build"]);
     run("npm", ["run", "qa"]);
