@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { formPaths } from "./lib/form-pages.mjs";
 import { checker, consoleErrorText, launchBrowser, ownConsoleError, startLocalSite } from "./lib/local-site.mjs";
 
 // The local SQLite file behind CMS_DB: the one holding EmDash's tables.
@@ -32,7 +33,7 @@ const formIds = Object.keys(site.forms);
 
 let local, browser;
 try {
-  local = await startLocalSite({ name: "e2e" });
+  local = await startLocalSite({ name: "e2e", submits: formIds.length });
   const { base, sql } = local;
 
   const health = await (await fetch(`${base}/api/health`)).json();
@@ -51,17 +52,17 @@ try {
     const consoleErrors = [];
     page.on("console", (m) => ownConsoleError(m) && consoleErrors.push(consoleErrorText(m)));
 
-    // Find a page that renders this form: the first content page with a form section for it, else the home page or
-    // the built-in /contact page.
-    const holder = pages.find((slug) => (JSON.parse(readFileSync(`src/content/${slug}.json`, "utf8")).sections || []).some((s) => s._type === "fb_form" && s.form === formId));
-    const paths = [...new Set([holder === undefined ? null : holder === "home" ? "/" : `/${holder}`, "/", "/contact"].filter(Boolean))];
+    // Find a page that renders this form: the content pages that name it (a form section first, then a site's own
+    // section with a "form" field), the home page, the built-in /contact page, then every other content page, so a
+    // form drawn by a section of the site's own is found and "not on any page" is true when it fails.
+    const paths = formPaths(pages, formId, (slug) => JSON.parse(readFileSync(`src/content/${slug}.json`, "utf8")));
     let found = false;
     for (const p of paths) {
       await page.goto(`${base}${p}?utm_source=e2e&utm_medium=test`);
       if (await page.locator(`form[data-fb-form="${formId}"]`).count()) { found = true; break; }
     }
     // A form no page shows can't be sent, and visitors can't reach it either.
-    check("the form is on a page", found, found ? "" : `not on ${paths.join(", ")} or any page in src/content`);
+    check("the form is on a page", found, found ? "" : `not on ${paths.join(", ")}`);
     if (!found) { await page.close(); continue; }
     const formEl = page.locator(`form[data-fb-form="${formId}"]`).first();
 

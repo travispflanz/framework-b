@@ -68,8 +68,16 @@ export const LOGO_CONTRAST = 3;
 
 const attr = (tag, name) => tag.match(new RegExp(`\\s${name}\\s*=\\s*"([^"]*)"`))?.[1];
 // XML's five named entities and numeric ones (&apos; once showed literally on the sheets: roadmap step 5, 2026-11-25).
+// A numeric entity must name a character XML allows (XML 1.0 Fifth Edition, section 2.2 "Characters": tab, line feed,
+// carriage return, U+0020 to U+D7FF, U+E000 to U+FFFD, U+10000 to U+10FFFF; https://www.w3.org/TR/xml/#charsets,
+// checked 2026-11-27); any other, such as &#x110000; (which once crashed `logo.mjs check`: String.fromCodePoint throws
+// on it), stays as typed here and lintConcept lists it.
+const xmlChar = (n) => n === 0x9 || n === 0xa || n === 0xd || (n >= 0x20 && n <= 0xd7ff) || (n >= 0xe000 && n <= 0xfffd) || (n >= 0x10000 && n <= 0x10ffff);
+const numericEntities = /&#(?:x([0-9a-f]+)|(\d+));/gi;
+const entityChar = (hex, dec) => { const n = hex !== undefined ? parseInt(hex, 16) : Number(dec); return xmlChar(n) ? String.fromCodePoint(n) : null; };
+export const badEntities = (s) => [...String(s).matchAll(numericEntities)].filter((m) => entityChar(m[1], m[2]) === null).map((m) => m[0]);
 export const decode = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-  .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+  .replace(numericEntities, (m, h, d) => entityChar(h, d) ?? m)
   .replace(/&amp;/g, "&");
 export const escapeXml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -113,6 +121,7 @@ export function lintConcept(concept) {
     }
   }
   for (const tag of BANNED) if (new RegExp(`<${tag}[\\s>/]`, "i").test(src)) out.push(`<${tag}> isn't allowed in a logo`);
+  for (const e of new Set(badEntities(src))) out.push(`${e} doesn't name a character XML allows: type the character itself, or fix its number`);
   if (/\sstyle\s*=/.test(src)) out.push('style="" isn\'t allowed: use fill and stroke with "ink" or "accent"');
   for (const m of src.matchAll(/\s(?:xlink:)?href\s*=\s*"([^"]*)"/g)) if (!m[1].startsWith("#")) out.push(`a link to "${m[1]}": a logo can only refer to its own symbols`);
   for (const m of src.matchAll(/<use\b[^>]*>/g)) {

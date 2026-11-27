@@ -5,7 +5,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
-import { ballotView, changedRegion, cropStack, decideBallots, DIMENSIONS, GAP, makeBallots, pageChanges, parseRubric, regenerateSteps, rubricPasses, rubricTemplate } from "../design-critique.mjs";
+import { PLACEHOLDER } from "../lib/style-guide.mjs";
+import { ballotView, changedRegion, cropStack, decideBallots, DIMENSIONS, GAP, gateFailure, GUIDE_STEP, makeBallots, pageChanges, parseRubric, regenerateSteps, rubricPasses, rubricTemplate } from "../design-critique.mjs";
 
 const filled = (scores, tells = [], fixes = []) =>
   rubricTemplate(1, ["home-1280-first.png"])
@@ -185,4 +186,16 @@ test("compare remakes the tokens after a DESIGN.md fix and the style guide when 
   assert.deepEqual(regenerateSteps(["src/content/home.json"], []), []);
   // No stamp yet (the guide was never rendered): only the tokens.
   assert.deepEqual(regenerateSteps(["DESIGN.md", "src/content/home.json"], []), [["node", ["scripts/design-tokens.mjs"]]]);
+});
+
+test("a round that stops names the step that failed, and the placeholder line the fixes left in the style guide", () => {
+  const guide = `# Style guide\n\n## Brand\n\n${PLACEHOLDER}\n\nWe sell seeds.\n\n## Logo\n\n${PLACEHOLDER}\n`;
+  const left = `they left the line "${PLACEHOLDER}" in Brand in STYLE-GUIDE.md, so they were reverted (rebuild before deploying)`;
+  assert.equal(gateFailure(2, GUIDE_STEP, guide), `round 2: the style guide couldn't be rendered after the fixes: ${left}`);
+  // With no stamp yet the guide isn't rendered again, and the QA gate is what fails on the line.
+  assert.equal(gateFailure(1, "npm run qa", guide), `round 1: a hard gate (npm run qa) failed after the fixes: ${left}`);
+  // An unwritten section (the placeholder alone) renders, so it isn't named.
+  assert.equal(gateFailure(1, GUIDE_STEP, `## Brand\n\n${PLACEHOLDER}\n`), "round 1: the style guide couldn't be rendered after the fixes, so they were reverted (rebuild before deploying)");
+  assert.equal(gateFailure(1, "npm run qa", ""), "round 1: a hard gate (npm run qa) failed after the fixes, so they were reverted (rebuild before deploying)");
+  assert.equal(gateFailure(3, "npm run build", guide), "round 3: npm run build failed after the fixes, so they were reverted (rebuild before deploying)");
 });
