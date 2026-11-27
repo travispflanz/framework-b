@@ -189,7 +189,7 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   6. Style guide, before the other pages: write `STYLE-GUIDE.md` from DESIGN.md, PRODUCT.md, the owner's decisions
      and the built home page (every heading in the starter's template; plain words and the owner's own sentences),
      then `node scripts/style-guide.mjs` (delete the template's "To be written" line in each section you write: the
-     script stops on one left above your text). It renders the guide with the site's real colours and contrast, type scale,
+     script stops on one left above your text, the QA gate fails it, and a critique round won't start on it). It renders the guide with the site's real colours and contrast, type scale,
      components, hero layouts and page flow, the first screen of every page, and the social and print sizes with
      their sources, into `design/style-guide/style-guide.pdf`. Send it to the owner. Every inner page, post, email and
      print piece is made from it, and it is rendered again whenever DESIGN.md or STYLE-GUIDE.md changes (the QA gate
@@ -298,7 +298,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
   and in the home page's form section until the content replaces them. Each form's `thanks` is where it sends the
   visitor (default `/thanks`, which says "We'll reply soon" for a message form and "You're on the list" for a
   waitlist); a page of your own there is a content page like any other (a hero first, the route's closing section,
-  `"noindex": true`). Put every form on a page: the end-to-end test sends each one and fails a form no page shows.
+  `"noindex": true`). Put every form on a page: the end-to-end test sends each one and fails a form no page shows (it looks on every page,
+so a form drawn by a section of the site's own is found).
 - `src/content/home.json` (and one file per page for `full` or `hybrid`, each with a `title` and `description`, added to
   `nav`): sections from the library, following the page's argument. Copy uses the owner's facts; nothing invented.
 - Sections: pick each section's `variant` (layout) for what it has to say, and its `phone` behaviour where the default
@@ -337,7 +338,9 @@ When the gates pass, run the critique rounds in the same copy (at most three; SP
 that changed), answer each ballot LEFT or RIGHT without looking up which side is which, then `decide`.
 A fix is kept only if it wins both ways round on every changed page; otherwise it is reverted. A fix may change
 `DESIGN.md` or `STYLE-GUIDE.md`: `compare` makes the tokens and the style guide again before the QA gate, and they are
-kept or reverted with the fix (unit-tested; *untested* in a real round). Copy the kept files (listed in
+kept or reverted with the fix (unit-tested; *untested* in a real round). A round that stops names the step that
+failed (the style guide, the build or the QA gate) and, for the style guide, the section still holding the template's
+line. Copy the kept files (listed in
 `design/critique/state.json`) and `design/critique/` back to the site's branch; its screenshots stay out of git (the
 starter's `.gitignore`), while its rubrics, answered ballots and state are the record.
 

@@ -36,6 +36,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { join, relative } from "node:path";
 import sharp from "sharp";
 import { launchBrowser, startLocalSite } from "./lib/local-site.mjs";
+import { leftoverPlaceholders, PLACEHOLDER } from "./lib/style-guide.mjs";
 import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
 
 const DIR = "design/critique";
@@ -167,7 +168,6 @@ export async function cropStack(file, crops) {
   return sharp({ create: { width, height: total, channels: 4, background: "#888888" } }).composite(parts).png().toBuffer();
 }
 
-// The pages a round's fixes add or take away, from the before and after screenshot names ("<page>-<width>-first.png").
 // The commands compare runs before the build, from the files the fixes changed and the style guide's stale inputs
 // (scripts/lib/style-guide-stamp.mjs): DESIGN.md's tokens, then the style guide when it has a stamp that is now old.
 export function regenerateSteps(changed, staleGuideInputs) {
@@ -177,6 +177,18 @@ export function regenerateSteps(changed, staleGuideInputs) {
   return steps;
 }
 
+// Why compare stopped, naming the step that failed. style-guide.mjs refuses a written section that still holds the
+// template's placeholder line, and that once ended a round as "a hard gate failed", with nothing naming the line
+// (follow-up from the 2026-11-26 reviews). `guide` is STYLE-GUIDE.md as the fixes left it.
+export const GUIDE_STEP = "node scripts/style-guide.mjs";
+export function gateFailure(n, step, guide) {
+  const leftover = step === GUIDE_STEP && guide ? leftoverPlaceholders(guide) : [];
+  if (leftover.length) return `round ${n}: the style guide couldn't be rendered after the fixes: STYLE-GUIDE.md still holds the line "${PLACEHOLDER}" in ${leftover.join(", ")}. The fixes were reverted; delete that line, render the guide (${GUIDE_STEP}) and commit, then delete ${DIR}/ to start a new loop`;
+  if (step === "npm run qa") return `round ${n}: a hard gate (npm run qa) failed after the fixes, so they were reverted (rebuild before deploying)`;
+  return `round ${n}: ${step || "a step"} failed after the fixes, so they were reverted (rebuild before deploying)`;
+}
+
+// The pages a round's fixes add or take away, from the before and after screenshot names ("<page>-<width>-first.png").
 export function pageChanges(beforeShots, afterShots) {
   const pagesIn = (list) => new Set(list.filter((f) => f.endsWith("-first.png")).map((f) => f.replace(/-\d+-first\.png$/, "")));
   const [was, now] = [pagesIn(beforeShots), pagesIn(afterShots)];
@@ -279,6 +291,9 @@ if (cmd === "start") {
   if (state.stopped) throw new Error(`The critique loop has ended: ${state.stopped}. Delete ${DIR}/ to start a new one.`);
   if (round && round.phase !== "done") throw new Error(`Round ${round.n} is still open (${round.phase}); finish it first.`);
   if (state.rounds.length >= MAX_ROUNDS) throw new Error(`${MAX_ROUNDS} rounds is the limit.`);
+  // A guide that can't be rendered again would stop the first fix to DESIGN.md or STYLE-GUIDE.md in compare.
+  const leftover = existsSync("STYLE-GUIDE.md") ? leftoverPlaceholders(readFileSync("STYLE-GUIDE.md", "utf8")) : [];
+  if (leftover.length) throw new Error(`STYLE-GUIDE.md still holds the line "${PLACEHOLDER}" in ${leftover.join(", ")}: delete it, render the guide (${GUIDE_STEP}) and commit, then start.`);
   const n = state.rounds.length + 1;
   const shots = await screenshots(join(roundDir(n), "before"));
   writeFileSync(join(DIR, `round-${n}.md`), rubricTemplate(n, shots));
@@ -307,21 +322,22 @@ if (cmd === "start") {
   const fixed = changedFiles();
   if (!fixed.length) throw new Error("Nothing changed since score; apply the fixes first.");
   round.files = fixed.map((f) => f.path);
+  let step = "";
   try {
     // What a fix to DESIGN.md, STYLE-GUIDE.md or the logo makes stale (tokens, the style guide) is made again first,
     // or the QA gate fails on it and reverts the fix; the regenerated files are kept or reverted with the fixes.
     const stamp = existsSync(STAMP) ? JSON.parse(readFileSync(STAMP, "utf8")) : null;
-    for (const [c, a] of regenerateSteps(fixed.map((f) => f.path), stamp ? staleInputs(stamp, readInputs()) : [])) {
-      execFileSync(c, a, { stdio: ["ignore", "ignore", "inherit"] });
-    }
+    const run = (c, a) => { step = [c, ...a].join(" "); execFileSync(c, a, { stdio: ["ignore", "ignore", "inherit"] }); };
+    for (const [c, a] of regenerateSteps(fixed.map((f) => f.path), stamp ? staleInputs(stamp, readInputs()) : [])) run(c, a);
     round.files = changedFiles().map((f) => f.path);
-    execFileSync("npm", ["run", "build"], { stdio: ["ignore", "ignore", "inherit"] });
-    execFileSync("npm", ["run", "qa"], { stdio: ["ignore", "ignore", "inherit"] });
+    run("npm", ["run", "build"]);
+    run("npm", ["run", "qa"]);
   } catch {
     // The tree was clean at score, so everything changed now is a fix or was made from one.
+    const guide = existsSync("STYLE-GUIDE.md") ? readFileSync("STYLE-GUIDE.md", "utf8") : "";
     revert(changedFiles());
     Object.assign(round, { phase: "done", accepted: false });
-    state.stopped = `round ${round.n}: a hard gate failed after the fixes, so they were reverted (rebuild before deploying)`;
+    state.stopped = gateFailure(round.n, step, guide);
     writeState(state);
     throw new Error(state.stopped);
   }

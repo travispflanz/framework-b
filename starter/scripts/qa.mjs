@@ -32,7 +32,7 @@ import { accessAuth } from "./lib/access-auth.mjs";
 import { measureImageText } from "./lib/image-text.mjs";
 import { balance, bareBanners, cropSheet, crops, logoFit, pictureRhythm, rhythmBreaks, siteSheet, titleMismatches, titleStyle } from "./lib/cohesion.mjs";
 import { multiLineFields, ovalField } from "./lib/fields.mjs";
-import { unwritten } from "./lib/style-guide.mjs";
+import { leftoverPlaceholders, PLACEHOLDER, unwritten } from "./lib/style-guide.mjs";
 import { readInputs, STAMP, staleInputs } from "./lib/style-guide-stamp.mjs";
 import { FILE as RESEARCH, unwrittenLenses } from "./lib/design-research.mjs";
 import { approvedClaims, ownerWording } from "./lib/product.mjs";
@@ -128,6 +128,10 @@ if (existsSync("design/brand/logo.json")) {
 if (existsSync("STYLE-GUIDE.md")) {
   const stamp = existsSync(STAMP) ? JSON.parse(readFileSync(STAMP, "utf8")) : null;
   const todo = unwritten(readFileSync("STYLE-GUIDE.md", "utf8"));
+  // A written section that still holds the template's placeholder line: style-guide.mjs refuses to render it, so the
+  // guide could never be rendered again (the next change to DESIGN.md stopped the critique loop on it).
+  const leftover = leftoverPlaceholders(readFileSync("STYLE-GUIDE.md", "utf8"));
+  check("style guide: no written section still holds the template's placeholder line", leftover.length === 0, leftover.length ? `delete "${PLACEHOLDER}" from ${leftover.join(", ")} in STYLE-GUIDE.md, then node scripts/style-guide.mjs` : "");
   if (!stamp) console.log("  note  style guide: not rendered yet (write STYLE-GUIDE.md, then node scripts/style-guide.mjs; docs/BUILD.md step 3)");
   else {
     const changed = staleInputs(stamp, readInputs());

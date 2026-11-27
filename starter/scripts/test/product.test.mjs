@@ -38,3 +38,21 @@ test("a section keeps its own subheadings, and its heading may be deeper or carr
   // A heading that only starts with the name is another section.
   assert.equal(approvedClaims(`## Approved claimsless\n\n- "4.9 stars"\n`), "");
 });
+
+test("an indented heading still ends a section, and a # line in a fenced code block doesn't", () => {
+  // Up to three spaces may come before a heading's #s (CommonMark 4.2); four make it code.
+  assert.ok(!approvedClaims(`## Approved claims\n- "4.9 stars"\n   ## Evidence on hand\n- 120 reviews\n`).includes("120 reviews"));
+  assert.ok(approvedClaims(`  ## Approved claims\n- "4.9 stars"\n`).includes("4.9 stars"));
+  assert.ok(approvedClaims(`## Approved claims\n- "4.9 stars"\n    ## not a heading\n- 120 reviews\n`).includes("120 reviews"));
+  // A fenced code block is code to its closing fence (CommonMark 4.5): its # lines neither end nor start a section.
+  const fenced = `## Approved claims\n\`\`\`\n# a comment\n## Evidence on hand\n\`\`\`\n- 120 reviews\n## Next\n- trusted by 500\n`;
+  assert.ok(approvedClaims(fenced).includes("120 reviews"));
+  assert.ok(!approvedClaims(fenced).includes("trusted by"));
+  assert.ok(approvedClaims(`## Approved claims\n~~~~\n# a\n~~~\n# still code\n~~~~\n- 120 reviews\n`).includes("120 reviews"));
+  assert.equal(approvedClaims(`# Product\n\`\`\`md\n## Approved claims\n- 120 reviews\n\`\`\`\n`), "");
+  // An unclosed fence runs to the end; an empty heading ("##") still ends a section.
+  assert.ok(approvedClaims(`## Approved claims\n\`\`\`\n# a\n- 120 reviews\n`).includes("120 reviews"));
+  assert.ok(!approvedClaims(`## Approved claims\n- "4.9 stars"\n##\n- 120 reviews\n`).includes("120 reviews"));
+  // Backticks after a backtick fence make it inline code, not a fence.
+  assert.ok(!approvedClaims("## Approved claims\n``` not `a fence\n## Next\n- 120 reviews\n").includes("120 reviews"));
+});

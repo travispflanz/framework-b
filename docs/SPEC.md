@@ -624,7 +624,11 @@ The design phase's foundation and its tools are in `starter/`. The intake conver
 - **QA additions:**
   - tokens.css must match DESIGN.md;
   - content must match the schema;
-  - truth gate: no reviews, ratings, customer counts or percentages unless listed under "Approved claims" in `PRODUCT.md`;
+  - truth gate: no reviews, ratings, customer counts or percentages unless listed under "Approved claims" in `PRODUCT.md`
+    (headings are read as CommonMark reads them: up to three spaces before the #s, and never inside a fenced code
+    block; `scripts/lib/product.mjs`);
+  - a written section of `STYLE-GUIDE.md` that still holds the template's placeholder line (the style guide script
+    refuses to render it);
   - copy lint for generic AI words;
   - Lighthouse "is-crawlable" only on the canonical host of an indexed site, for pages that don't opt out.
 - **Style tiles (`scripts/design-tiles.mjs`, P2.6):** each DESIGN.md draft is built as this site, into a scratch folder, after the same lint, token-contract and contrast checks as the real `design-tokens.mjs`. It builds in place because a copy can't share `node_modules` (Astro mis-resolves EmDash's own pages through a symlink, seen in CI on 2026-10-26). The site's DESIGN.md, tokens.css and adapter redirect file are restored afterwards, on Ctrl-C, and, after a hard kill, on the next run (tested). A draft that fails gets no tile, and the report says why. The tile page (`scripts/design-tile/tile.astro`, never part of the site) shows the home page's real hero in the layout the draft gives the home page (`composition.heroes.home`), the colour tokens, the type scale, the site's real form and its first section after the hero. Each is screenshotted at 1280 and 390 px into `design/tiles/`, with a side-by-side `index.html`. The fonts a draft names must already be installed in the site. Tested 2026-10-26 on the first real site (editing on): two drafts rendered, and a low-contrast draft was rejected for WCAG AA. CI renders tiles on every starter change, static and editing. Since 2026-11-18 each tile's hero is checked against the draft's home layout and recorded in `design/tiles/tiles.json`: the tile page is `/design-tile`, so the hero, which decided the home page by its URL, took the inner pages' layout, and the second one-prompt test site's drafts were judged on the wrong first screen (roadmap step 2). CI gives one draft its own home layout and checks its tile shows it.

@@ -10,7 +10,11 @@ function localEmdashKey() {
   return execFileSync("npx", ["emdash", "secrets", "generate"], { encoding: "utf8" }).trim().split("\n").pop().trim();
 }
 
-export async function startLocalSite({ port = 8799, name = "local" } = {}) {
+// `submits`: how many form posts the caller sends from one address within the limiter's period. wrangler dev
+// enforces SUBMIT_LIMITER locally (4.152.0, 2026-11-27: the sixth post in a minute got 429 rate_limited), so the e2e
+// test, which sends every form once, raises the local limit to its number of forms when that is more than the site's
+// own; the deployed limit is unchanged, and the weekly selftest probes it live.
+export async function startLocalSite({ port = 8799, name = "local", submits = 0 } = {}) {
   const state = `${process.cwd()}/.wrangler/${name}-state`;
   // With client editing on, the Astro build writes the deployable config to dist/server/wrangler.json, with
   // paths relative to that folder; the local copy goes next to it.
@@ -22,6 +26,8 @@ export async function startLocalSite({ port = 8799, name = "local" } = {}) {
   wr.r2_buckets = (wr.r2_buckets || []).map((b) => ({ ...b, bucket_name: `${name}-${b.binding.toLowerCase()}` }));
   wr.kv_namespaces = (wr.kv_namespaces || []).map((k, i) => ({ ...k, id: `local${i}` }));
   if (wr.ratelimits?.[0]) wr.ratelimits[0].namespace_id = "9001";
+  const simple = wr.ratelimits?.[0]?.simple;
+  if (simple && submits > simple.limit) simple.limit = submits;
   wr.vars = { ...(wr.vars || {}), ACCESS_TEAM_DOMAIN: "example.cloudflareaccess.com", ACCESS_AUD: name };
   delete wr.previews;
   writeFileSync(configPath, JSON.stringify(wr, null, 2));

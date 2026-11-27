@@ -129,3 +129,16 @@ test("concept metadata decodes every XML entity, so a sheet never shows &apos;",
   assert.equal(meta.from, 'Owner\'s words — "monthly"');
   assert.equal(parseConcept(`<svg data-idea="&amp;apos; stays as typed"></svg>`).meta.idea, "&apos; stays as typed");
 });
+
+test("a numeric entity XML doesn't allow is listed as a problem, never a crash", () => {
+  // &#x110000; is past the last code point, so String.fromCodePoint threw and `logo.mjs check` stopped on it.
+  for (const e of ["&#x110000;", "&#1114112;", "&#0;", "&#xD800;", "&#xFFFE;"]) {
+    const c = parseConcept(GOOD.replace('data-idea="A doorway', `data-idea="${e} A doorway`));
+    assert.ok(c.meta.idea.startsWith(e), `${e} stays as typed`);
+    assert.deepEqual(lintConcept(c), [`${e} doesn't name a character XML allows: type the character itself, or fix its number`]);
+  }
+  const words = parseConcept(GOOD.replace("</symbol>", "<fb-text size=\"40\" fill=\"ink\">A&#x110000;</fb-text></symbol>"));
+  assert.ok(lintConcept(words).some((p) => p.startsWith("&#x110000;")), "inside <fb-text> too");
+  // Characters XML does allow still decode, at both ends of the range.
+  assert.equal(parseConcept(`<svg data-idea="&#x9;&#x10FFFF;&#xE000;"></svg>`).meta.idea, "\t\u{10FFFF}");
+});
