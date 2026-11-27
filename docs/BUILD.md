@@ -190,8 +190,8 @@ Clone `site-<id>` and work on a branch, `build/initial`.
      and the built home page (every heading in the starter's template; plain words and the owner's own sentences),
      then `node scripts/style-guide.mjs` (delete the template's "To be written" line in each section you write: the
      script stops on one left above your text, the QA gate fails it, and a critique round won't start on it). It
-     renders the guide with the site's real colours and contrast, type scale, components, hero layouts and page flow, the first screen of every page, and the social and print sizes with
-     their sources, into `design/style-guide/style-guide.pdf`. Send it to the owner. Every inner page, post, email and
+     renders the guide with the site's real colours and contrast, type scale, components, hero layouts and page flow,
+     the first screen of every page, and the social and print sizes with their sources, into `design/style-guide/style-guide.pdf`. Send it to the owner. Every inner page, post, email and
      print piece is made from it, and it is rendered again whenever DESIGN.md or STYLE-GUIDE.md changes (the QA gate
      fails a guide older than either).
   7. Carry the route through every page, not just the home page: the same title treatment, sections, image style

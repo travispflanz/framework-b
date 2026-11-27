@@ -14,7 +14,8 @@ const level = (line) => line.match(/^ {0,3}(#{1,6})(?:[ \t]|$)/)?.[1].length || 
 // on a line of the same character at least as long as the one that opened it, with nothing after it. A fence that
 // never closes runs to the end in CommonMark, but here its opening line is plain text and the lines after it are read
 // as usual: a stray ``` in "Approved claims" would otherwise carry the section to the end of the file and approve
-// everything after it, so the gate fails closed.
+// everything after it, so the gate fails closed. A stray fence before a real code block still pairs with that block's
+// opening fence, as it does on GitHub; no parser can tell which of the two was the stray one.
 const opens = (line) => { const f = line.match(FENCE); return f && !(f[1][0] === "`" && line.slice(f[0].length).includes("`")) ? f : null; };
 const closes = (line, fence) => { const f = line.match(FENCE); return !!f && f[1][0] === fence[0] && f[1].length >= fence.length && !line.slice(f[0].length).trim(); };
 export function headingLevels(lines) {
